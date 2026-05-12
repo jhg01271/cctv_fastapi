@@ -1,0 +1,33 @@
+###############################################
+# MediaMTX 설정 — 전진 AI 모니터링 시스템
+###############################################
+
+logLevel: info
+
+# REST API 활성화 (path 동적 등록/삭제)
+api: true
+apiAddress: :9997
+apiAllowOrigin: '*'
+
+# 인증 비활성화 (내부 네트워크 전용)
+authInternalUsers:
+  - user: any
+    pass: ""
+    permissions:
+      - action: api
+      - action: publish
+      - action: read
+      - action: playback
+
+# RTSP 서버 (AI rtsp_reader가 소비)
+rtspAddress: :8554
+
+# WebRTC 서버 (프론트엔드 실시간 영상 시청)
+webrtcAddress: :8889
+
+# HLS 비활성화
+hls: false
+
+# 기본 path 설정
+pathDefaults:
+  sourceOnDemand: yes
