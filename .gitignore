@@ -13,10 +13,14 @@ volume/ai_server/model/*.pt
 # DB 데이터
 volume/postgres/
 
-# 백엔드 임시 파일
+# 백엔드 파일 (JAR 용량 큼)
+volume/backend/*.jar
 volume/backend/tomcat*
 volume/backend/hsperfdata_*
 volume/backend/log/
+
+# 압축 파일
+*.tar.gz
 
 # IDE
 .idea/
