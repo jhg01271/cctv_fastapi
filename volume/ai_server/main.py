@@ -1,4 +1,4 @@
-﻿"""FastAPI 애플리케이션 생성과 공통 라우터 등록을 담당하는 진입 파일이다."""
+"""FastAPI 애플리케이션 생성과 공통 라우터 등록을 담당하는 진입 파일이다."""
 
 import asyncio
 from contextlib import asynccontextmanager
@@ -16,10 +16,20 @@ from core.database.session import initialize_database
 from core.exception.handlers import register_exception_handlers
 from core.logging.logger import get_logger, setup_logging
 from core.requests.http_client import http_client
-from service.camera.routes import router as camera_router
 from service.safety.routes import router as safety_router
 from service.progress.routes import router as progress_router
-import service.camera.model  # noqa: F401
+from service.server.routes import router as server_router
+from service.cctv.routes import router as cctv_router
+from service.roi.routes import router as roi_router
+from service.event.routes import router as event_router
+from service.profile.routes import profile_router, pro_detail_router
+from service.save.routes import router as save_router
+from service.remote.routes import router as remote_router
+import service.server.model  # noqa: F401
+import service.cctv.model  # noqa: F401
+import service.roi.model  # noqa: F401
+import service.event.model  # noqa: F401
+import service.profile.model  # noqa: F401
 
 
 setup_logging()
@@ -76,9 +86,16 @@ async def lifespan(app: FastAPI):
 
 def register_routes(app: FastAPI) -> None:
     """서비스 라우터를 애플리케이션에 등록한다."""
-    app.include_router(camera_router)
     app.include_router(safety_router)
     app.include_router(progress_router)
+    app.include_router(server_router)
+    app.include_router(cctv_router)
+    app.include_router(roi_router)
+    app.include_router(event_router)
+    app.include_router(profile_router)
+    app.include_router(pro_detail_router)
+    app.include_router(save_router)
+    app.include_router(remote_router)
 
 
 def create_app() -> FastAPI:
