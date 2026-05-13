@@ -94,7 +94,7 @@ main/
 |------|-----------|----------------|
 | `routes.py` | HTTP 파라미터 수신, service 호출, response() 반환 | DB 직접 조회, 비즈니스 로직 |
 | `service.py` | 비즈니스 로직, 예외 발생, log_event() | DB 직접 접근, HTTP 관련 코드 |
-| `repository.py` | raw SQL, DB 조회/저장 | 비즈니스 판단, 예외 발생 |
+| `repository.py` | SQLAlchemy ORM 방식 DB 조회/저장 (`select()`, `update()`, `db.add()` 등). `text()` 사용 금지 | 비즈니스 판단, 예외 발생 |
 | `persistence.py` | @transactional() 트랜잭션 경계, 여러 repository 조합 | SQL 직접 작성 |
 | `processor.py` | AI 추론, output 생성, mp.Queue 전달 | DB 접근, HTTP 응답 |
 | `worker.py` | mp.Queue 소비, persistence/repository 호출 | AI 추론, HTTP 응답 |
@@ -127,6 +127,34 @@ return response(data=result, msg_key="success.delete")
 **사용 가능한 msg_key:**
 - 성공: `success.default`, `success.read`, `success.create`, `success.update`, `success.delete`
 - 오류: `error.bad_request`, `error.unauthorized`, `error.forbidden`, `error.not_found`, `error.conflict`, `error.validation`, `error.internal_server`
+
+### SQLAlchemy 사용 규칙
+
+**반드시 ORM 방식으로 작성한다.** `text()`를 사용한 raw SQL은 금지한다.
+
+```python
+# ✅ 올바른 예 — ORM 방식
+from sqlalchemy import select, func
+from service.cctv.model import Camera
+
+stmt = select(Camera).where(Camera.comp_id == comp_id).order_by(Camera.camera_id)
+rows = db.scalars(stmt).all()
+
+# ✅ JOIN 예
+from service.roi.model import CameraRoi
+stmt = select(CameraRoi).join(Camera, CameraRoi.camera_id == Camera.camera_id).where(Camera.comp_id == comp_id)
+
+# ✅ INSERT 예
+camera = Camera(camera_id="cam_01", comp_id="JEONJIN", camera_nm="1번 카메라")
+db.add(camera)
+db.commit()
+
+# ❌ 금지 — text() raw SQL
+from sqlalchemy import text
+db.execute(text("SELECT * FROM tb_camera WHERE comp_id = :comp_id"), {"comp_id": comp_id})
+```
+
+각 서비스 폴더에 `model.py`로 테이블 모델을 정의하고, 다른 서비스에서 JOIN이 필요하면 해당 모델을 import해서 사용한다.
 
 ### 예외 처리
 

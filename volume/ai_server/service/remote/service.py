@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import text
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from core.ai.media_server import add_stream_path, remove_stream_path
@@ -10,6 +10,7 @@ from core.ai.process_manager import get_manager
 from core.exception.custom_exception import BadRequestException, ConflictException, NotFoundException
 from core.logging.helpers import log_event
 from core.logging.logger import get_logger
+from service.cctv.model import Camera
 from service.safety.repository import fetch_roi, fetch_detection_flags
 
 logger = get_logger(__name__)
@@ -21,10 +22,9 @@ logger = get_logger(__name__)
 
 def _fetch_camera_list(db: Session) -> list[dict]:
     """카메라 기본 정보 목록을 조회한다."""
-    rows = db.execute(
-        text("SELECT camera_id, rtsp_addr, camera_nm FROM tb_camera ORDER BY camera_id")
-    ).fetchall()
-    return [{"camera_id": r[0], "rtsp_addr": r[1], "camera_nm": r[2]} for r in rows]
+    stmt = select(Camera).order_by(Camera.camera_id)
+    rows = db.scalars(stmt).all()
+    return [{"camera_id": r.camera_id, "rtsp_addr": r.rtsp_addr, "camera_nm": r.camera_nm} for r in rows]
 
 
 def _register_camera(camera_id: str, rtsp_url: str, db: Session) -> dict:
@@ -90,15 +90,12 @@ def _remove_camera(camera_id: str) -> dict:
 
 def run_cctv(camera_id: str, db: Session) -> dict:
     """개별 카메라 AI 프로세스를 시작한다."""
-    row = db.execute(
-        text("SELECT camera_id, rtsp_addr FROM tb_camera WHERE camera_id = :camera_id"),
-        {"camera_id": camera_id},
-    ).fetchone()
+    camera = db.get(Camera, camera_id)
 
-    if not row or not row[1]:
+    if not camera or not camera.rtsp_addr:
         return {"camera_id": camera_id, "status": "error", "message": "카메라 또는 RTSP 주소를 찾을 수 없습니다."}
 
-    result = _register_camera(camera_id, row[1], db)
+    result = _register_camera(camera_id, camera.rtsp_addr, db)
     return {"camera_id": camera_id, "status": "started", **result}
 
 

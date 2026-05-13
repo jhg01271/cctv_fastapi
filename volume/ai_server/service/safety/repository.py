@@ -2,24 +2,23 @@
 
 from __future__ import annotations
 
-from sqlalchemy import text
+import json
+
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from core.utils.formatters.datetime import format_datetime
+from service.event.model import CameraEventHist
+from service.roi.model import CameraRoi
 
 
 def count_event_hist(db: Session, camera_id: str | None = None) -> int:
     """이벤트 이력 전체 건수를 반환한다."""
-    where = "WHERE camera_id = :camera_id" if camera_id else ""
-    params: dict = {}
+    stmt = select(func.count()).select_from(CameraEventHist)
     if camera_id:
-        params["camera_id"] = camera_id
-
-    row = db.execute(
-        text(f"SELECT COUNT(*) FROM tb_camera_event_hist {where}"),
-        params,
-    ).fetchone()
-    return int(row[0]) if row else 0
+        stmt = stmt.where(CameraEventHist.camera_id == camera_id)
+    row = db.execute(stmt).scalar()
+    return int(row) if row else 0
 
 
 def fetch_event_hist(
@@ -29,33 +28,21 @@ def fetch_event_hist(
     size: int = 20,
 ) -> list[dict]:
     """이벤트 이력을 최신순으로 페이지 단위로 조회한다."""
-    where = "WHERE camera_id = :camera_id" if camera_id else ""
-    params: dict = {"offset": offset, "size": size}
+    stmt = select(CameraEventHist)
     if camera_id:
-        params["camera_id"] = camera_id
+        stmt = stmt.where(CameraEventHist.camera_id == camera_id)
+    stmt = stmt.order_by(CameraEventHist.event_time.desc()).offset(offset).limit(size)
 
-    rows = db.execute(
-        text(
-            f"""
-            SELECT event_id, camera_id, event_type, event_desc,
-                   image_path, created_at, is_checked
-            FROM tb_camera_event_hist
-            {where}
-            ORDER BY created_at DESC
-            LIMIT :size OFFSET :offset
-            """
-        ),
-        params,
-    ).fetchall()
+    rows = db.scalars(stmt).all()
     return [
         {
-            "event_id":   r[0],
-            "camera_id":  r[1],
-            "event_type": r[2],
-            "event_desc": r[3],
-            "image_path": r[4],
-            "created_at": format_datetime(r[5]),
-            "is_checked": r[6],
+            "event_time":  format_datetime(r.event_time),
+            "camera_id":   r.camera_id,
+            "event_type":  r.event_type,
+            "event_desc":  r.event_desc,
+            "file_path":   r.file_path,
+            "isread":      r.isread,
+            "remark":      r.remark,
         }
         for r in rows
     ]
@@ -63,28 +50,22 @@ def fetch_event_hist(
 
 def fetch_roi(db: Session, camera_id: str) -> list:
     """카메라의 ROI 좌표 배열을 조회한다."""
-    import json
-    row = db.execute(
-        text("SELECT point FROM tb_camera_roi WHERE camera_id = :camera_id AND is_run = true LIMIT 1"),
-        {"camera_id": camera_id},
-    ).fetchone()
-    if row and row[0]:
-        return row[0] if isinstance(row[0], list) else json.loads(row[0])
+    stmt = (
+        select(CameraRoi.point)
+        .where(CameraRoi.camera_id == camera_id, CameraRoi.is_run == True)  # noqa: E712
+        .limit(1)
+    )
+    row = db.execute(stmt).scalar()
+    if row:
+        return row if isinstance(row, list) else json.loads(row)
     return []
 
 
 def fetch_detection_flags(db: Session, camera_id: str) -> tuple[bool, bool]:
     """detection_is_run, pose_is_run 플래그를 반환한다."""
-    row = db.execute(
-        text(
-            """
-            SELECT is_run FROM tb_camera_roi
-            WHERE camera_id = :camera_id
-            """
-        ),
-        {"camera_id": camera_id},
-    ).fetchall()
-    detection_is_run = any(r[0] for r in row) if row else True
+    stmt = select(CameraRoi.is_run).where(CameraRoi.camera_id == camera_id)
+    rows = db.scalars(stmt).all()
+    detection_is_run = any(rows) if rows else True
     pose_is_run = False
     return detection_is_run, pose_is_run
 
@@ -99,20 +80,14 @@ def save_event(
     """이벤트 이력을 tb_camera_event_hist에 저장한다."""
     from service.safety.events import EVENT_CODE
     code, desc = EVENT_CODE.get(event_key, ("E999", event_key))
-    db.execute(
-        text(
-            """
-            INSERT INTO tb_camera_event_hist
-                (camera_id, event_type, event_desc, image_path, created_at, is_checked, checked_by)
-            VALUES (:camera_id, :event_type, :event_desc, :image_path, :timestamp, false, null)
-            """
-        ),
-        {
-            "camera_id":  camera_id,
-            "event_type": code,
-            "event_desc": desc,
-            "image_path": image_path,
-            "timestamp":  timestamp,
-        },
+    event = CameraEventHist(
+        event_time=timestamp,
+        camera_id=camera_id,
+        event_type=code,
+        event_desc=desc,
+        file_path=image_path,
+        isread=False,
+        remark=None,
     )
+    db.add(event)
     db.commit()

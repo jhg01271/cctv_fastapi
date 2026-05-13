@@ -52,17 +52,14 @@ def save_roi(db: Session, data: dict) -> CameraRoi:
 
 def capture_cctv_image(db: Session, camera_id: str) -> str:
     """카메라 RTSP에서 한 프레임을 캡처해 이미지 파일 경로를 반환한다."""
-    from sqlalchemy import text
+    from service.cctv.model import Camera
 
-    row = db.execute(
-        text("SELECT rtsp_addr FROM tb_camera WHERE camera_id = :camera_id"),
-        {"camera_id": camera_id},
-    ).fetchone()
+    camera = db.get(Camera, camera_id)
 
-    if not row or not row[0]:
+    if not camera or not camera.rtsp_addr:
         raise NotFoundException(msg=f"카메라를 찾을 수 없습니다. camera_id={camera_id}")
 
-    rtsp_url = row[0]
+    rtsp_url = camera.rtsp_addr
     cap = cv2.VideoCapture(rtsp_url)
 
     if not cap.isOpened():

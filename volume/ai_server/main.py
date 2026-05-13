@@ -30,6 +30,7 @@ import service.cctv.model  # noqa: F401
 import service.roi.model  # noqa: F401
 import service.event.model  # noqa: F401
 import service.profile.model  # noqa: F401
+import service.progress.model  # noqa: F401
 
 
 setup_logging()

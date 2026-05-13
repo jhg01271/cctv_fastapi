@@ -2,26 +2,21 @@
 
 from __future__ import annotations
 
-import json
-
-from sqlalchemy import text
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from core.utils.formatters.datetime import format_datetime
+from service.cctv.model import Camera
+from service.progress.model import CameraGrid, TwinDetection, TwinImage
 
 
 def count_results(db: Session, camera_id: str | None = None) -> int:
     """공정률 결과 전체 건수를 반환한다."""
-    where = "WHERE camera_id = :camera_id" if camera_id else ""
-    params: dict = {}
+    stmt = select(func.count()).select_from(TwinImage)
     if camera_id:
-        params["camera_id"] = camera_id
-
-    row = db.execute(
-        text(f"SELECT COUNT(*) FROM tb_twin_image {where}"),
-        params,
-    ).fetchone()
-    return int(row[0]) if row else 0
+        stmt = stmt.where(TwinImage.camera_id == camera_id)
+    row = db.execute(stmt).scalar()
+    return int(row) if row else 0
 
 
 def fetch_latest_results(
@@ -31,30 +26,18 @@ def fetch_latest_results(
     size: int = 20,
 ) -> list[dict]:
     """공정률 결과 이미지 이력을 최신순으로 페이지 단위로 조회한다."""
-    where = "WHERE camera_id = :camera_id" if camera_id else ""
-    params: dict = {"offset": offset, "size": size}
+    stmt = select(TwinImage)
     if camera_id:
-        params["camera_id"] = camera_id
+        stmt = stmt.where(TwinImage.camera_id == camera_id)
+    stmt = stmt.order_by(TwinImage.created_at.desc()).offset(offset).limit(size)
 
-    rows = db.execute(
-        text(
-            f"""
-            SELECT result_id, camera_id, image_path, created_at
-            FROM tb_twin_image
-            {where}
-            ORDER BY created_at DESC
-            LIMIT :size OFFSET :offset
-            """
-        ),
-        params,
-    ).fetchall()
-
+    rows = db.scalars(stmt).all()
     return [
         {
-            "result_id":  r[0],
-            "camera_id":  r[1],
-            "image_path": r[2],
-            "created_at": format_datetime(r[3]),
+            "image_id":   r.image_id,
+            "camera_id":  r.camera_id,
+            "image_name": r.image_name,
+            "created_at": format_datetime(r.created_at),
         }
         for r in rows
     ]
@@ -62,17 +45,14 @@ def fetch_latest_results(
 
 def save_result_record(db: Session, camera_id: str, image_path: str, timestamp: str) -> int | None:
     """공정률 결과 이미지 경로를 tb_twin_image에 저장하고 생성된 PK를 반환한다."""
-    row = db.execute(
-        text(
-            """
-            INSERT INTO tb_twin_image (camera_id, image_path, created_at)
-            VALUES (:camera_id, :image_path, :timestamp)
-            RETURNING result_id
-            """
-        ),
-        {"camera_id": camera_id, "image_path": image_path, "timestamp": timestamp},
-    ).fetchone()
-    return row[0] if row else None
+    record = TwinImage(
+        camera_id=camera_id,
+        image_name=image_path,
+        created_at=timestamp,
+    )
+    db.add(record)
+    db.flush()
+    return record.image_id
 
 
 def save_detection_records(
@@ -82,65 +62,46 @@ def save_detection_records(
     detections: list[dict],
     timestamp: str,
 ) -> None:
-    """격자별 감지 결과를 tb_twin_detection에 저장한다.
-
-    detections: [{"row": int, "col": int, "class": str, "conf": float}, ...]
-    """
+    """격자별 감지 결과를 tb_twin_detection에 저장한다."""
     if not detections:
         return
 
-    db.execute(
-        text(
-            """
-            INSERT INTO tb_twin_detection
-                (result_id, camera_id, row, col, class, conf, created_at)
-            VALUES (:result_id, :camera_id, :row, :col, :class, :conf, :timestamp)
-            """
-        ),
-        [
-            {
-                "result_id": result_id,
-                "camera_id": camera_id,
-                "row":       d["row"],
-                "col":       d["col"],
-                "class":     d["class"],
-                "conf":      d["conf"],
-                "timestamp": timestamp,
-            }
-            for d in detections
-        ],
-    )
+    for idx, d in enumerate(detections, start=1):
+        det = TwinDetection(
+            image_id=result_id,
+            detection_id=idx,
+            object_label=d.get("class"),
+            grid_width=d.get("grid_width"),
+            grid_height=d.get("grid_height"),
+            detected_row=d.get("row"),
+            detected_col=d.get("col"),
+            created_at=timestamp,
+            order_no=d.get("order_no"),
+        )
+        db.add(det)
 
 
 def fetch_grid_coordinates(db: Session, camera_id: str) -> list | None:
     """tb_camera_grid에서 격자 좌표를 조회한다."""
-    row = db.execute(
-        text("SELECT grid_data FROM tb_camera_grid WHERE camera_id = :camera_id LIMIT 1"),
-        {"camera_id": camera_id},
-    ).fetchone()
-    if row and row[0]:
-        return row[0] if isinstance(row[0], list) else json.loads(row[0])
+    grid = db.get(CameraGrid, camera_id)
+    if grid and grid.grid_data:
+        return grid.grid_data if isinstance(grid.grid_data, list) else None
     return None
 
 
 def fetch_progress_cameras(db: Session) -> list[dict]:
     """공정률 처리 대상 카메라 목록을 조회한다."""
-    rows = db.execute(
-        text(
-            """
-            SELECT camera_id, rtsp_url, sort_direction
-            FROM tb_camera
-            WHERE jit_only = true
-            ORDER BY camera_id
-            """
-        )
-    ).fetchall()
-
+    stmt = (
+        select(Camera)
+        .where(Camera.jit_only == True)  # noqa: E712
+        .order_by(Camera.camera_id)
+    )
+    rows = db.scalars(stmt).all()
     return [
         {
-            "camera_id":     r[0],
-            "rtsp_url":      r[1],
-            "sort_direction": r[2] or "right",
+            "camera_id":      r.camera_id,
+            "rtsp_url":       r.rtsp_addr,
+            "sort_direction": "right",
         }
         for r in rows
     ]
