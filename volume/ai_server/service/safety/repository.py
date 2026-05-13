@@ -61,6 +61,34 @@ def fetch_event_hist(
     ]
 
 
+def fetch_roi(db: Session, camera_id: str) -> list:
+    """카메라의 ROI 좌표 배열을 조회한다."""
+    import json
+    row = db.execute(
+        text("SELECT point FROM tb_camera_roi WHERE camera_id = :camera_id AND is_run = true LIMIT 1"),
+        {"camera_id": camera_id},
+    ).fetchone()
+    if row and row[0]:
+        return row[0] if isinstance(row[0], list) else json.loads(row[0])
+    return []
+
+
+def fetch_detection_flags(db: Session, camera_id: str) -> tuple[bool, bool]:
+    """detection_is_run, pose_is_run 플래그를 반환한다."""
+    row = db.execute(
+        text(
+            """
+            SELECT is_run FROM tb_camera_roi
+            WHERE camera_id = :camera_id
+            """
+        ),
+        {"camera_id": camera_id},
+    ).fetchall()
+    detection_is_run = any(r[0] for r in row) if row else True
+    pose_is_run = False
+    return detection_is_run, pose_is_run
+
+
 def save_event(
     db: Session,
     camera_id: str,
