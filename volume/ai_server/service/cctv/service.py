@@ -87,9 +87,9 @@ def _save_camera_item(db: Session, data: dict[str, Any]) -> Camera:
         return upsert_camera(db, existing)
 
     camera = Camera(
-        camera_id=data["camera_id"],
-        comp_id=data["comp_id"],
-        camera_nm=data["camera_nm"],
+        camera_id=data.get("camera_id", ""),
+        comp_id=data.get("comp_id", ""),
+        camera_nm=data.get("camera_nm", ""),
         camera_desc=data.get("camera_desc"),
         ai_server_id=data.get("ai_server_id"),
         rtsp_addr=data.get("rtsp_addr"),
