@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from config.config import settings
 from core.exception.handlers import register_exception_handlers
 from core.logging.logger import setup_logging
-from service.stream_gateway.routes import router
+from stream_gateway.routes import router
 
 
 setup_logging()

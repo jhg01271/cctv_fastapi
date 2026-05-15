@@ -26,6 +26,5 @@ def stop_stream(camera_id: str) -> dict:
     """Stop publishing a camera stream to MediaMTX."""
     ok = remove_stream_path(camera_id)
     if not ok:
-        logger.warning("[StreamGateway] Stream stop failed. camera=%s", camera_id)
-        raise BadRequestException(msg=f"stream stop failed: {camera_id}")
+        logger.info("[StreamGateway] Stream was already stopped or missing. camera=%s", camera_id)
     return {"camera_id": camera_id, "status": "stopped"}

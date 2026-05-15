@@ -131,11 +131,11 @@ services:
   stream_gateway:
     container_name: stream_gateway
     build:
-      context: ./volume/ai_server
-      dockerfile: Dockerfile
+      context: ./volume
+      dockerfile: stream_gateway/Dockerfile
     command:
       - uvicorn
-      - service.stream_gateway.app:app
+      - stream_gateway.app:app
       - --host
       - 0.0.0.0
       - --port

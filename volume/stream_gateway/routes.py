@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from service.stream_gateway import service
+from stream_gateway import service
 
 router = APIRouter(tags=["stream_gateway"])
 
