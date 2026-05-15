@@ -5,6 +5,7 @@ from __future__ import annotations
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from config.config import settings
 from core.utils.formatters.datetime import format_datetime
 from service.cctv.model import Camera
 from service.progress.model import CameraGrid, TwinDetection, TwinImage
@@ -100,7 +101,7 @@ def fetch_progress_cameras(db: Session) -> list[dict]:
     return [
         {
             "camera_id":      r.camera_id,
-            "rtsp_url":       r.rtsp_addr,
+            "rtsp_url":       f"{settings.MEDIA_SERVER_RTSP_URL}/{r.camera_id}",
             "sort_direction": "right",
         }
         for r in rows
