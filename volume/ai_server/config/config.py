@@ -50,9 +50,11 @@ class Settings(BaseSettings):
     DB_MAX_OVERFLOW: int = Field(default=10)
     LOG_LEVEL: str = Field(default="INFO")
     HTTP_TIMEOUT: float = Field(default=10.0)
+    STREAM_GATEWAY_URL: str = Field(default="")
 
     # MediaMTX (미디어 서버)
     MEDIA_SERVER_HOST: str = Field(default="127.0.0.1")
+    MEDIA_SERVER_EXTERNAL_HOST: str = Field(default="localhost")
     MEDIA_SERVER_RTSP_PORT: int = Field(default=8554)
     MEDIA_SERVER_WEBRTC_PORT: int = Field(default=8889)
     MEDIA_SERVER_API_PORT: int = Field(default=9997)

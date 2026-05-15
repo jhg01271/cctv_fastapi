@@ -25,6 +25,13 @@ def _api_url(path: str) -> str:
     return f"{settings.MEDIA_SERVER_API_URL}/v3/config/paths/{path}"
 
 
+def _is_ffmpeg_running(camera_id: str) -> bool:
+    """해당 카메라의 FFmpeg 프로세스가 현재 살아있는지 확인한다."""
+    with _ffmpeg_lock:
+        proc = _ffmpeg_procs.get(camera_id)
+    return bool(proc and proc.poll() is None)
+
+
 def _register_path(camera_id: str) -> bool:
     """MediaMTX에 빈 path를 등록한다 (소스 없이, publisher 대기 모드)."""
     url = _api_url(f"add/{camera_id}")
@@ -34,6 +41,13 @@ def _register_path(camera_id: str) -> bool:
         resp = httpx.post(url, json=payload, timeout=_TIMEOUT)
         if resp.status_code in (200, 201):
             return True
+        if resp.status_code == 400 and "path already exists" in resp.text:
+            logger.info("[MediaServer] Existing path found. Recreating path. camera=%s", camera_id)
+            remove_stream_path(camera_id)
+            retry_resp = httpx.post(url, json=payload, timeout=_TIMEOUT)
+            if retry_resp.status_code in (200, 201):
+                return True
+            resp = retry_resp
         logger.warning(
             "[MediaServer] Failed to add path. camera=%s status=%d body=%s",
             camera_id, resp.status_code, resp.text,
@@ -130,6 +144,10 @@ def add_stream_path(camera_id: str, rtsp_url: str) -> bool:
     1. MediaMTX에 빈 path 등록 (publisher 대기)
     2. FFmpeg로 RTSP → H264 변환 후 MediaMTX에 push
     """
+    if _is_ffmpeg_running(camera_id):
+        logger.info("[MediaServer] FFmpeg already running. camera=%s", camera_id)
+        return True
+
     if not _register_path(camera_id):
         return False
 
@@ -174,9 +192,9 @@ def remove_stream_path(camera_id: str) -> bool:
 
 
 def get_stream_urls(camera_id: str) -> dict:
-    """프론트엔드에서 사용할 스트림 URL들을 반환한다."""
-    host = settings.MEDIA_SERVER_HOST
+    """프론트엔드(브라우저)에서 사용할 스트림 URL들을 반환한다."""
+    ext_host = settings.MEDIA_SERVER_EXTERNAL_HOST
     return {
-        "webrtc": f"http://{host}:{settings.MEDIA_SERVER_WEBRTC_PORT}/{camera_id}",
-        "rtsp": f"rtsp://{host}:{settings.MEDIA_SERVER_RTSP_PORT}/{camera_id}",
+        "webrtc": f"http://{ext_host}:{settings.MEDIA_SERVER_WEBRTC_PORT}/{camera_id}",
+        "rtsp": f"rtsp://{ext_host}:{settings.MEDIA_SERVER_RTSP_PORT}/{camera_id}",
     }
