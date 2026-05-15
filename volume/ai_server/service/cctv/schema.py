@@ -4,18 +4,20 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class CameraRead(BaseModel):
     """카메라 조회 응답 스키마."""
 
-    camera_id: str
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+    camera_id: str = Field(serialization_alias="cctv_id")
     comp_id: str
-    camera_nm: str
+    camera_nm: str = Field(serialization_alias="cctv_name")
     camera_desc: str | None = None
-    ai_server_id: str | None = None
-    rtsp_addr: str | None = None
+    ai_server_id: str | None = Field(default=None, serialization_alias="server_id")
+    rtsp_addr: str | None = Field(default=None, serialization_alias="rtsp_add")
     out_path: str | None = None
     pid: str | None = None
     remark: str | None = None
@@ -26,9 +28,6 @@ class CameraRead(BaseModel):
     jit_only: bool = False
     port_number: int | None = None
     location: str | None = None
-
-    class Config:
-        from_attributes = True
 
 
 class CameraDelete(BaseModel):

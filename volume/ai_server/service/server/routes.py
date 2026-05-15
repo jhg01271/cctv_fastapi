@@ -28,6 +28,20 @@ def get_servers(
     return response(data=result, msg_key="success.read")
 
 
+@router.get(
+    "/server/{ai_server_id}",
+    summary="단일 AI 서버 조회",
+    response_model=ResultResponse[AiServerRead],
+)
+def get_server(
+    ai_server_id: str,
+    db: Session = Depends(get_db),
+) -> ResultResponse[AiServerRead]:
+    """단일 AI 서버 정보를 조회한다."""
+    result = service.get_server(db, ai_server_id)
+    return response(data=result, msg_key="success.read")
+
+
 @router.post(
     "/server",
     summary="AI 서버 등록/수정",

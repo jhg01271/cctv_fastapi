@@ -15,6 +15,15 @@ def list_cameras_by_comp(db: Session, comp_id: str) -> list[Camera]:
     return fetch_cameras_by_comp(db, comp_id)
 
 
+def get_camera(db: Session, camera_id: str) -> Camera:
+    """단일 카메라 정보를 조회한다."""
+    from core.exception.custom_exception import NotFoundException
+    camera = db.get(Camera, camera_id)
+    if not camera:
+        raise NotFoundException(msg=f"카메라를 찾을 수 없습니다. id={camera_id}")
+    return camera
+
+
 def list_cameras_by_server(db: Session, ai_server_id: str) -> list[Camera]:
     """AI 서버별 카메라 목록을 조회한다."""
     return fetch_cameras_by_server(db, ai_server_id)

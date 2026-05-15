@@ -15,6 +15,15 @@ def list_servers(db: Session, comp_id: str) -> list[AiServer]:
     return fetch_servers_by_comp(db, comp_id)
 
 
+def get_server(db: Session, ai_server_id: str) -> AiServer:
+    """단일 AI 서버 정보를 조회한다."""
+    from core.exception.custom_exception import NotFoundException
+    server = db.get(AiServer, ai_server_id)
+    if not server:
+        raise NotFoundException(msg=f"AI 서버를 찾을 수 없습니다. id={ai_server_id}")
+    return server
+
+
 def save_server(db: Session, data: dict) -> AiServer:
     """AI 서버를 등록하거나 수정한다."""
     now = datetime.now()
