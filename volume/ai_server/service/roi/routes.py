@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from core.database.session import get_db
@@ -32,25 +31,26 @@ def get_rois(
 @router.get(
     "/get_cctv_img/{camera_id}",
     summary="CCTV 캡처 이미지 조회",
+    response_model=ResultResponse[dict],
 )
 def get_cctv_image(
     camera_id: str,
     db: Session = Depends(get_db),
-) -> FileResponse:
-    """카메라 RTSP에서 한 프레임을 캡처해 이미지로 반환한다."""
-    file_path = service.capture_cctv_image(db, camera_id)
-    return FileResponse(path=file_path, media_type="image/jpeg")
+) -> ResultResponse[dict]:
+    """카메라 RTSP에서 한 프레임을 캡처해 base64 이미지와 크기 정보를 반환한다."""
+    result = service.capture_cctv_image(db, camera_id)
+    return response(data=result, msg_key="success.read")
 
 
 @router.post(
     "/roi",
     summary="ROI 저장",
-    response_model=ResultResponse[RoiRead],
+    response_model=ResultResponse[list[dict]],
 )
 async def save_roi(
     request: Request,
     db: Session = Depends(get_db),
-) -> ResultResponse[RoiRead]:
+) -> ResultResponse[list[dict]]:
     """ROI를 등록하거나 수정한다."""
     body = await request.json()
     result = service.save_roi(db, body)

@@ -12,16 +12,17 @@ from service.roi.model import CameraRoi
 def fetch_rois_by_comp(db: Session, comp_id: str) -> list[dict]:
     """회사 식별자 기준으로 ROI 목록을 조회한다 (카메라 이름 포함)."""
     stmt = (
-        select(CameraRoi, Camera.camera_nm)
+        select(CameraRoi, Camera.camera_nm, Camera.camera_desc)
         .join(Camera, CameraRoi.camera_id == Camera.camera_id)
         .where(Camera.comp_id == comp_id)
         .order_by(CameraRoi.camera_id, CameraRoi.model_nm)
     )
     results = []
-    for roi, camera_nm in db.execute(stmt).all():
+    for roi, camera_nm, camera_desc in db.execute(stmt).all():
         roi_dict = {
             "camera_id": roi.camera_id,
             "camera_nm": camera_nm,
+            "camera_desc": camera_desc,
             "model_nm": roi.model_nm,
             "point": roi.point,
             "is_run": roi.is_run,

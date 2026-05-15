@@ -27,6 +27,8 @@ def list_rois(db: Session, comp_id: str) -> list[dict]:
             grouped[cid] = {
                 "cctv_id": cid,
                 "cctv_name": row.get("camera_nm", ""),
+                "camera_nm": row.get("camera_nm", ""),
+                "camera_desc": row.get("camera_desc", ""),
                 "model_list": [],
             }
         grouped[cid]["model_list"].append({
@@ -38,37 +40,50 @@ def list_rois(db: Session, comp_id: str) -> list[dict]:
     return list(grouped.values())
 
 
-def save_roi(db: Session, data: dict) -> CameraRoi:
-    """ROI를 등록하거나 수정한다."""
+def save_roi(db: Session, data: dict) -> list[dict]:
+    """ROI를 등록하거나 수정한다. model_list 배열 형태를 지원한다."""
     now = datetime.now()
-    camera_id = data.get("camera_id")
-    model_nm = data.get("model_nm")
+    camera_id = data.get("cctv_id") or data.get("camera_id")
+    model_list = data.get("model_list", [])
 
-    if not camera_id or not model_nm:
-        raise BadRequestException(msg="camera_id와 model_nm은 필수입니다.")
+    if not camera_id:
+        raise BadRequestException(msg="cctv_id는 필수입니다.")
 
-    existing = db.get(CameraRoi, (camera_id, model_nm))
+    if not model_list:
+        raise BadRequestException(msg="model_list는 필수입니다.")
 
-    if existing:
-        existing.point = data.get("point", existing.point)
-        existing.is_run = data.get("is_run", existing.is_run)
-        existing.updated_at = now
-        existing.updated_by = data.get("updated_by")
-        return upsert_roi(db, existing)
+    results = []
+    for model in model_list:
+        model_nm = model.get("model_nm")
+        user_cd = model.get("userCd", "system")
 
-    roi = CameraRoi(
-        camera_id=camera_id,
-        model_nm=model_nm,
-        point=data.get("point", "{}"),
-        is_run=data.get("is_run", False),
-        created_at=now,
-        created_by=data.get("created_by", "system"),
-    )
-    return upsert_roi(db, roi)
+        existing = db.get(CameraRoi, (camera_id, model_nm))
+        if existing:
+            existing.point = model.get("point_arr", existing.point)
+            existing.is_run = model.get("is_run", existing.is_run)
+            existing.updated_at = now
+            existing.updated_by = user_cd
+            upsert_roi(db, existing)
+        else:
+            roi = CameraRoi(
+                camera_id=camera_id,
+                model_nm=model_nm,
+                point=model.get("point_arr", "{}"),
+                is_run=model.get("is_run", False),
+                created_at=now,
+                created_by=user_cd,
+            )
+            upsert_roi(db, roi)
+
+        results.append({"cctv_id": camera_id, "model_nm": model_nm})
+
+    return results
 
 
-def capture_cctv_image(db: Session, camera_id: str) -> str:
-    """카메라 RTSP에서 한 프레임을 캡처해 이미지 파일 경로를 반환한다."""
+def capture_cctv_image(db: Session, camera_id: str) -> dict:
+    """카메라 RTSP에서 한 프레임을 캡처해 base64 인코딩 이미지와 크기 정보를 반환한다."""
+    import base64
+    import math
     from service.cctv.model import Camera
 
     camera = db.get(Camera, camera_id)
@@ -88,10 +103,18 @@ def capture_cctv_image(db: Session, camera_id: str) -> str:
     if not ret:
         raise BadRequestException(msg=f"프레임 캡처에 실패했습니다. camera_id={camera_id}")
 
-    save_dir = Path("./capture_images")
-    save_dir.mkdir(parents=True, exist_ok=True)
-    file_path = save_dir / f"{camera_id}.jpg"
-    cv2.imwrite(str(file_path), frame)
-    logger.info("CCTV image captured: camera_id=%s path=%s", camera_id, file_path)
+    height, width = frame.shape[:2]
 
-    return str(file_path)
+    _, buffer = cv2.imencode(".jpg", frame)
+    img_base64 = base64.b64encode(buffer).decode("utf-8")
+
+    gcd = math.gcd(width, height)
+    ratio = f"{width // gcd}:{height // gcd}"
+
+    logger.info("CCTV image captured: camera_id=%s size=%dx%d", camera_id, width, height)
+
+    return {
+        "img_decode_data": img_base64,
+        "img_size": {"width": width, "height": height},
+        "ratio": ratio,
+    }
