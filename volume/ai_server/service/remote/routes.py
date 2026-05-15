@@ -54,3 +54,25 @@ def stop_cctv(camera_id: str) -> ResultResponse[dict]:
     """개별 카메라 AI 프로세스를 중지한다."""
     result = service.stop_cctv(camera_id)
     return response(data=result, msg_key="success.read")
+
+
+@router.get(
+    "/cctv_pid_chk",
+    summary="AI 프로세스 PID 상태 확인",
+    response_model=ResultResponse[dict],
+)
+def cctv_pid_chk() -> ResultResponse[dict]:
+    """현재 실행 중인 AI 프로세스 목록을 반환한다."""
+    result = service.check_pid()
+    return response(data=result, msg_key="success.read")
+
+
+@router.get(
+    "/get_cctv_play_url/{camera_id}",
+    summary="카메라 WebRTC 재생 URL 조회",
+    response_model=ResultResponse[dict],
+)
+def get_cctv_play_url(camera_id: str) -> ResultResponse[dict]:
+    """카메라의 WebRTC 재생 URL을 반환한다."""
+    result = service.get_play_url(camera_id)
+    return response(data=result, msg_key="success.read")

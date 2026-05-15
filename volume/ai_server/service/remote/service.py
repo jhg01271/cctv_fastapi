@@ -127,10 +127,24 @@ def run_all(db: Session) -> dict:
     return {"started": started, "failed": failed, "total": len(cameras)}
 
 
+def check_pid() -> dict:
+    """현재 실행 중인 AI 프로세스 상태를 반환한다."""
+    manager = get_manager()
+    cameras = manager.list_cameras() if manager else []
+    return {"cameras": cameras, "total": len(cameras)}
+
+
+def get_play_url(camera_id: str) -> dict:
+    """카메라의 WebRTC 재생 URL을 반환한다."""
+    from config.config import settings
+    url = f"http://{settings.MEDIA_SERVER_HOST}:{settings.MEDIA_SERVER_WEBRTC_PORT}/{camera_id}"
+    return {"camera_id": camera_id, "play_url": url}
+
+
 def stop_all() -> dict:
     """전체 카메라 AI 프로세스를 중지한다."""
     manager = get_manager()
-    camera_ids = list(manager.workers.keys()) if manager else []
+    camera_ids = [c["camera_id"] for c in manager.list_cameras()] if manager else []
     stopped = []
 
     for camera_id in camera_ids:
