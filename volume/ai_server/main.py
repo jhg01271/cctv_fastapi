@@ -1,6 +1,7 @@
 """FastAPI 애플리케이션 생성과 공통 라우터 등록을 담당하는 진입 파일이다."""
 
 import asyncio
+import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -25,6 +26,7 @@ from service.event.routes import router as event_router
 from service.profile.routes import profile_router, pro_detail_router
 from service.save.routes import router as save_router
 from service.remote.routes import router as remote_router
+from service.remote.service import restore_running_cameras_background
 import service.server.model  # noqa: F401
 import service.cctv.model  # noqa: F401
 import service.roi.model  # noqa: F401
@@ -61,6 +63,13 @@ async def lifespan(app: FastAPI):
     manager = init_manager(ai_target=safety_process)
     manager.start()
     logger.info("Camera process manager started.")
+
+    threading.Thread(
+        target=restore_running_cameras_background,
+        name="restore-running-cameras",
+        daemon=True,
+    ).start()
+    logger.info("Camera restore task started.")
 
     # 공정률 워커 시작 (스냅샷 추론 + result_queue → SQLAlchemy 저장)
     progress_worker: ProgressWorker | None = None

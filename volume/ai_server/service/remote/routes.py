@@ -34,9 +34,9 @@ def run_all(background_tasks: BackgroundTasks, db: Session = Depends(get_db)) ->
     summary="전체 카메라 AI 중지",
     response_model=ResultResponse[dict],
 )
-def stop_all() -> ResultResponse[dict]:
+def stop_all(db: Session = Depends(get_db)) -> ResultResponse[dict]:
     """전체 카메라 AI 프로세스를 중지한다."""
-    result = service.stop_all()
+    result = service.stop_all(db)
     return response(data=result, msg_key="success.read")
 
 
@@ -56,9 +56,9 @@ def run_cctv(camera_id: str, db: Session = Depends(get_db)) -> ResultResponse[di
     summary="개별 카메라 AI 중지",
     response_model=ResultResponse[dict],
 )
-def stop_cctv(camera_id: str) -> ResultResponse[dict]:
+def stop_cctv(camera_id: str, db: Session = Depends(get_db)) -> ResultResponse[dict]:
     """개별 카메라 AI 프로세스를 중지한다."""
-    result = service.stop_cctv(camera_id)
+    result = service.stop_cctv(camera_id, db)
     return response(data=result, msg_key="success.read")
 
 

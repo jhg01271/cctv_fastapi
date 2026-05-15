@@ -5,17 +5,16 @@ from __future__ import annotations
 import threading
 
 import httpx
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from config.config import settings
 from core.database.session import SessionLocal
-from core.ai.media_server import add_stream_path, remove_stream_path
 from core.ai.process_manager import get_manager
-from core.exception.custom_exception import BadRequestException, ConflictException, NotFoundException
+from core.exception.custom_exception import BadRequestException
 from core.logging.helpers import log_event
 from core.logging.logger import get_logger
 from service.cctv.model import Camera
+from service.cctv.repository import fetch_all_cameras, fetch_running_cameras, update_camera_run_state
 from service.safety.repository import fetch_roi, fetch_detection_flags
 
 logger = get_logger(__name__)
@@ -31,8 +30,7 @@ _run_all_running = False
 
 def _fetch_camera_list(db: Session) -> list[dict]:
     """카메라 기본 정보 목록을 조회한다."""
-    stmt = select(Camera).order_by(Camera.camera_id)
-    rows = db.scalars(stmt).all()
+    rows = fetch_all_cameras(db)
     return [{"camera_id": r.camera_id, "rtsp_addr": r.rtsp_addr, "camera_nm": r.camera_nm} for r in rows]
 
 
@@ -42,18 +40,16 @@ def count_cameras(db: Session) -> int:
 
 
 def _stream_gateway_base_url() -> str | None:
-    """설정된 stream gateway URL을 반환한다. 없으면 로컬 FFmpeg 모드로 동작한다."""
+    """설정된 stream gateway URL을 반환한다."""
     url = settings.STREAM_GATEWAY_URL.strip().rstrip("/")
     return url or None
 
 
 def _start_stream(camera_id: str, rtsp_url: str) -> None:
-    """stream gateway 또는 로컬 FFmpeg로 MediaMTX publish를 시작한다."""
+    """stream gateway로 MediaMTX publish를 시작한다."""
     gateway_url = _stream_gateway_base_url()
     if gateway_url is None:
-        if not add_stream_path(camera_id, rtsp_url):
-            raise BadRequestException(msg=f"MediaMTX 스트림 등록 실패. camera_id={camera_id}")
-        return
+        raise BadRequestException(msg="STREAM_GATEWAY_URL 설정이 필요합니다.")
 
     try:
         resp = httpx.post(
@@ -79,11 +75,10 @@ def _start_stream(camera_id: str, rtsp_url: str) -> None:
 
 
 def _stop_stream(camera_id: str) -> None:
-    """stream gateway 또는 로컬 FFmpeg로 MediaMTX publish를 중지한다."""
+    """stream gateway로 MediaMTX publish를 중지한다."""
     gateway_url = _stream_gateway_base_url()
     if gateway_url is None:
-        remove_stream_path(camera_id)
-        return
+        raise BadRequestException(msg="STREAM_GATEWAY_URL 설정이 필요합니다.")
 
     try:
         resp = httpx.delete(
@@ -113,7 +108,8 @@ def _register_camera(camera_id: str, rtsp_url: str, db: Session) -> dict:
 
     existing = [c for c in manager.list_cameras() if c["camera_id"] == camera_id]
     if existing:
-        raise ConflictException(msg=f"이미 등록된 카메라입니다. camera_id={camera_id}")
+        _start_stream(camera_id, rtsp_url)
+        return {"camera_id": camera_id, "status": "already_started"}
 
     _start_stream(camera_id, rtsp_url)
 
@@ -146,7 +142,8 @@ def _remove_camera(camera_id: str) -> dict:
 
     existing = [c for c in manager.list_cameras() if c["camera_id"] == camera_id]
     if not existing:
-        raise NotFoundException(msg=f"등록되지 않은 카메라입니다. camera_id={camera_id}")
+        _stop_stream(camera_id)
+        return {"camera_id": camera_id, "status": "stopped"}
 
     manager.remove_camera(camera_id)
     _stop_stream(camera_id)
@@ -171,13 +168,20 @@ def run_cctv(camera_id: str, db: Session) -> dict:
     if not camera or not camera.rtsp_addr:
         return {"camera_id": camera_id, "status": "error", "message": "카메라 또는 RTSP 주소를 찾을 수 없습니다."}
 
-    result = _register_camera(camera_id, camera.rtsp_addr, db)
-    return {"camera_id": camera_id, "status": "started", **result}
+    try:
+        result = _register_camera(camera_id, camera.rtsp_addr, db)
+        update_camera_run_state(db, camera_id, True)
+        return {"camera_id": camera_id, "status": "started", **result}
+    except Exception:
+        update_camera_run_state(db, camera_id, False)
+        raise
 
 
-def stop_cctv(camera_id: str) -> dict:
+def stop_cctv(camera_id: str, db: Session | None = None) -> dict:
     """개별 카메라 AI 프로세스를 중지한다."""
     result = _remove_camera(camera_id)
+    if db is not None:
+        update_camera_run_state(db, camera_id, False)
     return {"camera_id": camera_id, "status": "stopped", **result}
 
 
@@ -195,14 +199,20 @@ def run_all(db: Session) -> dict:
             failed.append({"camera_id": camera_id, "reason": "RTSP 주소 없음"})
             continue
         try:
+            camera = db.get(Camera, camera_id)
+            if camera and camera.jit_only:
+                skipped.append({"camera_id": camera_id, "reason": "JIT only camera"})
+                continue
             detection_is_run, pose_is_run = fetch_detection_flags(db, camera_id)
             if not detection_is_run and not pose_is_run:
                 skipped.append({"camera_id": camera_id, "reason": "AI detection/pose disabled"})
                 continue
             _register_camera(camera_id, rtsp_url, db)
+            update_camera_run_state(db, camera_id, True)
             started.append(camera_id)
         except Exception as e:
             logger.error("Failed to start camera %s: %s", camera_id, e)
+            update_camera_run_state(db, camera_id, False)
             failed.append({"camera_id": camera_id, "reason": str(e)})
 
     return {"started": started, "skipped": skipped, "failed": failed, "total": len(cameras)}
@@ -256,7 +266,7 @@ def get_play_url(camera_id: str) -> dict:
     return {"camera_id": camera_id, "play_url": url}
 
 
-def stop_all() -> dict:
+def stop_all(db: Session | None = None) -> dict:
     """전체 카메라 AI 프로세스를 중지한다."""
     manager = get_manager()
     camera_ids = [c["camera_id"] for c in manager.list_cameras()] if manager else []
@@ -269,4 +279,62 @@ def stop_all() -> dict:
         except Exception as e:
             logger.error("Failed to stop camera %s: %s", camera_id, e)
 
+    if db is not None:
+        for camera in fetch_running_cameras(db):
+            update_camera_run_state(db, camera.camera_id, False)
+
     return {"stopped": stopped, "total": len(stopped)}
+
+
+def restore_running_cameras() -> dict:
+    """DB 기준 실행 상태인 카메라를 서버 시작 시 복구한다."""
+    db = SessionLocal()
+    restored = []
+    skipped = []
+    failed = []
+    try:
+        cameras = fetch_running_cameras(db)
+        for camera in cameras:
+            try:
+                if not camera.rtsp_addr:
+                    update_camera_run_state(db, camera.camera_id, False)
+                    failed.append({"camera_id": camera.camera_id, "reason": "RTSP 주소 없음"})
+                    continue
+                if camera.jit_only:
+                    update_camera_run_state(db, camera.camera_id, False)
+                    skipped.append({"camera_id": camera.camera_id, "reason": "JIT only camera"})
+                    continue
+                detection_is_run, pose_is_run = fetch_detection_flags(db, camera.camera_id)
+                if not detection_is_run and not pose_is_run:
+                    update_camera_run_state(db, camera.camera_id, False)
+                    skipped.append({"camera_id": camera.camera_id, "reason": "AI detection/pose disabled"})
+                    continue
+                _register_camera(camera.camera_id, camera.rtsp_addr, db)
+                update_camera_run_state(db, camera.camera_id, True)
+                restored.append(camera.camera_id)
+            except Exception as exc:
+                logger.error("Failed to restore camera %s: %s", camera.camera_id, exc)
+                update_camera_run_state(db, camera.camera_id, False)
+                failed.append({"camera_id": camera.camera_id, "reason": str(exc)})
+
+        log_event(
+            logger=logger,
+            level="INFO",
+            event_type="camera.restore",
+            message="DB running cameras restored",
+            restored=len(restored),
+            skipped=len(skipped),
+            failed=len(failed),
+            total=len(cameras),
+        )
+        return {"restored": restored, "skipped": skipped, "failed": failed, "total": len(cameras)}
+    finally:
+        db.close()
+
+
+def restore_running_cameras_background() -> None:
+    """서버 시작 시 실행 상태 카메라 복구를 백그라운드에서 수행한다."""
+    try:
+        restore_running_cameras()
+    except Exception:
+        logger.exception("Background camera restore failed")

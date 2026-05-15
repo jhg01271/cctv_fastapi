@@ -59,12 +59,12 @@ def get_server_by_camera(
 @router.post(
     "/cctv",
     summary="카메라 등록/수정",
-    response_model=ResultResponse[CameraRead],
+    response_model=ResultResponse[list[CameraRead]],
 )
 async def save_camera(
     request: Request,
     db: Session = Depends(get_db),
-) -> ResultResponse[CameraRead]:
+) -> ResultResponse[list[CameraRead]]:
     """카메라를 등록하거나 수정한다."""
     body = await request.json()
     result = service.save_camera(db, body)

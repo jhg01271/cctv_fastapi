@@ -3,16 +3,39 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy.orm import Session
 
 from service.cctv.model import Camera
-from service.cctv.repository import fetch_cameras_by_comp, fetch_cameras_by_server, upsert_camera, delete_camera
+from service.cctv.repository import (
+    delete_camera,
+    fetch_cameras_by_comp,
+    fetch_cameras_by_server,
+    update_camera_run_state,
+    upsert_camera,
+)
+
+
+def _sync_running_display(db: Session, cameras: list[Camera]) -> list[Camera]:
+    """실제 실행 중인 카메라를 목록 응답의 실행 상태에 반영한다."""
+    try:
+        from core.ai.process_manager import get_manager
+
+        running_ids = {camera["camera_id"] for camera in get_manager().list_cameras()}
+    except Exception:
+        running_ids = set()
+
+    for camera in cameras:
+        if camera.camera_id in running_ids and not camera.pid:
+            update_camera_run_state(db, camera.camera_id, True)
+            camera.pid = "1"
+    return cameras
 
 
 def list_cameras_by_comp(db: Session, comp_id: str) -> list[Camera]:
     """회사별 카메라 목록을 조회한다."""
-    return fetch_cameras_by_comp(db, comp_id)
+    return _sync_running_display(db, fetch_cameras_by_comp(db, comp_id))
 
 
 def get_camera(db: Session, camera_id: str) -> Camera:
@@ -26,7 +49,7 @@ def get_camera(db: Session, camera_id: str) -> Camera:
 
 def list_cameras_by_server(db: Session, ai_server_id: str) -> list[Camera]:
     """AI 서버별 카메라 목록을 조회한다."""
-    return fetch_cameras_by_server(db, ai_server_id)
+    return _sync_running_display(db, fetch_cameras_by_server(db, ai_server_id))
 
 
 def get_server_by_camera(db: Session, camera_id: str) -> dict:
@@ -50,8 +73,8 @@ def get_server_by_camera(db: Session, camera_id: str) -> dict:
     }
 
 
-def save_camera(db: Session, data: dict) -> Camera:
-    """카메라를 등록하거나 수정한다."""
+def _save_camera_item(db: Session, data: dict[str, Any]) -> Camera:
+    """카메라 1건을 등록하거나 수정한다."""
     now = datetime.now()
 
     existing = db.get(Camera, data.get("camera_id")) if data.get("camera_id") else None
@@ -80,6 +103,13 @@ def save_camera(db: Session, data: dict) -> Camera:
         created_by=data.get("created_by", "system"),
     )
     return upsert_camera(db, camera)
+
+
+def save_camera(db: Session, data: dict[str, Any] | list[dict[str, Any]]) -> list[Camera]:
+    """카메라 1건 또는 여러 건을 등록하거나 수정한다."""
+    if isinstance(data, list):
+        return [_save_camera_item(db, item) for item in data]
+    return [_save_camera_item(db, data)]
 
 
 def remove_camera(db: Session, camera_id: str) -> bool:
