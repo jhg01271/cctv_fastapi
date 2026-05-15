@@ -297,24 +297,15 @@ def restore_running_cameras() -> dict:
         for camera in cameras:
             try:
                 if not camera.rtsp_addr:
-                    update_camera_run_state(db, camera.camera_id, False)
-                    failed.append({"camera_id": camera.camera_id, "reason": "RTSP 주소 없음"})
+                    skipped.append({"camera_id": camera.camera_id, "reason": "RTSP 주소 없음"})
                     continue
                 if camera.jit_only:
-                    update_camera_run_state(db, camera.camera_id, False)
                     skipped.append({"camera_id": camera.camera_id, "reason": "JIT only camera"})
                     continue
-                detection_is_run, pose_is_run = fetch_detection_flags(db, camera.camera_id)
-                if not detection_is_run and not pose_is_run:
-                    update_camera_run_state(db, camera.camera_id, False)
-                    skipped.append({"camera_id": camera.camera_id, "reason": "AI detection/pose disabled"})
-                    continue
                 _register_camera(camera.camera_id, camera.rtsp_addr, db)
-                update_camera_run_state(db, camera.camera_id, True)
                 restored.append(camera.camera_id)
             except Exception as exc:
                 logger.error("Failed to restore camera %s: %s", camera.camera_id, exc)
-                update_camera_run_state(db, camera.camera_id, False)
                 failed.append({"camera_id": camera.camera_id, "reason": str(exc)})
 
         log_event(
