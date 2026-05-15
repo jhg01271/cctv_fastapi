@@ -29,6 +29,27 @@ def list_cameras_by_server(db: Session, ai_server_id: str) -> list[Camera]:
     return fetch_cameras_by_server(db, ai_server_id)
 
 
+def get_server_by_camera(db: Session, camera_id: str) -> dict:
+    """카메라 ID로 연결된 AI 서버 정보를 조회한다."""
+    from core.exception.custom_exception import NotFoundException
+    from service.server.model import AiServer
+
+    camera = db.get(Camera, camera_id)
+    if not camera or not camera.ai_server_id:
+        raise NotFoundException(msg=f"카메라 또는 서버 정보를 찾을 수 없습니다. camera_id={camera_id}")
+
+    server = db.get(AiServer, camera.ai_server_id)
+    if not server:
+        raise NotFoundException(msg=f"AI 서버를 찾을 수 없습니다. server_id={camera.ai_server_id}")
+
+    return {
+        "server_host": server.server_host,
+        "api_port": server.api_port,
+        "mediamtx_port": server.mtx_port,
+        "cctv_id": camera_id,
+    }
+
+
 def save_camera(db: Session, data: dict) -> Camera:
     """카메라를 등록하거나 수정한다."""
     now = datetime.now()

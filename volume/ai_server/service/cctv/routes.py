@@ -43,16 +43,16 @@ def get_camera(
 
 
 @router.get(
-    "/cctv_server/{ai_server_id}",
-    summary="서버별 카메라 목록 조회",
-    response_model=ResultResponse[list[CameraRead]],
+    "/cctv_server/{camera_id}",
+    summary="카메라 ID로 서버 정보 조회",
+    response_model=ResultResponse[dict],
 )
-def get_cameras_by_server(
-    ai_server_id: str,
+def get_server_by_camera(
+    camera_id: str,
     db: Session = Depends(get_db),
-) -> ResultResponse[list[CameraRead]]:
-    """AI 서버별 카메라 목록을 조회한다."""
-    result = service.list_cameras_by_server(db, ai_server_id)
+) -> ResultResponse[dict]:
+    """카메라 ID로 연결된 AI 서버 정보를 조회한다."""
+    result = service.get_server_by_camera(db, camera_id)
     return response(data=result, msg_key="success.read")
 
 
