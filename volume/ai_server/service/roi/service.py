@@ -8,7 +8,7 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
-from core.ai.media_server import get_stream_urls
+from config.config import settings
 from core.exception.custom_exception import BadRequestException, NotFoundException
 from core.logging.logger import get_logger
 from service.roi.model import CameraRoi
@@ -92,7 +92,7 @@ def capture_cctv_image(db: Session, camera_id: str) -> dict:
     if not camera or not camera.rtsp_addr:
         raise NotFoundException(msg=f"카메라를 찾을 수 없습니다. camera_id={camera_id}")
 
-    rtsp_url = get_stream_urls(camera_id)["rtsp"]
+    rtsp_url = f"{settings.MEDIA_SERVER_RTSP_URL}/{camera_id}"
     cap = cv2.VideoCapture(rtsp_url)
 
     if not cap.isOpened():

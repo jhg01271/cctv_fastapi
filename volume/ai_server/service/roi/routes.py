@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from core.database.session import get_db
@@ -31,15 +32,23 @@ def get_rois(
 @router.get(
     "/get_cctv_img/{camera_id}",
     summary="CCTV 캡처 이미지 조회",
-    response_model=ResultResponse[dict],
 )
 def get_cctv_image(
     camera_id: str,
     db: Session = Depends(get_db),
-) -> ResultResponse[dict]:
-    """카메라 RTSP에서 한 프레임을 캡처해 base64 이미지와 크기 정보를 반환한다."""
+) -> JSONResponse:
+    """카메라 RTSP에서 한 프레임을 캡처해 base64 이미지와 크기 정보를 반환한다.
+
+    프론트엔드 인터셉터가 response.data.data를 추출하므로,
+    이미지 데이터를 'data' 키로 반환하여 직접 접근 가능하게 한다.
+    """
     result = service.capture_cctv_image(db, camera_id)
-    return response(data=result, msg_key="success.read")
+    return JSONResponse(content={
+        "success": True,
+        "code": "200",
+        "msg": "조회에 성공하였습니다.",
+        "data": result,
+    })
 
 
 @router.post(
