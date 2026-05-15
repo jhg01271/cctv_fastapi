@@ -17,12 +17,12 @@ DEFAULT_SUCCESS_CODE = "200"
 class ResultResponse(BaseModel, Generic[ResponseDataT]):
     """성공과 실패를 포괄 표현하는 공통 응답 모델이다."""
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config = ConfigDict(arbitrary_types_allowed=True, populate_by_name=True)
 
     success: bool = Field(description="요청 성공 여부")
     code: str = Field(description="HTTP 상태 코드 문자열")
     msg: str = Field(description="응답 메시지")
-    data: ResponseDataT | None = Field(default=None, description="응답 데이터 본문")
+    list: ResponseDataT | None = Field(default=None, description="응답 데이터 본문")
 
 
 def is_success_status(code: int | str) -> bool:
@@ -31,6 +31,15 @@ def is_success_status(code: int | str) -> bool:
     if normalized_code is None:
         return False
     return 200 <= normalized_code < 300
+
+
+def _serialize_data(data: Any) -> Any:
+    """Pydantic 모델이면 by_alias=True 로 직렬화한다."""
+    if isinstance(data, list):
+        return [_serialize_data(item) for item in data]
+    if isinstance(data, BaseModel):
+        return data.model_dump(by_alias=True)
+    return data
 
 
 def build_response(
@@ -48,7 +57,7 @@ def build_response(
         success=is_success_status(normalized_code),
         code=str(normalized_code),
         msg=msg,
-        data=data,
+        list=_serialize_data(data),
     )
 
 
@@ -79,7 +88,7 @@ def response(
     )
     if result.success:
         return result
-    return JSONResponse(status_code=int(result.code), content=result.model_dump())
+    return JSONResponse(status_code=int(result.code), content=result.model_dump(by_alias=True))
 
 
 def success_response(
