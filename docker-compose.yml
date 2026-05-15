@@ -128,6 +128,33 @@ services:
     restart: always
     logging: *default-logging
 
+  stream_gateway:
+    container_name: stream_gateway
+    build:
+      context: ./volume/ai_server
+      dockerfile: Dockerfile
+    command:
+      - uvicorn
+      - service.stream_gateway.app:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8010"
+    environment:
+      TZ: "Asia/Seoul"
+      APP_ENV: prod
+      MEDIA_SERVER_HOST: mediamtx
+    env_file:
+      - ./volume/ai_server/config/.env.prod
+    networks:
+      - iljoo
+    ports:
+      - "8010:8010"
+    depends_on:
+      - mediamtx
+    restart: always
+    logging: *default-logging
+
   ai_server:
     container_name: ai_server
     build:
@@ -138,6 +165,7 @@ services:
       APP_ENV: prod
       DB_HOST: postgres
       MEDIA_SERVER_HOST: mediamtx
+      STREAM_GATEWAY_URL: http://stream_gateway:8010
     env_file:
       - ./volume/ai_server/config/.env.prod
     networks:
@@ -149,6 +177,7 @@ services:
     depends_on:
       - postgres
       - mediamtx
+      - stream_gateway
     restart: always
     logging: *default-logging
     deploy:
