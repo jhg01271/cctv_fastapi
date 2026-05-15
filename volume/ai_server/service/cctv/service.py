@@ -12,30 +12,13 @@ from service.cctv.repository import (
     delete_camera,
     fetch_cameras_by_comp,
     fetch_cameras_by_server,
-    update_camera_run_state,
     upsert_camera,
 )
 
 
-def _sync_running_display(db: Session, cameras: list[Camera]) -> list[Camera]:
-    """실제 실행 중인 카메라를 목록 응답의 실행 상태에 반영한다."""
-    try:
-        from core.ai.process_manager import get_manager
-
-        running_ids = {camera["camera_id"] for camera in get_manager().list_cameras()}
-    except Exception:
-        running_ids = set()
-
-    for camera in cameras:
-        if camera.camera_id in running_ids and not camera.pid:
-            update_camera_run_state(db, camera.camera_id, True)
-            camera.pid = "1"
-    return cameras
-
-
 def list_cameras_by_comp(db: Session, comp_id: str) -> list[Camera]:
     """회사별 카메라 목록을 조회한다."""
-    return _sync_running_display(db, fetch_cameras_by_comp(db, comp_id))
+    return fetch_cameras_by_comp(db, comp_id)
 
 
 def get_camera(db: Session, camera_id: str) -> Camera:
@@ -49,7 +32,7 @@ def get_camera(db: Session, camera_id: str) -> Camera:
 
 def list_cameras_by_server(db: Session, ai_server_id: str) -> list[Camera]:
     """AI 서버별 카메라 목록을 조회한다."""
-    return _sync_running_display(db, fetch_cameras_by_server(db, ai_server_id))
+    return fetch_cameras_by_server(db, ai_server_id)
 
 
 def get_server_by_camera(db: Session, camera_id: str) -> dict:
