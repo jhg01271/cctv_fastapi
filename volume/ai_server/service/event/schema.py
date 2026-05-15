@@ -15,6 +15,7 @@ class EventRead(BaseModel):
     event_time: datetime
     camera_id: str = Field(serialization_alias="cctv_id")
     event_type: str | None = None
+    event_type_name: str | None = None
     event_desc: str
     file_path: str | None = None
     remark: str | None = None
