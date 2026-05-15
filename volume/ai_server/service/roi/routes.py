@@ -18,13 +18,13 @@ router = APIRouter(prefix="/cctv/roi_crud", tags=["roi_crud"])
 @router.get(
     "/rois/{comp_id}",
     summary="ROI 목록 조회",
-    response_model=ResultResponse[list[RoiRead]],
+    response_model=ResultResponse[list[dict]],
 )
 def get_rois(
     comp_id: str,
     db: Session = Depends(get_db),
-) -> ResultResponse[list[RoiRead]]:
-    """회사별 ROI 목록을 조회한다."""
+) -> ResultResponse[list[dict]]:
+    """회사별 ROI 목록을 카메라 기준 그룹핑하여 조회한다."""
     result = service.list_rois(db, parse_comp_id(comp_id))
     return response(data=result, msg_key="success.read")
 

@@ -16,9 +16,26 @@ from service.roi.repository import fetch_rois_by_comp, upsert_roi
 logger = get_logger(__name__)
 
 
-def list_rois(db: Session, comp_id: str) -> list[CameraRoi]:
-    """회사별 ROI 목록을 조회한다."""
-    return fetch_rois_by_comp(db, comp_id)
+def list_rois(db: Session, comp_id: str) -> list[dict]:
+    """회사별 ROI 목록을 카메라 기준으로 그룹핑하여 반환한다."""
+    rows = fetch_rois_by_comp(db, comp_id)
+
+    grouped: dict[str, dict] = {}
+    for row in rows:
+        cid = row["camera_id"]
+        if cid not in grouped:
+            grouped[cid] = {
+                "cctv_id": cid,
+                "cctv_name": row.get("camera_nm", ""),
+                "model_list": [],
+            }
+        grouped[cid]["model_list"].append({
+            "model_nm": row["model_nm"],
+            "point_arr": row["point"],
+            "is_run": row["is_run"],
+        })
+
+    return list(grouped.values())
 
 
 def save_roi(db: Session, data: dict) -> CameraRoi:
