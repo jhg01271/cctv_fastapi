@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 from core.database.session import get_db
 from core.response.response import ResultResponse, response
 from core.utils.formatters.user_code import parse_comp_id
-from service.profile.schema import LayoutRead
 from service.profile import service
 
 profile_router = APIRouter(prefix="/cctv/profile_crud", tags=["profile_crud"])
@@ -19,27 +18,41 @@ pro_detail_router = APIRouter(prefix="/cctv/pro_detail_crud", tags=["pro_detail_
 
 @profile_router.get(
     "/profiles/{comp_id}",
-    summary="모니터링 레이아웃 목록 조회",
-    response_model=ResultResponse[list[LayoutRead]],
+    summary="모니터링 그룹 목록 조회",
+    response_model=ResultResponse[list[dict]],
 )
 def get_profiles(
     comp_id: str,
     db: Session = Depends(get_db),
-) -> ResultResponse[list[LayoutRead]]:
-    """회사별 모니터링 레이아웃 목록을 조회한다."""
+) -> ResultResponse[list[dict]]:
+    """회사별 모니터링 그룹 목록을 조회한다."""
     result = service.list_profiles(db, parse_comp_id(comp_id))
+    return response(data=result, msg_key="success.read")
+
+
+@profile_router.get(
+    "/profile/{monitoring_grp_id}",
+    summary="단일 그룹 레이아웃 조회",
+    response_model=ResultResponse[list[dict]],
+)
+def get_profile(
+    monitoring_grp_id: str,
+    db: Session = Depends(get_db),
+) -> ResultResponse[list[dict]]:
+    """단일 그룹의 레이아웃 목록을 조회한다."""
+    result = service.list_group_details(db, monitoring_grp_id)
     return response(data=result, msg_key="success.read")
 
 
 @profile_router.post(
     "/profile",
     summary="모니터링 레이아웃 등록/수정",
-    response_model=ResultResponse[LayoutRead],
+    response_model=ResultResponse[dict],
 )
 async def save_profile(
     request: Request,
     db: Session = Depends(get_db),
-) -> ResultResponse[LayoutRead]:
+) -> ResultResponse[dict]:
     """모니터링 레이아웃을 등록하거나 수정한다."""
     body = await request.json()
     result = service.save_profile(db, body)
@@ -66,12 +79,12 @@ async def delete_profile(
 @pro_detail_router.get(
     "/group_pro_detail/{monitoring_grp_id}",
     summary="그룹별 레이아웃 상세 조회",
-    response_model=ResultResponse[list[LayoutRead]],
+    response_model=ResultResponse[list[dict]],
 )
 def get_group_pro_detail(
     monitoring_grp_id: str,
     db: Session = Depends(get_db),
-) -> ResultResponse[list[LayoutRead]]:
+) -> ResultResponse[list[dict]]:
     """그룹별 모니터링 레이아웃 상세를 조회한다."""
     result = service.list_group_details(db, monitoring_grp_id)
     return response(data=result, msg_key="success.read")
@@ -80,12 +93,12 @@ def get_group_pro_detail(
 @pro_detail_router.post(
     "/pro_detail",
     summary="레이아웃 상세 등록/수정",
-    response_model=ResultResponse[LayoutRead],
+    response_model=ResultResponse[dict],
 )
 async def save_pro_detail(
     request: Request,
     db: Session = Depends(get_db),
-) -> ResultResponse[LayoutRead]:
+) -> ResultResponse[dict]:
     """레이아웃 상세를 등록하거나 수정한다."""
     body = await request.json()
     result = service.save_profile(db, body)

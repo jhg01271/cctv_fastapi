@@ -5,28 +5,29 @@ from __future__ import annotations
 from sqlalchemy import delete as sa_delete, select
 from sqlalchemy.orm import Session
 
+from service.cctv.model import Camera
 from service.profile.model import MonitoringGrp, MonitoringLayout
 
 
-def fetch_layouts_by_comp(db: Session, comp_id: str) -> list[MonitoringLayout]:
-    """회사 식별자 기준으로 레이아웃 목록을 조회한다 (그룹 테이블 JOIN)."""
+def fetch_groups_by_comp(db: Session, comp_id: str) -> list[MonitoringGrp]:
+    """회사 식별자 기준으로 모니터링 그룹 목록을 조회한다."""
     stmt = (
-        select(MonitoringLayout)
-        .join(MonitoringGrp, MonitoringLayout.monitoring_grp_id == MonitoringGrp.monitoring_grp_id)
+        select(MonitoringGrp)
         .where(MonitoringGrp.comp_id == comp_id)
-        .order_by(MonitoringLayout.monitoring_grp_id, MonitoringLayout.item_idx)
+        .order_by(MonitoringGrp.monitoring_grp_id)
     )
     return list(db.scalars(stmt).all())
 
 
-def fetch_layouts_by_group(db: Session, monitoring_grp_id: str) -> list[MonitoringLayout]:
-    """그룹 ID 기준으로 레이아웃 목록을 조회한다."""
+def fetch_layouts_by_group(db: Session, monitoring_grp_id: str) -> list[tuple[MonitoringLayout, Camera | None]]:
+    """그룹 ID 기준으로 레이아웃 목록을 카메라 정보와 함께 조회한다."""
     stmt = (
-        select(MonitoringLayout)
+        select(MonitoringLayout, Camera)
+        .outerjoin(Camera, MonitoringLayout.camera_id == Camera.camera_id)
         .where(MonitoringLayout.monitoring_grp_id == monitoring_grp_id)
         .order_by(MonitoringLayout.item_idx)
     )
-    return list(db.scalars(stmt).all())
+    return list(db.execute(stmt).all())
 
 
 def upsert_layout(db: Session, layout: MonitoringLayout) -> MonitoringLayout:

@@ -6,18 +6,38 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
+from core.ai.media_server import get_stream_urls
 from service.profile.model import MonitoringLayout
-from service.profile.repository import fetch_layouts_by_comp, fetch_layouts_by_group, upsert_layout, delete_layout
+from service.profile.repository import fetch_groups_by_comp, fetch_layouts_by_group, upsert_layout, delete_layout
 
 
-def list_profiles(db: Session, comp_id: str) -> list[MonitoringLayout]:
-    """회사별 레이아웃 목록을 조회한다."""
-    return fetch_layouts_by_comp(db, comp_id)
+def list_profiles(db: Session, comp_id: str) -> list[dict]:
+    """회사별 모니터링 그룹 목록을 조회한다."""
+    groups = fetch_groups_by_comp(db, comp_id)
+    return [
+        {"Profile_id": g.monitoring_grp_id, "Profile_name": g.grp_nm}
+        for g in groups
+    ]
 
 
-def list_group_details(db: Session, monitoring_grp_id: str) -> list[MonitoringLayout]:
-    """그룹별 레이아웃 상세를 조회한다."""
-    return fetch_layouts_by_group(db, monitoring_grp_id)
+def list_group_details(db: Session, monitoring_grp_id: str) -> list[dict]:
+    """그룹별 레이아웃 상세를 프론트엔드 그리드 형식으로 조회한다."""
+    rows = fetch_layouts_by_group(db, monitoring_grp_id)
+    result = []
+    for layout, camera in rows:
+        urls = get_stream_urls(layout.camera_id)
+        result.append({
+            "i": str(layout.item_idx),
+            "x": layout.coordinate_x,
+            "y": layout.coordinate_y,
+            "w": layout.item_width,
+            "h": layout.item_height,
+            "cctv_id": layout.camera_id,
+            "cctv_play_url": urls.get("webrtc", ""),
+            "ratio": "16:9",
+            "title": layout.title or "",
+        })
+    return result
 
 
 def save_profile(db: Session, data: dict) -> MonitoringLayout:
