@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import threading
+
+import httpx
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from config.config import settings
+from core.database.session import SessionLocal
 from core.ai.media_server import add_stream_path, remove_stream_path
 from core.ai.process_manager import get_manager
 from core.exception.custom_exception import BadRequestException, ConflictException, NotFoundException
@@ -14,6 +19,10 @@ from service.cctv.model import Camera
 from service.safety.repository import fetch_roi, fetch_detection_flags
 
 logger = get_logger(__name__)
+
+_GATEWAY_TIMEOUT = 10.0
+_run_all_lock = threading.Lock()
+_run_all_running = False
 
 
 # ──────────────────────────────────────────────────────────────
@@ -27,6 +36,74 @@ def _fetch_camera_list(db: Session) -> list[dict]:
     return [{"camera_id": r.camera_id, "rtsp_addr": r.rtsp_addr, "camera_nm": r.camera_nm} for r in rows]
 
 
+def count_cameras(db: Session) -> int:
+    """등록된 카메라 수를 반환한다."""
+    return len(_fetch_camera_list(db))
+
+
+def _stream_gateway_base_url() -> str | None:
+    """설정된 stream gateway URL을 반환한다. 없으면 로컬 FFmpeg 모드로 동작한다."""
+    url = settings.STREAM_GATEWAY_URL.strip().rstrip("/")
+    return url or None
+
+
+def _start_stream(camera_id: str, rtsp_url: str) -> None:
+    """stream gateway 또는 로컬 FFmpeg로 MediaMTX publish를 시작한다."""
+    gateway_url = _stream_gateway_base_url()
+    if gateway_url is None:
+        if not add_stream_path(camera_id, rtsp_url):
+            raise BadRequestException(msg=f"MediaMTX 스트림 등록 실패. camera_id={camera_id}")
+        return
+
+    try:
+        resp = httpx.post(
+            f"{gateway_url}/streams/{camera_id}/start",
+            json={"rtsp_url": rtsp_url},
+            timeout=_GATEWAY_TIMEOUT,
+        )
+    except httpx.RequestError as exc:
+        raise BadRequestException(
+            msg=f"Stream gateway 연결 실패. camera_id={camera_id}",
+            data={"gateway_url": gateway_url},
+            cause=exc,
+        ) from exc
+
+    if resp.status_code == 409:
+        logger.info("Stream already publishing: camera_id=%s", camera_id)
+        return
+    if resp.status_code >= 400:
+        raise BadRequestException(
+            msg=f"Stream gateway 스트림 등록 실패. camera_id={camera_id}",
+            data={"status_code": resp.status_code, "body": resp.text},
+        )
+
+
+def _stop_stream(camera_id: str) -> None:
+    """stream gateway 또는 로컬 FFmpeg로 MediaMTX publish를 중지한다."""
+    gateway_url = _stream_gateway_base_url()
+    if gateway_url is None:
+        remove_stream_path(camera_id)
+        return
+
+    try:
+        resp = httpx.delete(
+            f"{gateway_url}/streams/{camera_id}",
+            timeout=_GATEWAY_TIMEOUT,
+        )
+    except httpx.RequestError as exc:
+        raise BadRequestException(
+            msg=f"Stream gateway 연결 실패. camera_id={camera_id}",
+            data={"gateway_url": gateway_url},
+            cause=exc,
+        ) from exc
+
+    if resp.status_code >= 400:
+        raise BadRequestException(
+            msg=f"Stream gateway 스트림 중지 실패. camera_id={camera_id}",
+            data={"status_code": resp.status_code, "body": resp.text},
+        )
+
+
 def _register_camera(camera_id: str, rtsp_url: str, db: Session) -> dict:
     """카메라를 AI 매니저에 등록하고 프로세스를 시작한다."""
     from core.ai.ws_bridge import ws_bridge
@@ -38,8 +115,7 @@ def _register_camera(camera_id: str, rtsp_url: str, db: Session) -> dict:
     if existing:
         raise ConflictException(msg=f"이미 등록된 카메라입니다. camera_id={camera_id}")
 
-    if not add_stream_path(camera_id, rtsp_url):
-        raise BadRequestException(msg=f"MediaMTX 스트림 등록 실패. camera_id={camera_id}")
+    _start_stream(camera_id, rtsp_url)
 
     roi_arr = fetch_roi(db, camera_id)
     detection_is_run, pose_is_run = fetch_detection_flags(db, camera_id)
@@ -73,7 +149,7 @@ def _remove_camera(camera_id: str) -> dict:
         raise NotFoundException(msg=f"등록되지 않은 카메라입니다. camera_id={camera_id}")
 
     manager.remove_camera(camera_id)
-    remove_stream_path(camera_id)
+    _stop_stream(camera_id)
     log_event(
         logger=logger,
         level="INFO",
@@ -109,6 +185,7 @@ def run_all(db: Session) -> dict:
     """전체 카메라 AI 프로세스를 시작한다."""
     cameras = _fetch_camera_list(db)
     started = []
+    skipped = []
     failed = []
 
     for cam in cameras:
@@ -118,13 +195,51 @@ def run_all(db: Session) -> dict:
             failed.append({"camera_id": camera_id, "reason": "RTSP 주소 없음"})
             continue
         try:
+            detection_is_run, pose_is_run = fetch_detection_flags(db, camera_id)
+            if not detection_is_run and not pose_is_run:
+                skipped.append({"camera_id": camera_id, "reason": "AI detection/pose disabled"})
+                continue
             _register_camera(camera_id, rtsp_url, db)
             started.append(camera_id)
         except Exception as e:
             logger.error("Failed to start camera %s: %s", camera_id, e)
             failed.append({"camera_id": camera_id, "reason": str(e)})
 
-    return {"started": started, "failed": failed, "total": len(cameras)}
+    return {"started": started, "skipped": skipped, "failed": failed, "total": len(cameras)}
+
+
+def mark_run_all_started() -> bool:
+    """전체 시작 백그라운드 작업을 실행 중으로 표시한다. 이미 실행 중이면 False를 반환한다."""
+    global _run_all_running
+    with _run_all_lock:
+        if _run_all_running:
+            return False
+        _run_all_running = True
+        return True
+
+
+def run_all_background() -> None:
+    """새 DB 세션으로 전체 카메라 AI 프로세스 시작 작업을 백그라운드에서 수행한다."""
+    global _run_all_running
+    db = SessionLocal()
+    try:
+        result = run_all(db)
+        log_event(
+            logger=logger,
+            level="INFO",
+            event_type="camera.run_all.background",
+            message="Background run_all finished",
+            started=len(result["started"]),
+            skipped=len(result["skipped"]),
+            failed=len(result["failed"]),
+            total=result["total"],
+        )
+    except Exception:
+        logger.exception("Background run_all failed")
+    finally:
+        db.close()
+        with _run_all_lock:
+            _run_all_running = False
 
 
 def check_pid() -> dict:

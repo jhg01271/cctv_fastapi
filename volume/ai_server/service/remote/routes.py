@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends
 from sqlalchemy.orm import Session
 
 from core.database.session import get_db
@@ -17,9 +17,15 @@ router = APIRouter(prefix="/cctv/remote", tags=["remote"])
     summary="전체 카메라 AI 시작",
     response_model=ResultResponse[dict],
 )
-def run_all(db: Session = Depends(get_db)) -> ResultResponse[dict]:
-    """전체 카메라 AI 프로세스를 시작한다."""
-    result = service.run_all(db)
+def run_all(background_tasks: BackgroundTasks, db: Session = Depends(get_db)) -> ResultResponse[dict]:
+    """전체 카메라 AI 프로세스 시작 작업을 백그라운드로 예약한다."""
+    total = service.count_cameras(db)
+    if not service.mark_run_all_started():
+        result = {"status": "already_running", "total": total}
+        return response(data=result, msg_key="success.read")
+
+    background_tasks.add_task(service.run_all_background)
+    result = {"status": "queued", "total": total}
     return response(data=result, msg_key="success.read")
 
 
