@@ -11,6 +11,9 @@ import cv2
 import numpy as np
 
 from config.config import settings
+from core.logging.logger import get_logger
+
+logger = get_logger(__name__)
 
 # 이벤트 코드 매핑  key → (code, description)
 EVENT_CODE = {
@@ -62,9 +65,10 @@ def save_event_image(frame: np.ndarray, camera_id: str, event_key: str) -> str |
         filename = f"{datetime.now().strftime('%H%M%S_%f')[:13]}.jpg"
         filepath = os.path.join(dir_path, filename)
         cv2.imwrite(filepath, frame)
+        logger.info("[EventSave] Image saved. camera=%s event=%s path=%s", camera_id, event_key, filepath)
         return filepath
     except Exception as e:
-        print(f"[EventSave] Image save failed camera={camera_id} event={event_key}: {e}")
+        logger.error("[EventSave] Image save failed. camera=%s event=%s error=%s", camera_id, event_key, e)
         return None
 
 
@@ -86,9 +90,10 @@ def save_event_clip(
         for f in frames:
             writer.write(f)
         writer.release()
+        logger.info("[EventSave] Clip saved. camera=%s path=%s frames=%d", camera_id, filepath, len(frames))
         return filepath
     except Exception as e:
-        print(f"[EventSave] Clip save failed camera={camera_id}: {e}")
+        logger.error("[EventSave] Clip save failed. camera=%s error=%s", camera_id, e)
         return None
 
 

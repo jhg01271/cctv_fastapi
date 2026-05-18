@@ -26,6 +26,7 @@ import numpy as np
 
 from config.config import settings
 from core.ai.model_loader import ModelType, get_class_name, load_model
+from core.logging.logger import get_logger
 from service.safety.events import (
     check_box_overlap,
     check_roi,
@@ -33,6 +34,8 @@ from service.safety.events import (
     save_event_image,
     trigger_relay,
 )
+
+logger = get_logger(__name__)
 
 
 # ── 메인 프로세스 ─────────────────────────────────────────────────────────────
@@ -94,6 +97,11 @@ def safety_process(
     last_frame: Optional[np.ndarray] = None
     frame_count = 0
     switch = True  # True=Detection, False=Pose
+
+    logger.info(
+        "[SafetyAI:%s] Process started. detection=%s pose=%s roi_count=%d",
+        camera_id, detection_is_run, pose_is_run, len(roi_arr) if roi_arr else 0,
+    )
 
     time.sleep(settings.AI_STARTUP_DELAY)
 
@@ -163,6 +171,7 @@ def safety_process(
                             _set_fire(last_fire, "E001", now)
                             trigger_relay()
                             events.append({"type": "E001", "message": "안전모 미착용 감지"})
+                            logger.info("[SafetyAI:%s] E001 안전모 미착용 감지 conf=%.3f", camera_id, conf_val)
 
                     # ── E002: 위험구역 출입
                     elif cls_name == "person" and conf_val >= CONF_THR:
@@ -174,6 +183,7 @@ def safety_process(
                                 _set_fire(last_fire, "E002", now)
                                 trigger_relay()
                                 events.append({"type": "E002", "message": "위험구역 출입 감지"})
+                                logger.info("[SafetyAI:%s] E002 위험구역 출입 감지 conf=%.3f", camera_id, conf_val)
 
                     # ── E004: 위험체 위치 이력 수집
                     elif cls_name in ("forklift", "hoist") and conf_val >= CONF_THR:
@@ -245,6 +255,7 @@ def safety_process(
                             _put_event(event_queue, camera_id, "collapse", clip_path, timestamp)
                             _set_fire(last_fire, "E003", now)
                             events.append({"type": "E003", "message": "작업자 쓰러짐 감지"})
+                            logger.info("[SafetyAI:%s] E003 작업자 쓰러짐 감지 sustain=%.1fs", camera_id, COLLAPSE_SUSTAIN)
                         collapse_start_time = None  # 발화 후 초기화
                 else:
                     collapse_start_time = None  # 감지 끊기면 초기화
@@ -254,6 +265,8 @@ def safety_process(
 
         # ── WebSocket 결과 전송
         _send_result(result_mp_queue, camera_id, timestamp, detections, events)
+
+    logger.info("[SafetyAI:%s] Process stopped.", camera_id)
 
 
 # ── E004 보조 함수 ─────────────────────────────────────────────────────────────
@@ -334,6 +347,7 @@ def _detect_e004(
                         "type":    "E004",
                         "message": f"작업자-{hb['class']} 위험체 접근 감지",
                     })
+                    logger.info("[SafetyAI:%s] E004 위험체 접근 감지 hazard=%s tid=%d", camera_id, hb["class"], tid)
                 hazard_person_start.pop(tid, None)  # 발화 후 초기화
 
     # 예측 영역에서 벗어난 track 초기화
