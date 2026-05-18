@@ -112,6 +112,15 @@ main/
 from __future__ import annotations
 ```
 
+### 프론트엔드 필드명 일치 확인
+
+API 응답을 작성하거나 수정할 때, **프론트엔드가 기대하는 필드명과 API 응답 필드명이 정확히 일치하는지** 반드시 확인한다.
+
+- 프론트엔드 axios 인터셉터는 `response.data.datas` → `response.data.data` → `response.data.dataList` → `response.data` 순서로 데이터를 추출한다.
+- `response()` 헬퍼의 `ResultResponse`는 `list` 키에 데이터를 담으므로, 프론트엔드에서 `a.list`로 접근하는 경우에 적합하다.
+- 프론트엔드에서 `a.특정필드명`으로 직접 접근하는 엔드포인트는 `JSONResponse`로 `data` 키 안에 해당 필드를 담아야 한다.
+- 프론트엔드 빌드된 JS를 확인하여 실제 사용하는 필드명(예: `a.img_decode_data`, `a.disk.used_tb`, `a.start_collect` 등)과 API 응답 필드명이 동일한지 대조한다.
+
 ### 응답 패턴
 
 라우터에서 항상 `response()` 헬퍼와 `msg_key` 카탈로그를 사용한다. 직접 문자열 메시지를 `msg=`에 넣지 않는다.
