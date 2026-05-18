@@ -23,7 +23,13 @@ def _parse_dt(value: str) -> datetime:
 
 def fetch_event_detail(db: Session, event_time: str, camera_id: str) -> CameraEventHist | None:
     """단일 이벤트 상세를 조회한다."""
-    return db.get(CameraEventHist, (event_time, camera_id))
+    if not event_time or not camera_id:
+        return None
+    stmt = select(CameraEventHist).where(
+        CameraEventHist.event_time == _parse_dt(event_time),
+        CameraEventHist.camera_id == camera_id,
+    )
+    return db.scalars(stmt).first()
 
 
 def fetch_events(

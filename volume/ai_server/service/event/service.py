@@ -61,8 +61,23 @@ def list_events_by_group(db: Session, data: dict) -> list[dict]:
 
 
 def get_event_file(db: Session, data: dict) -> str:
-    """이벤트 이미지 파일 경로를 반환한다."""
-    event = fetch_event_detail(db, data.get("event_time"), data.get("camera_id"))
+    """이벤트 이미지 파일 경로를 반환한다.
+
+    프론트엔드는 { cctv_id, file_path }를 전송한다.
+    file_path가 있으면 직접 파일을 반환하고, 없으면 event_time + camera_id로 DB 조회한다.
+    """
+    file_path = data.get("file_path")
+
+    if file_path:
+        p = Path(file_path)
+        if not p.exists():
+            raise NotFoundException(msg=f"이미지 파일이 존재하지 않습니다. path={file_path}")
+        return str(p)
+
+    camera_id = data.get("camera_id") or data.get("cctv_id")
+    event_time = data.get("event_time")
+    event = fetch_event_detail(db, event_time, camera_id)
+
     if not event or not event.file_path:
         raise NotFoundException(msg="이벤트 이미지를 찾을 수 없습니다.")
 

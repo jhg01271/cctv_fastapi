@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import base64
+
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy.orm import Session
 
 from core.database.session import get_db
@@ -66,11 +68,27 @@ async def list_camera_events_by_group(
 async def get_camera_event_file(
     request: Request,
     db: Session = Depends(get_db),
-) -> FileResponse:
-    """이벤트 이미지 파일을 반환한다."""
+) -> JSONResponse:
+    """이벤트 이미지를 base64로 인코딩하여 반환한다.
+
+    프론트엔드 기대 형식: { success, img_decode_data, ratio }
+    """
     body = await request.json()
     file_path = service.get_event_file(db, body)
-    return FileResponse(path=file_path, media_type="image/jpeg")
+
+    with open(file_path, "rb") as f:
+        img_data = base64.b64encode(f.read()).decode("utf-8")
+
+    return JSONResponse(content={
+        "success": True,
+        "code": "200",
+        "msg": "성공하였습니다.",
+        "data": {
+            "success": True,
+            "img_decode_data": img_data,
+            "ratio": "16:9",
+        },
+    })
 
 
 @router.post(
