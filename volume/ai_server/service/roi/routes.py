@@ -62,5 +62,9 @@ async def save_roi(
 ) -> ResultResponse[list[dict]]:
     """ROI를 등록하거나 수정한다."""
     body = await request.json()
-    result = service.save_roi(db, body)
-    return response(data=result, msg_key="success.create")
+    if isinstance(body, list):
+        results = []
+        for item in body:
+            results.extend(service.save_roi(db, item))
+        return response(data=results, msg_key="success.create")
+    return response(data=service.save_roi(db, body), msg_key="success.create")
