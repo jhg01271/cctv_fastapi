@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import subprocess
 import threading
+import time
 
 import httpx
 
@@ -14,10 +15,16 @@ from core.logging.logger import get_logger
 logger = get_logger(__name__)
 
 _TIMEOUT = 5.0
+_MAX_RESTART_ATTEMPTS = 5
+_RESTART_BASE_DELAY = 3.0  # 초기 재시작 대기 (초)
 
 # camera_id → FFmpeg subprocess 매핑
 _ffmpeg_procs: dict[str, subprocess.Popen] = {}
 _ffmpeg_lock = threading.Lock()
+# camera_id → rtsp_url 매핑 (재시작 시 필요)
+_ffmpeg_rtsp_urls: dict[str, str] = {}
+# 명시적 중지 요청된 카메라 (재시작 방지)
+_stopped_cameras: set[str] = set()
 
 
 def _api_url(path: str) -> str:
@@ -86,8 +93,10 @@ def _start_ffmpeg(camera_id: str, rtsp_url: str) -> bool:
         )
         with _ffmpeg_lock:
             _ffmpeg_procs[camera_id] = proc
+            _ffmpeg_rtsp_urls[camera_id] = rtsp_url
+            _stopped_cameras.discard(camera_id)
 
-        # 별도 스레드에서 stderr 모니터링 (로그용)
+        # 별도 스레드에서 stderr 모니터링 + 재시작
         threading.Thread(
             target=_monitor_ffmpeg,
             args=(camera_id, proc),
@@ -110,7 +119,8 @@ def _start_ffmpeg(camera_id: str, rtsp_url: str) -> bool:
 
 
 def _monitor_ffmpeg(camera_id: str, proc: subprocess.Popen) -> None:
-    """FFmpeg stderr를 읽어 에러 로그를 남긴다."""
+    """FFmpeg stderr를 읽고, 프로세스 종료 시 자동 재시작한다."""
+    # stderr 읽기
     try:
         for line in proc.stderr:
             decoded = line.decode("utf-8", errors="replace").strip()
@@ -119,11 +129,48 @@ def _monitor_ffmpeg(camera_id: str, proc: subprocess.Popen) -> None:
     except Exception:
         pass
 
+    # 프로세스 종료 감지 — 재시작 시도
+    exit_code = proc.poll()
+    if camera_id in _stopped_cameras:
+        return  # 명시적 중지 요청이므로 재시작하지 않음
+
+    logger.warning(
+        "[FFmpeg:%s] Process exited (code=%s). Attempting restart...",
+        camera_id, exit_code,
+    )
+
+    for attempt in range(1, _MAX_RESTART_ATTEMPTS + 1):
+        if camera_id in _stopped_cameras:
+            return
+
+        delay = _RESTART_BASE_DELAY * (2 ** (attempt - 1))  # 3, 6, 12, 24, 48초
+        time.sleep(delay)
+
+        if camera_id in _stopped_cameras:
+            return
+
+        rtsp_url = _ffmpeg_rtsp_urls.get(camera_id)
+        if not rtsp_url:
+            logger.error("[FFmpeg:%s] No RTSP URL for restart. Giving up.", camera_id)
+            return
+
+        logger.info("[FFmpeg:%s] Restart attempt %d/%d", camera_id, attempt, _MAX_RESTART_ATTEMPTS)
+        if _start_ffmpeg(camera_id, rtsp_url):
+            logger.info("[FFmpeg:%s] Restart successful on attempt %d", camera_id, attempt)
+            return
+
+    logger.error(
+        "[FFmpeg:%s] All %d restart attempts failed. Manual intervention required.",
+        camera_id, _MAX_RESTART_ATTEMPTS,
+    )
+
 
 def _stop_ffmpeg(camera_id: str) -> None:
     """FFmpeg 프로세스를 종료한다."""
     with _ffmpeg_lock:
+        _stopped_cameras.add(camera_id)
         proc = _ffmpeg_procs.pop(camera_id, None)
+        _ffmpeg_rtsp_urls.pop(camera_id, None)
 
     if proc and proc.poll() is None:
         proc.terminate()
