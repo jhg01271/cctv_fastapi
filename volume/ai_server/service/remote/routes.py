@@ -45,10 +45,11 @@ def stop_all(db: Session = Depends(get_db)) -> ResultResponse[dict]:
     summary="개별 카메라 AI 시작",
     response_model=ResultResponse[dict],
 )
-def run_cctv(camera_id: str, db: Session = Depends(get_db)) -> ResultResponse[dict]:
-    """개별 카메라 AI 프로세스를 시작���다."""
-    result = service.run_cctv(camera_id, db)
-    return response(data=result, msg_key="success.read")
+def run_cctv(camera_id: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)) -> ResultResponse[dict]:
+    """개별 카메라 AI 프로세스 시작을 백그라운드로 예약한다."""
+    service.update_camera_run_state_only(db, camera_id, True)
+    background_tasks.add_task(service.run_cctv_background, camera_id)
+    return response(data={"camera_id": camera_id, "status": "queued"}, msg_key="success.read")
 
 
 @router.get(
@@ -56,10 +57,11 @@ def run_cctv(camera_id: str, db: Session = Depends(get_db)) -> ResultResponse[di
     summary="개별 카메라 AI 중지",
     response_model=ResultResponse[dict],
 )
-def stop_cctv(camera_id: str, db: Session = Depends(get_db)) -> ResultResponse[dict]:
-    """개별 카메라 AI 프로세스를 중지한다."""
-    result = service.stop_cctv(camera_id, db)
-    return response(data=result, msg_key="success.read")
+def stop_cctv(camera_id: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)) -> ResultResponse[dict]:
+    """개별 카메라 AI 프로세스 중지를 백그라운드로 예약한다."""
+    service.update_camera_run_state_only(db, camera_id, False)
+    background_tasks.add_task(service.stop_cctv_background, camera_id)
+    return response(data={"camera_id": camera_id, "status": "queued"}, msg_key="success.read")
 
 
 @router.get(

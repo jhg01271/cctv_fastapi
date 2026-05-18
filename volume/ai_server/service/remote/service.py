@@ -39,6 +39,11 @@ def count_cameras(db: Session) -> int:
     return len(_fetch_camera_list(db))
 
 
+def update_camera_run_state_only(db: Session, camera_id: str, is_running: bool) -> None:
+    """카메라 실행 상태(pid)만 즉시 업데이트한다."""
+    update_camera_run_state(db, camera_id, is_running)
+
+
 def _stream_gateway_base_url() -> str | None:
     """설정된 stream gateway URL을 반환한다."""
     url = settings.STREAM_GATEWAY_URL.strip().rstrip("/")
@@ -191,12 +196,36 @@ def run_cctv(camera_id: str, db: Session) -> dict:
         raise
 
 
+def run_cctv_background(camera_id: str) -> None:
+    """개별 카메라 AI 프로세스 시작을 백그라운드에서 수행한다."""
+    logger.info("run_cctv_background started: camera_id=%s", camera_id)
+    db = SessionLocal()
+    try:
+        result = run_cctv(camera_id, db)
+        logger.info("run_cctv_background completed: camera_id=%s result=%s", camera_id, result)
+    except Exception:
+        logger.exception("Background run_cctv failed: camera_id=%s", camera_id)
+    finally:
+        db.close()
+
+
 def stop_cctv(camera_id: str, db: Session | None = None) -> dict:
     """개별 카메라 AI 프로세스를 중지한다."""
     result = _remove_camera(camera_id)
     if db is not None:
         update_camera_run_state(db, camera_id, False)
     return {"camera_id": camera_id, "status": "stopped", **result}
+
+
+def stop_cctv_background(camera_id: str) -> None:
+    """개별 카메라 AI 프로세스 중지를 백그라운드에서 수행한다."""
+    db = SessionLocal()
+    try:
+        stop_cctv(camera_id, db)
+    except Exception:
+        logger.exception("Background stop_cctv failed: camera_id=%s", camera_id)
+    finally:
+        db.close()
 
 
 def run_all(db: Session) -> dict:
