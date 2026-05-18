@@ -82,9 +82,9 @@ class Settings(BaseSettings):
     AI_E004_HISTORY_MAXLEN: int = Field(default=10) #  위험체 위치 이력 최대 샘플 수
 
     # 저장 경로
-    EVENT_IMAGE_DIR: str = Field(default="./event_images")
-    JIT_IMAGE_DIR: str = Field(default="./jit_images")
-    PROGRESS_RESULT_DIR: str = Field(default="./progress_results")
+    EVENT_IMAGE_DIR: str = Field(default="./img_save/event_images")
+    JIT_IMAGE_DIR: str = Field(default="./img_save/jit_images")
+    PROGRESS_RESULT_DIR: str = Field(default="./img_save/progress_results")
 
     # JIT 학습용 이미지 수집 주기 (초)
     JIT_SHORT_INTERVAL_SEC: int = Field(default=600)      # 10분
