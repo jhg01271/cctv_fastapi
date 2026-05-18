@@ -83,7 +83,15 @@ class Settings(BaseSettings):
 
     # 저장 경로
     EVENT_IMAGE_DIR: str = Field(default="./event_images")
+    JIT_IMAGE_DIR: str = Field(default="./jit_images")
     PROGRESS_RESULT_DIR: str = Field(default="./progress_results")
+
+    # JIT 학습용 이미지 수집 주기 (초)
+    JIT_SHORT_INTERVAL_SEC: int = Field(default=600)      # 10분
+    JIT_LONG_INTERVAL_SEC: int = Field(default=3600)       # 60분
+    JIT_AUTO_MIN_INTERVAL_SEC: int = Field(default=3600)   # 자동 변화 감지 최소 간격 (1시간)
+    JIT_AUTO_MEAN_DIFF: float = Field(default=10.0)        # 자동 변화 감지 평균 차이 임계값
+    JIT_AUTO_CHANGE_RATIO: float = Field(default=0.05)     # 자동 변화 감지 변화율 임계값 (5%)
 
     # 공정률 처리 주기
     PROGRESS_CYCLE_SEC: int = Field(default=60)

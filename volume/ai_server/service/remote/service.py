@@ -99,7 +99,7 @@ def _stop_stream(camera_id: str) -> None:
         )
 
 
-def _register_camera(camera_id: str, rtsp_url: str, db: Session) -> dict:
+def _register_camera(camera_id: str, rtsp_url: str, db: Session, jit_only: bool = False) -> dict:
     """카메라를 AI 매니저에 등록하고 프로세스를 시작한다."""
     from core.ai.ws_bridge import ws_bridge
     from service.safety.worker import event_queue
@@ -112,6 +112,20 @@ def _register_camera(camera_id: str, rtsp_url: str, db: Session) -> dict:
         return {"camera_id": camera_id, "status": "already_started"}
 
     _start_stream(camera_id, rtsp_url)
+
+    if jit_only:
+        from service.safety.jit_processor import jit_process
+
+        manager.add_camera(camera_id, rtsp_url, ai_target=jit_process)
+        log_event(
+            logger=logger,
+            level="INFO",
+            event_type="camera.register",
+            message="Camera JIT image collection started",
+            camera_id=camera_id,
+            rtsp_url=rtsp_url,
+        )
+        return {"camera_id": camera_id, "status": "jit_started"}
 
     roi_arr = fetch_roi(db, camera_id)
     detection_is_run, pose_is_run = fetch_detection_flags(db, camera_id)
@@ -169,7 +183,7 @@ def run_cctv(camera_id: str, db: Session) -> dict:
         return {"camera_id": camera_id, "status": "error", "message": "카메라 또는 RTSP 주소를 찾을 수 없습니다."}
 
     try:
-        result = _register_camera(camera_id, camera.rtsp_addr, db)
+        result = _register_camera(camera_id, camera.rtsp_addr, db, jit_only=camera.jit_only)
         update_camera_run_state(db, camera_id, True)
         return {"camera_id": camera_id, "status": "started", **result}
     except Exception:
@@ -200,14 +214,13 @@ def run_all(db: Session) -> dict:
             continue
         try:
             camera = db.get(Camera, camera_id)
-            if camera and camera.jit_only:
-                skipped.append({"camera_id": camera_id, "reason": "JIT only camera"})
-                continue
-            detection_is_run, pose_is_run = fetch_detection_flags(db, camera_id)
-            if not detection_is_run and not pose_is_run:
-                skipped.append({"camera_id": camera_id, "reason": "AI detection/pose disabled"})
-                continue
-            _register_camera(camera_id, rtsp_url, db)
+            is_jit = camera.jit_only if camera else False
+            if not is_jit:
+                detection_is_run, pose_is_run = fetch_detection_flags(db, camera_id)
+                if not detection_is_run and not pose_is_run:
+                    skipped.append({"camera_id": camera_id, "reason": "AI detection/pose disabled"})
+                    continue
+            _register_camera(camera_id, rtsp_url, db, jit_only=is_jit)
             update_camera_run_state(db, camera_id, True)
             started.append(camera_id)
         except Exception as e:
@@ -299,10 +312,7 @@ def restore_running_cameras() -> dict:
                 if not camera.rtsp_addr:
                     skipped.append({"camera_id": camera.camera_id, "reason": "RTSP 주소 없음"})
                     continue
-                if camera.jit_only:
-                    skipped.append({"camera_id": camera.camera_id, "reason": "JIT only camera"})
-                    continue
-                _register_camera(camera.camera_id, camera.rtsp_addr, db)
+                _register_camera(camera.camera_id, camera.rtsp_addr, db, jit_only=camera.jit_only)
                 restored.append(camera.camera_id)
             except Exception as exc:
                 logger.error("Failed to restore camera %s: %s", camera.camera_id, exc)

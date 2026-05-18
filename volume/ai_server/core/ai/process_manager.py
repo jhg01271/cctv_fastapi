@@ -82,16 +82,17 @@ class CameraProcessManager:
                 self._stop_worker(camera_id)
         logger.info("[ProcessManager] Stopped.")
 
-    def add_camera(self, camera_id: str, rtsp_url: str, **ai_kwargs) -> None:
+    def add_camera(self, camera_id: str, rtsp_url: str, ai_target: Callable | None = None, **ai_kwargs) -> None:
         """카메라를 등록하고 프로세스를 시작한다.
 
         rtsp_url은 원본 카메라 주소이며, 실제 reader는 MediaMTX 경유 URL을 사용한다.
+        ai_target을 지정하면 기본 AI 프로세스 대신 해당 함수를 사용한다.
         """
         with self._lock:
             if camera_id in self._workers:
                 logger.warning("[ProcessManager] Camera already registered: %s", camera_id)
                 return
-            worker = self._create_worker(camera_id, rtsp_url, **ai_kwargs)
+            worker = self._create_worker(camera_id, rtsp_url, ai_target=ai_target, **ai_kwargs)
             self._workers[camera_id] = worker
             self._start_worker(worker)
         logger.info("[ProcessManager] Camera added: %s stream_url=%s", camera_id, worker.stream_url)
@@ -128,7 +129,7 @@ class CameraProcessManager:
         """MediaMTX 경유 RTSP URL을 생성한다."""
         return f"{settings.MEDIA_SERVER_RTSP_URL}/{camera_id}"
 
-    def _create_worker(self, camera_id: str, rtsp_url: str, **ai_kwargs) -> CameraWorker:
+    def _create_worker(self, camera_id: str, rtsp_url: str, ai_target: Callable | None = None, **ai_kwargs) -> CameraWorker:
         stream_url = self._build_stream_url(camera_id)
         worker = CameraWorker(
             camera_id=camera_id,
@@ -138,6 +139,7 @@ class CameraProcessManager:
             stop_event=mp.Event(),
         )
         worker._ai_kwargs = ai_kwargs
+        worker._ai_target = ai_target or self._ai_target
         return worker
 
     def _start_worker(self, worker: CameraWorker) -> None:
@@ -153,7 +155,7 @@ class CameraProcessManager:
         )
 
         worker.ai_process = mp.Process(
-            target=self._ai_target,
+            target=worker._ai_target,
             kwargs={
                 "camera_id": worker.camera_id,
                 "rtsp_url": worker.rtsp_url,
