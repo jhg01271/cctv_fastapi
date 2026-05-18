@@ -119,20 +119,38 @@ def _start_ffmpeg(camera_id: str, rtsp_url: str) -> bool:
 
 
 def _monitor_ffmpeg(camera_id: str, proc: subprocess.Popen) -> None:
-    """FFmpeg stderr를 읽고, 프로세스 종료 시 자동 재시작한다."""
-    # stderr 읽기
-    try:
-        for line in proc.stderr:
-            decoded = line.decode("utf-8", errors="replace").strip()
-            if "error" in decoded.lower() or "fatal" in decoded.lower():
-                logger.warning("[FFmpeg:%s] %s", camera_id, decoded)
-    except Exception:
-        pass
+    """FFmpeg 프로세스를 감시하고, 종료 시 자동 재시작한다.
 
-    # 프로세스 종료 감지 — 재시작 시도
-    exit_code = proc.poll()
+    stderr를 비블로킹으로 읽으면서 프로세스 종료를 poll로 감지한다.
+    """
+    import select as _select
+
+    stderr_fd = proc.stderr
+
+    while proc.poll() is None:
+        if camera_id in _stopped_cameras:
+            return
+        # stderr에 읽을 데이터가 있으면 읽기 (최대 1초 대기)
+        try:
+            ready, _, _ = _select.select([stderr_fd], [], [], 1.0)
+        except (ValueError, OSError):
+            break  # pipe 닫힘
+        if ready:
+            try:
+                line = stderr_fd.readline()
+                if not line:
+                    break  # EOF — 프로세스 종료
+                decoded = line.decode("utf-8", errors="replace").strip()
+                if "error" in decoded.lower() or "fatal" in decoded.lower():
+                    logger.warning("[FFmpeg:%s] %s", camera_id, decoded)
+            except Exception:
+                break
+
+    # 프로세스 종료 확인
+    exit_code = proc.wait()
+
     if camera_id in _stopped_cameras:
-        return  # 명시적 중지 요청이므로 재시작하지 않음
+        return
 
     logger.warning(
         "[FFmpeg:%s] Process exited (code=%s). Attempting restart...",
