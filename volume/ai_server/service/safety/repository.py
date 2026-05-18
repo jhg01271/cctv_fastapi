@@ -63,10 +63,15 @@ def fetch_roi(db: Session, camera_id: str) -> list:
 
 def fetch_detection_flags(db: Session, camera_id: str) -> tuple[bool, bool]:
     """detection_is_run, pose_is_run 플래그를 반환한다."""
-    stmt = select(CameraRoi.is_run).where(CameraRoi.camera_id == camera_id)
-    rows = db.scalars(stmt).all()
-    detection_is_run = any(rows) if rows else True
+    stmt = select(CameraRoi.model_nm, CameraRoi.is_run).where(CameraRoi.camera_id == camera_id)
+    rows = db.execute(stmt).all()
+    detection_is_run = False
     pose_is_run = False
+    for model_nm, is_run in rows:
+        if model_nm == "Detection":
+            detection_is_run = bool(is_run)
+        elif model_nm == "Pose":
+            pose_is_run = bool(is_run)
     return detection_is_run, pose_is_run
 
 
