@@ -19,18 +19,22 @@ import cv2
 import numpy as np
 
 from config.config import settings
+from core.logging.logger import get_logger
+
+logger = get_logger(__name__)
 
 
-def _save_frame(frame: np.ndarray, save_dir: str) -> str | None:
+def _save_frame(frame: np.ndarray, save_dir: str, camera_id: str) -> str | None:
     """프레임을 jpg로 저장하고 경로를 반환한다."""
     try:
         os.makedirs(save_dir, exist_ok=True)
         filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
         filepath = os.path.join(save_dir, filename)
         cv2.imwrite(filepath, frame)
+        logger.info("[JIT:%s] Image saved. path=%s", camera_id, filepath)
         return filepath
     except Exception as e:
-        print(f"[JIT] Image save failed: {save_dir} {e}")
+        logger.error("[JIT:%s] Image save failed. dir=%s error=%s", camera_id, save_dir, e)
         return None
 
 
@@ -79,7 +83,7 @@ def jit_process(
     last_auto_time = 0.0
     prev_frame: np.ndarray | None = None
 
-    print(f"[JIT] Started: camera_id={camera_id}")
+    logger.info("[JIT:%s] Process started.", camera_id)
 
     while not stop_event.is_set():
         try:
@@ -92,20 +96,20 @@ def jit_process(
 
         # 10분 주기 저장
         if now - last_short_time >= settings.JIT_SHORT_INTERVAL_SEC:
-            _save_frame(frame, short_dir)
+            _save_frame(frame, short_dir, camera_id)
             last_short_time = now
 
         # 60분 주기 저장
         if now - last_long_time >= settings.JIT_LONG_INTERVAL_SEC:
-            _save_frame(frame, long_dir)
+            _save_frame(frame, long_dir, camera_id)
             last_long_time = now
 
         # 자동 변화 감지 저장
         if prev_frame is not None and now - last_auto_time >= settings.JIT_AUTO_MIN_INTERVAL_SEC:
             if _detect_change(frame, prev_frame):
-                _save_frame(frame, auto_dir)
+                _save_frame(frame, auto_dir, camera_id)
                 last_auto_time = now
 
         prev_frame = frame.copy()
 
-    print(f"[JIT] Stopped: camera_id={camera_id}")
+    logger.info("[JIT:%s] Process stopped.", camera_id)

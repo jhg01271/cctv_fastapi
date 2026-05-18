@@ -119,7 +119,7 @@ def _register_camera(camera_id: str, rtsp_url: str, db: Session, jit_only: bool 
     _start_stream(camera_id, rtsp_url)
 
     if jit_only:
-        from service.safety.jit_processor import jit_process
+        from core.ai.jit_processor import jit_process
 
         manager.add_camera(camera_id, rtsp_url, ai_target=jit_process)
         log_event(
