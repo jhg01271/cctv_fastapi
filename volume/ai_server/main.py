@@ -26,6 +26,7 @@ from service.event.routes import router as event_router
 from service.profile.routes import profile_router, pro_detail_router
 from service.save.routes import router as save_router
 from service.remote.routes import router as remote_router
+from service.grid.routes import router as grid_router
 from service.remote.service import restore_running_cameras_background
 import service.server.model  # noqa: F401
 import service.cctv.model  # noqa: F401
@@ -33,6 +34,7 @@ import service.roi.model  # noqa: F401
 import service.event.model  # noqa: F401
 import service.profile.model  # noqa: F401
 import service.progress.model  # noqa: F401
+import service.grid.model  # noqa: F401
 
 
 setup_logging()
@@ -106,6 +108,7 @@ def register_routes(app: FastAPI) -> None:
     app.include_router(pro_detail_router)
     app.include_router(save_router)
     app.include_router(remote_router)
+    app.include_router(grid_router)
 
 
 def create_app() -> FastAPI:

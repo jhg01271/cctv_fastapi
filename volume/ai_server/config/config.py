@@ -87,7 +87,7 @@ class Settings(BaseSettings):
     PROGRESS_RESULT_DIR: str = Field(default="./img_save/progress_results")
 
     # JIT 학습용 이미지 수집 주기 (초)
-    JIT_SHORT_INTERVAL_SEC: int = Field(default=600)      # 10분
+    JIT_SHORT_INTERVAL_SEC: int = Field(default=60)      # 1분
     JIT_LONG_INTERVAL_SEC: int = Field(default=3600)       # 60분
     JIT_AUTO_MIN_INTERVAL_SEC: int = Field(default=3600)   # 자동 변화 감지 최소 간격 (1시간)
     JIT_AUTO_MEAN_DIFF: float = Field(default=10.0)        # 자동 변화 감지 평균 차이 임계값
