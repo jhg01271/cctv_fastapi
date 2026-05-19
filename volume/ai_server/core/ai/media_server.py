@@ -17,6 +17,8 @@ logger = get_logger(__name__)
 _TIMEOUT = 5.0
 _MAX_RESTART_ATTEMPTS = 5
 _RESTART_BASE_DELAY = 3.0  # 초기 재시작 대기 (초)
+_HEALTH_CHECK_INTERVAL = 30.0  # health check 주기 (초)
+_HEALTH_FAIL_THRESHOLD = 2  # 연속 실패 N회 이상이면 FFmpeg 재시작
 
 # camera_id → FFmpeg subprocess 매핑
 _ffmpeg_procs: dict[str, subprocess.Popen] = {}
@@ -25,6 +27,12 @@ _ffmpeg_lock = threading.Lock()
 _ffmpeg_rtsp_urls: dict[str, str] = {}
 # 명시적 중지 요청된 카메라 (재시작 방지)
 _stopped_cameras: set[str] = set()
+# health check 스레드 시작 여부
+_health_check_started = False
+# camera_id → 연속 health check 실패 횟수
+_health_fail_counts: dict[str, int] = {}
+# health check에서 재시작 중인 카메라 (watch_ffmpeg 재시작 방지)
+_restarting_cameras: set[str] = set()
 
 
 def _api_url(path: str) -> str:
@@ -49,12 +57,9 @@ def _register_path(camera_id: str) -> bool:
         if resp.status_code in (200, 201):
             return True
         if resp.status_code == 400 and "path already exists" in resp.text:
-            logger.info("[MediaServer] Existing path found. Recreating path. camera=%s", camera_id)
-            remove_stream_path(camera_id)
-            retry_resp = httpx.post(url, json=payload, timeout=_TIMEOUT)
-            if retry_resp.status_code in (200, 201):
-                return True
-            resp = retry_resp
+            # 이미 등록된 path는 삭제하지 않고 그대로 재사용
+            logger.info("[MediaServer] Path already exists, reusing. camera=%s", camera_id)
+            return True
         logger.warning(
             "[MediaServer] Failed to add path. camera=%s status=%d body=%s",
             camera_id, resp.status_code, resp.text,
@@ -73,12 +78,13 @@ def _start_ffmpeg(camera_id: str, rtsp_url: str) -> bool:
         "ffmpeg",
         "-rtsp_transport", "tcp",
         "-i", rtsp_url,
-        "-vf", "scale=1280:720",
-        "-r", "10",
-        "-c:v", "libx264",
-        "-preset", "ultrafast",
-        "-tune", "zerolatency",
-        "-g", "10",
+        # "-vf", "scale=1280:720",
+        # "-r", "2",
+        # "-c:v", "libx264",
+        # "-preset", "ultrafast",
+        # "-tune", "zerolatency",
+        # "-g", "4",
+        "-c:v", "copy",
         "-an",
         "-f", "rtsp",
         "-rtsp_transport", "tcp",
@@ -96,11 +102,18 @@ def _start_ffmpeg(camera_id: str, rtsp_url: str) -> bool:
             _ffmpeg_rtsp_urls[camera_id] = rtsp_url
             _stopped_cameras.discard(camera_id)
 
-        # 별도 스레드에서 stderr 모니터링 + 재시작
+        # stderr 로그 읽기 (별도 스레드)
         threading.Thread(
-            target=_monitor_ffmpeg,
+            target=_read_stderr,
             args=(camera_id, proc),
-            name=f"ffmpeg-mon-{camera_id}",
+            name=f"ffmpeg-stderr-{camera_id}",
+            daemon=True,
+        ).start()
+        # 프로세스 감시 + 재시작 (별도 스레드)
+        threading.Thread(
+            target=_watch_ffmpeg,
+            args=(camera_id, proc),
+            name=f"ffmpeg-watch-{camera_id}",
             daemon=True,
         ).start()
 
@@ -118,38 +131,27 @@ def _start_ffmpeg(camera_id: str, rtsp_url: str) -> bool:
         return False
 
 
-def _monitor_ffmpeg(camera_id: str, proc: subprocess.Popen) -> None:
-    """FFmpeg 프로세스를 감시하고, 종료 시 자동 재시작한다.
+def _read_stderr(camera_id: str, proc: subprocess.Popen) -> None:
+    """FFmpeg stderr를 읽어 에러 로그를 남긴다. (로그 전용, 감시와 무관)"""
+    try:
+        for line in proc.stderr:
+            decoded = line.decode("utf-8", errors="replace").strip()
+            if "error" in decoded.lower() or "fatal" in decoded.lower():
+                logger.warning("[FFmpeg:%s] %s", camera_id, decoded)
+    except Exception:
+        pass
 
-    stderr를 비블로킹으로 읽으면서 프로세스 종료를 poll로 감지한다.
-    """
-    import select as _select
 
-    stderr_fd = proc.stderr
-
-    while proc.poll() is None:
-        if camera_id in _stopped_cameras:
-            return
-        # stderr에 읽을 데이터가 있으면 읽기 (최대 1초 대기)
-        try:
-            ready, _, _ = _select.select([stderr_fd], [], [], 1.0)
-        except (ValueError, OSError):
-            break  # pipe 닫힘
-        if ready:
-            try:
-                line = stderr_fd.readline()
-                if not line:
-                    break  # EOF — 프로세스 종료
-                decoded = line.decode("utf-8", errors="replace").strip()
-                if "error" in decoded.lower() or "fatal" in decoded.lower():
-                    logger.warning("[FFmpeg:%s] %s", camera_id, decoded)
-            except Exception:
-                break
-
-    # 프로세스 종료 확인
-    exit_code = proc.wait()
+def _watch_ffmpeg(camera_id: str, proc: subprocess.Popen) -> None:
+    """FFmpeg 프로세스 종료를 감지하고 자동 재시작한다. (proc.wait 기반)"""
+    exit_code = proc.wait()  # 프로세스가 끝날 때까지 확실히 대기
 
     if camera_id in _stopped_cameras:
+        return
+
+    # health check에서 이미 재시작 처리 중이면 중복 재시작 방지
+    if camera_id in _restarting_cameras:
+        logger.info("[FFmpeg:%s] Health check is handling restart. Skipping watch restart.", camera_id)
         return
 
     logger.warning(
@@ -158,7 +160,7 @@ def _monitor_ffmpeg(camera_id: str, proc: subprocess.Popen) -> None:
     )
 
     for attempt in range(1, _MAX_RESTART_ATTEMPTS + 1):
-        if camera_id in _stopped_cameras:
+        if camera_id in _stopped_cameras or camera_id in _restarting_cameras:
             return
 
         delay = _RESTART_BASE_DELAY * (2 ** (attempt - 1))  # 3, 6, 12, 24, 48초
@@ -189,6 +191,7 @@ def _stop_ffmpeg(camera_id: str) -> None:
         _stopped_cameras.add(camera_id)
         proc = _ffmpeg_procs.pop(camera_id, None)
         _ffmpeg_rtsp_urls.pop(camera_id, None)
+    _health_fail_counts.pop(camera_id, None)
 
     if proc and proc.poll() is None:
         proc.terminate()
@@ -210,6 +213,7 @@ def add_stream_path(camera_id: str, rtsp_url: str) -> bool:
 
     1. MediaMTX에 빈 path 등록 (publisher 대기)
     2. FFmpeg로 RTSP → H264 변환 후 MediaMTX에 push
+    3. health check 스레드 자동 시작
     """
     if _is_ffmpeg_running(camera_id):
         logger.info("[MediaServer] FFmpeg already running. camera=%s", camera_id)
@@ -220,6 +224,8 @@ def add_stream_path(camera_id: str, rtsp_url: str) -> bool:
 
     if not _start_ffmpeg(camera_id, rtsp_url):
         return False
+
+    _ensure_health_check()
 
     log_event(
         logger=logger,
@@ -265,3 +271,95 @@ def get_stream_urls(camera_id: str) -> dict:
         "webrtc": f"http://{ext_host}:{settings.MEDIA_SERVER_WEBRTC_PORT}/{camera_id}",
         "rtsp": f"rtsp://{ext_host}:{settings.MEDIA_SERVER_RTSP_PORT}/{camera_id}",
     }
+
+
+# ──────────────────────────────────────────────────────────────
+# Health Check — MediaMTX에서 스트림 상태를 주기적으로 확인
+# ──────────────────────────────────────────────────────────────
+
+def _ensure_health_check() -> None:
+    """health check 스레드가 없으면 시작한다."""
+    global _health_check_started
+    if _health_check_started:
+        return
+    _health_check_started = True
+    threading.Thread(
+        target=_health_check_loop,
+        name="ffmpeg-health-check",
+        daemon=True,
+    ).start()
+    logger.info("[HealthCheck] Started. interval=%ds", int(_HEALTH_CHECK_INTERVAL))
+
+
+def _check_stream_ready(camera_id: str) -> bool:
+    """MediaMTX API로 해당 카메라 스트림이 실제로 publish 중인지 확인한다."""
+    try:
+        resp = httpx.get(
+            f"{settings.MEDIA_SERVER_API_URL}/v3/paths/list",
+            timeout=_TIMEOUT,
+        )
+        if resp.status_code != 200:
+            return True  # API 실패 시 일단 정상으로 간주
+        for item in resp.json().get("items") or []:
+            if item.get("name") == camera_id:
+                return bool(item.get("ready"))
+        return False  # path 자체가 없음
+    except Exception:
+        return True  # 네트워크 오류 시 일단 정상으로 간주
+
+
+def _health_check_loop() -> None:
+    """주기적으로 FFmpeg 스트림 상태를 확인하고, 연속 실패 시 kill 후 재시작한다."""
+    while True:
+        time.sleep(_HEALTH_CHECK_INTERVAL)
+
+        with _ffmpeg_lock:
+            targets = {
+                cid: (proc, _ffmpeg_rtsp_urls.get(cid))
+                for cid, proc in _ffmpeg_procs.items()
+                if cid not in _stopped_cameras
+            }
+
+        for camera_id, (proc, rtsp_url) in targets.items():
+            if not rtsp_url:
+                continue
+
+            # 프로세스가 이미 죽었으면 _watch_ffmpeg가 처리하므로 skip
+            if proc.poll() is not None:
+                _health_fail_counts.pop(camera_id, None)
+                continue
+
+            # MediaMTX에 스트림이 publish 중인지 확인
+            if _check_stream_ready(camera_id):
+                if camera_id in _health_fail_counts:
+                    _health_fail_counts.pop(camera_id, None)
+                continue
+
+            # 연속 실패 카운트 증가
+            fail_count = _health_fail_counts.get(camera_id, 0) + 1
+            _health_fail_counts[camera_id] = fail_count
+            logger.warning(
+                "[HealthCheck] Stream not ready. camera=%s pid=%d fail_count=%d/%d",
+                camera_id, proc.pid, fail_count, _HEALTH_FAIL_THRESHOLD,
+            )
+
+            if fail_count < _HEALTH_FAIL_THRESHOLD:
+                continue
+
+            # 연속 N회 실패 — FFmpeg kill 후 재시작
+            _health_fail_counts.pop(camera_id, None)
+            _restarting_cameras.add(camera_id)  # _watch_ffmpeg 중복 재시작 방지
+            logger.warning(
+                "[HealthCheck] Consecutive failures reached threshold. Killing FFmpeg. camera=%s pid=%d",
+                camera_id, proc.pid,
+            )
+            proc.kill()
+            proc.wait()
+
+            # path 재등록 + FFmpeg 재시작
+            _register_path(camera_id)
+            if _start_ffmpeg(camera_id, rtsp_url):
+                logger.info("[HealthCheck] FFmpeg restarted. camera=%s", camera_id)
+            else:
+                logger.error("[HealthCheck] FFmpeg restart failed. camera=%s", camera_id)
+            _restarting_cameras.discard(camera_id)
