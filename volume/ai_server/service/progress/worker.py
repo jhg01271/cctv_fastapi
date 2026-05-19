@@ -12,7 +12,7 @@ import threading
 from core.database.session import SessionLocal
 from core.logging.logger import get_logger
 from service.progress import persistence
-from service.progress.processor import progress_process
+from service.save.processor import progress_process
 from service.progress.repository import fetch_grid_coordinates, fetch_progress_cameras
 
 logger = get_logger(__name__)
