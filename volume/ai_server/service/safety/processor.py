@@ -122,7 +122,7 @@ def safety_process(
             continue
 
         now       = time.time()
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
         detections: list[dict] = []
         events:     list[dict] = []
 
