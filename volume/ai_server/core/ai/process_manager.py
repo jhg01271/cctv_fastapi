@@ -277,7 +277,7 @@ class CameraProcessManager:
                         restarting.add(camera_id)
                         t = threading.Thread(
                             target=self._restart_worker,
-                            args=(camera_id, worker.rtsp_url, worker._ai_kwargs, restarting),
+                            args=(camera_id, worker.rtsp_url, worker._ai_target, worker._ai_kwargs, restarting),
                             name=f"restart-{camera_id}",
                             daemon=True,
                         )
@@ -296,6 +296,7 @@ class CameraProcessManager:
         self,
         camera_id: str,
         rtsp_url: str,
+        ai_target: Callable,
         ai_kwargs: dict,
         restarting: set[str],
     ) -> None:
@@ -309,11 +310,19 @@ class CameraProcessManager:
                     return
                 self._stop_worker(camera_id)
 
-            # 2) lock 밖에서 새 worker 생성 + 프로세스 시작 (블로킹 구간)
-            new_worker = self._create_worker(camera_id, rtsp_url, **ai_kwargs)
+            # 2) MediaMTX stream path 재등록 (path가 사라졌을 수 있음)
+            try:
+                from service.remote.service import _start_stream
+                _start_stream(camera_id, rtsp_url)
+                logger.info("[Watchdog] MediaMTX stream re-registered: camera=%s", camera_id)
+            except Exception:
+                logger.warning("[Watchdog] MediaMTX stream re-register failed: camera=%s (continuing)", camera_id)
+
+            # 3) lock 밖에서 새 worker 생성 + 프로세스 시작 (블로킹 구간)
+            new_worker = self._create_worker(camera_id, rtsp_url, ai_target=ai_target, **ai_kwargs)
             self._start_worker(new_worker)
 
-            # 3) lock 짧게 잡고 등록만
+            # 4) lock 짧게 잡고 등록만
             with self._lock:
                 self._workers[camera_id] = new_worker
 

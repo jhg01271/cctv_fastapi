@@ -12,9 +12,9 @@ from core.logging.logger import get_logger
 logger = get_logger(__name__)
 
 # MediaMTX 재연결 시도 간격(초) — MediaMTX 자체 장애 시에만 동작
-RECONNECT_DELAY = 3
-# MediaMTX 재연결 최대 시도 횟수
-MAX_RECONNECT_RETRIES = 10
+RECONNECT_DELAY = 5
+# 재연결 간격 최대값(초) — 지수 백오프 상한
+RECONNECT_MAX_DELAY = 30
 # 큐가 가득 찼을 때 대기 시간(초)
 QUEUE_PUT_TIMEOUT = 1
 
@@ -28,20 +28,26 @@ def _open_capture(stream_url: str) -> cv2.VideoCapture | None:
     return None
 
 
-def _reconnect(stream_url: str) -> cv2.VideoCapture | None:
-    """MediaMTX 연결을 재시도한다. 최대 횟수 초과 시 None을 반환한다."""
-    for attempt in range(1, MAX_RECONNECT_RETRIES + 1):
-        logger.warning(
-            "[RTSP] Reconnect attempt %d/%d url=%s",
-            attempt, MAX_RECONNECT_RETRIES, stream_url,
-        )
-        time.sleep(RECONNECT_DELAY)
+def _reconnect(stream_url: str, stop_event: "mp.Event | None" = None) -> cv2.VideoCapture | None:
+    """MediaMTX 연결을 성공할 때까지 무한 재시도한다. stop_event가 set되면 중단."""
+    attempt = 0
+    delay = RECONNECT_DELAY
+    while True:
+        if stop_event is not None and stop_event.is_set():
+            logger.info("[RTSP] Stop requested during reconnect. url=%s", stream_url)
+            return None
+
+        attempt += 1
+        logger.warning("[RTSP] Reconnect attempt %d url=%s (delay=%.0fs)", attempt, stream_url, delay)
+        time.sleep(delay)
+
         cap = _open_capture(stream_url)
         if cap is not None:
-            logger.info("[RTSP] Reconnected successfully. url=%s", stream_url)
+            logger.info("[RTSP] Reconnected successfully after %d attempts. url=%s", attempt, stream_url)
             return cap
-    logger.error("[RTSP] All reconnect attempts failed. url=%s", stream_url)
-    return None
+
+        # 지수 백오프: 5 → 10 → 20 → 30(상한)
+        delay = min(delay * 2, RECONNECT_MAX_DELAY)
 
 
 def rtsp_reader_process(
@@ -61,7 +67,7 @@ def rtsp_reader_process(
     cap = _open_capture(stream_url)
     if cap is None:
         logger.error("[RTSP] Initial connection failed. url=%s", stream_url)
-        cap = _reconnect(stream_url)
+        cap = _reconnect(stream_url, stop_event)
         if cap is None:
             return
 
@@ -77,7 +83,7 @@ def rtsp_reader_process(
             if not ret:
                 logger.warning("[RTSP] Frame read failed. Attempting reconnect. url=%s", stream_url)
                 cap.release()
-                cap = _reconnect(stream_url)
+                cap = _reconnect(stream_url, stop_event)
                 if cap is None:
                     break
                 continue
