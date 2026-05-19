@@ -10,6 +10,9 @@ docker-compose.override.yml
 # AI 모델 파일 (용량 큼)
 volume/ai_server/model/*.pt
 
+# AI 이미지 저장 (JIT/이벤트)
+volume/ai_server/img_save/
+
 # DB 데이터
 volume/postgres/
 
