@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
@@ -23,6 +23,41 @@ from service.grid.schema import (
 )
 
 router = APIRouter(prefix="/grid/grid_crud", tags=["grid_crud"])
+
+
+@router.api_route(
+    "/get_test_img",
+    methods=["GET", "POST"],
+    summary="테스트 이미지 조회",
+)
+async def get_test_img(request: Request, camera_id: str | None = None) -> JSONResponse:
+    """테스트 이미지를 반환한다.
+
+    프론트엔드가 GET 요청의 body에 camera_id를 전달하므로,
+    query param과 JSON body 모두에서 camera_id를 추출한다.
+    """
+    if not camera_id:
+        try:
+            body = await request.json()
+            if isinstance(body, str):
+                camera_id = body
+            elif isinstance(body, dict):
+                camera_id = body.get("camera_id")
+        except Exception:
+            try:
+                raw = (await request.body()).decode("utf-8").strip().strip('"')
+                if raw:
+                    camera_id = raw
+            except Exception:
+                pass
+
+    result = service.get_test_img(camera_id=camera_id)
+    return JSONResponse(content={
+        "success": True,
+        "code": 200,
+        "msg": "성공하였습니다.",
+        **result,
+    })
 
 
 @router.post(

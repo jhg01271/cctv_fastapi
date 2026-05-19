@@ -9,6 +9,7 @@ class InitializeCoordinatesRequest(BaseModel):
     image_base64: str
     click_coordinates: list
     search_radius: int | None = None
+    use_click: bool | None = None
 
 
 class UpdateSortDirectionRequest(BaseModel):
@@ -19,11 +20,15 @@ class UpdateSortDirectionRequest(BaseModel):
 class ProcessGridRequest(BaseModel):
     unique_id: str
     operations: list[list]
+    sort_direction: str | None = None
 
 
 class SaveGridRequest(BaseModel):
     unique_id: str
     camera_id: str
+    sort_direction: str | None = None
+    initial_coordinates: list | None = None
+    image_base64: str | None = None
     grid_unit: str | None = None
     created_by: str
     updated_by: str
@@ -66,5 +71,21 @@ class SaveSafetyGridRequest(BaseModel):
 
 
 class LoadSafetyGridRequest(BaseModel):
+    camera_id: str
+    image_base64: str
+
+
+class SaveInventoryGridRequest(BaseModel):
+    camera_id: str
+    sort_direction: str
+    point_list_data: list
+    grid_unit: str
+    created_by: str
+    updated_by: str
+    setMode: str
+    unique_id: str | None = None
+
+
+class LoadInventoryGridRequest(BaseModel):
     camera_id: str
     image_base64: str

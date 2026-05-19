@@ -82,7 +82,10 @@ def save_roi(db: Session, data: dict) -> list[dict]:
 
 
 def capture_cctv_image(db: Session, camera_id: str) -> dict:
-    """카메라 RTSP에서 한 프레임을 캡처해 base64 인코딩 이미지와 크기 정보를 반환한다."""
+    """카메라 RTSP에서 한 프레임을 캡처해 base64 인코딩 이미지와 크기 정보를 반환한다.
+
+    RTSP 캡처 실패 시 grid/img/ 폴더의 테스트 이미지를 fallback으로 사용한다.
+    """
     import base64
     import math
     from service.cctv.model import Camera
@@ -95,24 +98,45 @@ def capture_cctv_image(db: Session, camera_id: str) -> dict:
     rtsp_url = f"{settings.MEDIA_SERVER_RTSP_URL}/{camera_id}"
     cap = cv2.VideoCapture(rtsp_url)
 
-    if not cap.isOpened():
-        raise BadRequestException(msg=f"RTSP 연결에 실패했습니다. camera_id={camera_id}")
+    img_base64 = None
+    width = 0
+    height = 0
 
-    ret, frame = cap.read()
-    cap.release()
+    if cap.isOpened():
+        ret, frame = cap.read()
+        cap.release()
+        if ret:
+            height, width = frame.shape[:2]
+            _, buffer = cv2.imencode(".jpg", frame)
+            img_base64 = base64.b64encode(buffer).decode("utf-8")
+            logger.info("CCTV image captured: camera_id=%s size=%dx%d", camera_id, width, height)
+    else:
+        cap.release()
 
-    if not ret:
-        raise BadRequestException(msg=f"프레임 캡처에 실패했습니다. camera_id={camera_id}")
+    # RTSP 캡처 실패 시 테스트 이미지 fallback
+    if img_base64 is None:
+        from pathlib import Path
+        from PIL import Image
 
-    height, width = frame.shape[:2]
+        img_dir = Path(__file__).parent.parent / "grid" / "img"
+        test_img = None
+        for ext in ("jpg", "png"):
+            candidate = img_dir / f"{camera_id}.{ext}"
+            if candidate.exists():
+                test_img = candidate
+                break
 
-    _, buffer = cv2.imencode(".jpg", frame)
-    img_base64 = base64.b64encode(buffer).decode("utf-8")
+        if test_img is None:
+            raise BadRequestException(msg=f"RTSP 캡처 실패 및 테스트 이미지 없음. camera_id={camera_id}")
+
+        with open(test_img, "rb") as f:
+            img_base64 = base64.b64encode(f.read()).decode("utf-8")
+        img = Image.open(test_img)
+        width, height = img.size
+        logger.info("Test image used: camera_id=%s path=%s", camera_id, test_img)
 
     gcd = math.gcd(width, height)
     ratio = f"{width // gcd}:{height // gcd}"
-
-    logger.info("CCTV image captured: camera_id=%s size=%dx%d", camera_id, width, height)
 
     return {
         "img_decode_data": img_base64,

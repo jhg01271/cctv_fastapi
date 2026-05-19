@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+import math
 import uuid
 from datetime import datetime
+from pathlib import Path
 
 import numpy as np
 from sqlalchemy.orm import Session
@@ -229,7 +231,8 @@ def load_grid(db: Session, camera_id: str) -> dict:
         "initial_coordinates": grid_data,
         "sort_direction": record.sort_direction,
         "image_base64": record.img_data,
-        "img_size": img_size,
+        "img_size": {"width": img_size["width"], "height": img_size["height"]},
+        "ratio": img_size["ratio"],
         "origin_image_base64": record.org_img_data,
         "grid_unit": record.grid_unit,
         "extend_count": record.extend_count or {"up": 0, "down": 0, "left": 0, "right": 0},
@@ -246,6 +249,37 @@ def load_grid(db: Session, camera_id: str) -> dict:
 # ---------------------------------------------------------------------------
 # 유틸리티
 # ---------------------------------------------------------------------------
+
+def get_test_img(camera_id: str | None = None) -> dict:
+    """테스트 이미지를 반환한다. camera_id가 있으면 해당 카메라 이미지를 찾는다."""
+    img_dir = Path(__file__).parent / "img"
+
+    test_img_path = None
+    if camera_id:
+        for ext in ("jpg", "png"):
+            candidate = img_dir / f"{camera_id}.{ext}"
+            if candidate.exists():
+                test_img_path = candidate
+                break
+
+    if test_img_path is None:
+        raise NotFoundException(msg=f"테스트 이미지를 찾을 수 없습니다. camera_id={camera_id}")
+
+    import base64
+    with open(test_img_path, "rb") as f:
+        encoded_image = base64.b64encode(f.read()).decode("utf-8")
+
+    from PIL import Image
+    img = Image.open(test_img_path)
+    width, height = img.size
+    gcd = math.gcd(width, height)
+
+    return {
+        "image_base64": encoded_image,
+        "img_size": {"width": width, "height": height},
+        "ratio": f"{width // gcd}:{height // gcd}",
+    }
+
 
 def get_raw_img(unique_id: str) -> dict:
     """메모리에서 원본 이미지 정보를 반환한다."""
