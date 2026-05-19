@@ -6,21 +6,21 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
-from service.grid.model import CameraGrid, CameraSafetyGrid
+from service.grid.model import CameraProcessGrid, CameraSafetyGrid
 
 
 # ---------------------------------------------------------------------------
 # 공정률 격자 (tb_camera_grid)
 # ---------------------------------------------------------------------------
 
-def fetch_grid_by_camera(db: Session, camera_id: str) -> CameraGrid | None:
+def fetch_grid_by_camera(db: Session, camera_id: str) -> CameraProcessGrid | None:
     """카메라 ID로 공정률 격자를 조회한다."""
-    return db.get(CameraGrid, camera_id)
+    return db.get(CameraProcessGrid, camera_id)
 
 
-def upsert_grid(db: Session, camera_id: str, data: dict) -> CameraGrid:
+def upsert_grid(db: Session, camera_id: str, data: dict) -> CameraProcessGrid:
     """공정률 격자를 저장 또는 업데이트한다."""
-    existing = db.get(CameraGrid, camera_id)
+    existing = db.get(CameraProcessGrid, camera_id)
     now = datetime.now()
 
     if existing:
@@ -32,7 +32,7 @@ def upsert_grid(db: Session, camera_id: str, data: dict) -> CameraGrid:
         db.refresh(existing)
         return existing
 
-    grid = CameraGrid(camera_id=camera_id, created_at=now, updated_at=now, **data)
+    grid = CameraProcessGrid(camera_id=camera_id, created_at=now, updated_at=now, **data)
     db.add(grid)
     db.commit()
     db.refresh(grid)

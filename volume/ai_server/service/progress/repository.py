@@ -8,7 +8,8 @@ from sqlalchemy.orm import Session
 from config.config import settings
 from core.utils.formatters.datetime import format_datetime
 from service.cctv.model import Camera
-from service.progress.model import CameraGrid, TwinDetection, TwinImage
+from service.grid.model import CameraProcessGrid
+from service.progress.model import TwinDetection, TwinImage
 
 
 def count_results(db: Session, camera_id: str | None = None) -> int:
@@ -84,7 +85,7 @@ def save_detection_records(
 
 def fetch_grid_coordinates(db: Session, camera_id: str) -> list | None:
     """tb_camera_grid에서 격자 좌표를 조회한다."""
-    grid = db.get(CameraGrid, camera_id)
+    grid = db.get(CameraProcessGrid, camera_id)
     if grid and grid.grid_data:
         return grid.grid_data if isinstance(grid.grid_data, list) else None
     return None
