@@ -19,6 +19,10 @@ WATCHDOG_INTERVAL = 10
 PROCESS_JOIN_TIMEOUT = 5
 # 프로세스 재시작 전 대기 시간(초)
 RESTART_DELAY = 3
+# 프로세스 시작 후 워치독 체크 유예 시간(초) — 초기화 시간 보장
+RESTART_COOLDOWN = 30
+# 프레임 수신이 이 시간 이상 없으면 스트림 끊김으로 판단(초)
+FRAME_STALE_TIMEOUT = 30
 
 
 @dataclass
@@ -34,6 +38,10 @@ class CameraWorker:
     ai_process: mp.Process | None = None
     # 워치독이 생존 여부를 확인하는 카운터 (AI 프로세스가 주기적으로 증가)
     heartbeat: mp.Value = field(default_factory=lambda: mp.Value("i", 0))
+    # RTSP reader가 마지막으로 프레임을 큐에 넣은 시각 (epoch seconds)
+    last_frame_at: mp.Value = field(default_factory=lambda: mp.Value("d", 0.0))
+    # 프로세스가 시작된 시각 (restart cooldown 판단용)
+    started_at: float = 0.0
 
 
 class CameraProcessManager:
@@ -58,6 +66,8 @@ class CameraProcessManager:
         self._lock = threading.Lock()
         self._watchdog_thread: threading.Thread | None = None
         self._running = False
+        # 워치독 루프 자체의 heartbeat (마지막 루프 완료 시각)
+        self._watchdog_heartbeat: float = 0.0
 
     # ------------------------------------------------------------------
     # Public API
@@ -117,9 +127,15 @@ class CameraProcessManager:
                     "reader_alive": w.reader_process.is_alive() if w.reader_process else False,
                     "ai_alive": w.ai_process.is_alive() if w.ai_process else False,
                     "heartbeat": w.heartbeat.value,
+                    "last_frame_at": w.last_frame_at.value,
                 }
                 for w in self._workers.values()
             ]
+
+    @property
+    def watchdog_heartbeat(self) -> float:
+        """워치독 루프의 마지막 실행 시각 (epoch seconds)."""
+        return self._watchdog_heartbeat
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -146,10 +162,11 @@ class CameraProcessManager:
         from core.ai.rtsp_reader import rtsp_reader_process
 
         worker.stop_event.clear()
+        worker.started_at = time.time()
 
         worker.reader_process = mp.Process(
             target=rtsp_reader_process,
-            args=(worker.stream_url, worker.frame_queue, worker.stop_event),
+            args=(worker.stream_url, worker.frame_queue, worker.stop_event, worker.last_frame_at),
             name=f"rtsp-{worker.camera_id}",
             daemon=True,
         )
@@ -193,41 +210,87 @@ class CameraProcessManager:
     def _watchdog_loop(self) -> None:
         """주기적으로 프로세스 생존 여부를 확인하고 다운된 경우 재시작한다."""
         last_heartbeats: dict[str, int] = {}
-        restarting: set[str] = set()  # 재시작 진행 중인 camera_id
+        restarting: set[str] = set()
 
         while self._running:
             time.sleep(WATCHDOG_INTERVAL)
 
-            with self._lock:
-                snapshot = list(self._workers.items())
+            try:
+                with self._lock:
+                    snapshot = list(self._workers.items())
 
-            for camera_id, worker in snapshot:
-                if camera_id in restarting:
-                    continue
+                now = time.time()
 
-                current_hb = worker.heartbeat.value
-                prev_hb = last_heartbeats.get(camera_id, -1)
+                for camera_id, worker in snapshot:
+                    # (1) 이미 재시작 진행 중이면 스킵 — 카메라당 1개만 실행
+                    if camera_id in restarting:
+                        logger.debug("[Watchdog] Skipping camera=%s (restart in progress)", camera_id)
+                        continue
 
-                reader_alive = worker.reader_process and worker.reader_process.is_alive()
-                ai_alive = worker.ai_process and worker.ai_process.is_alive()
-                hb_stuck = (prev_hb == current_hb) and ai_alive  # heartbeat 멈춤
+                    # (2) restart cooldown — 시작 직후에는 체크 스킵
+                    elapsed = now - worker.started_at
+                    if worker.started_at > 0 and elapsed < RESTART_COOLDOWN:
+                        logger.debug(
+                            "[Watchdog] Skipping camera=%s (cooldown %.0fs remaining)",
+                            camera_id, RESTART_COOLDOWN - elapsed,
+                        )
+                        continue
 
-                if not reader_alive or not ai_alive or hb_stuck:
-                    logger.warning(
-                        "[Watchdog] Restarting camera=%s reader=%s ai=%s hb_stuck=%s",
-                        camera_id, reader_alive, ai_alive, hb_stuck,
+                    # (3) 프로세스 alive 확인
+                    reader_alive = worker.reader_process and worker.reader_process.is_alive()
+                    ai_alive = worker.ai_process and worker.ai_process.is_alive()
+
+                    # (4) heartbeat 확인 (AI 프로세스 루프 동작 여부)
+                    current_hb = worker.heartbeat.value
+                    prev_hb = last_heartbeats.get(camera_id, -1)
+                    hb_stuck = (prev_hb == current_hb) and ai_alive
+
+                    # (5) last_frame_at 확인 (RTSP 스트림 프레임 수신 여부)
+                    last_frame = worker.last_frame_at.value
+                    frame_stale = (
+                        reader_alive
+                        and last_frame > 0
+                        and (now - last_frame) > FRAME_STALE_TIMEOUT
                     )
-                    restarting.add(camera_id)
-                    t = threading.Thread(
-                        target=self._restart_worker,
-                        args=(camera_id, worker.rtsp_url, worker._ai_kwargs, restarting),
-                        name=f"restart-{camera_id}",
-                        daemon=True,
+
+                    restart_reason = None
+                    if not reader_alive:
+                        restart_reason = "reader_dead"
+                    elif not ai_alive:
+                        restart_reason = "ai_dead"
+                    elif hb_stuck:
+                        restart_reason = "heartbeat_stuck"
+                    elif frame_stale:
+                        restart_reason = "frame_stale"
+
+                    logger.debug(
+                        "[Watchdog] camera=%s reader=%s ai=%s hb=%d prev_hb=%d stuck=%s last_frame=%.0f frame_stale=%s",
+                        camera_id, reader_alive, ai_alive, current_hb, prev_hb, hb_stuck,
+                        last_frame, frame_stale,
                     )
-                    t.start()
-                    last_heartbeats[camera_id] = 0
-                else:
-                    last_heartbeats[camera_id] = current_hb
+
+                    if restart_reason:
+                        logger.warning(
+                            "[Watchdog] Restarting camera=%s reason=%s",
+                            camera_id, restart_reason,
+                        )
+                        restarting.add(camera_id)
+                        t = threading.Thread(
+                            target=self._restart_worker,
+                            args=(camera_id, worker.rtsp_url, worker._ai_kwargs, restarting),
+                            name=f"restart-{camera_id}",
+                            daemon=True,
+                        )
+                        t.start()
+                        last_heartbeats[camera_id] = 0
+                    else:
+                        last_heartbeats[camera_id] = current_hb
+
+                # (6) 워치독 루프 자체 heartbeat 갱신
+                self._watchdog_heartbeat = time.time()
+
+            except Exception:
+                logger.exception("[Watchdog] Error in watchdog loop")
 
     def _restart_worker(
         self,
@@ -236,16 +299,24 @@ class CameraProcessManager:
         ai_kwargs: dict,
         restarting: set[str],
     ) -> None:
-        """워치독이 감지한 비정상 프로세스를 락 밖에서 재시작한다."""
+        """워치독이 감지한 비정상 프로세스를 재시작한다. lock 점유를 최소화한다."""
         try:
             time.sleep(RESTART_DELAY)
+
+            # 1) lock 짧게 잡고 stop만 수행
             with self._lock:
                 if camera_id not in self._workers:
                     return
                 self._stop_worker(camera_id)
-                new_worker = self._create_worker(camera_id, rtsp_url, **ai_kwargs)
+
+            # 2) lock 밖에서 새 worker 생성 + 프로세스 시작 (블로킹 구간)
+            new_worker = self._create_worker(camera_id, rtsp_url, **ai_kwargs)
+            self._start_worker(new_worker)
+
+            # 3) lock 짧게 잡고 등록만
+            with self._lock:
                 self._workers[camera_id] = new_worker
-                self._start_worker(new_worker)
+
             logger.info("[Watchdog] Restarted camera=%s", camera_id)
         except Exception:
             logger.exception("[Watchdog] Restart failed: camera=%s", camera_id)

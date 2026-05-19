@@ -48,6 +48,7 @@ def rtsp_reader_process(
     stream_url: str,
     frame_queue: mp.Queue,
     stop_event: mp.Event,
+    last_frame_at: mp.Value | None = None,
 ) -> None:
     """MediaMTX 경유 RTSP 스트림을 읽어 frame_queue에 프레임을 공급하는 프로세스 함수.
 
@@ -55,6 +56,7 @@ def rtsp_reader_process(
         stream_url: MediaMTX RTSP 주소 (예: rtsp://localhost:8554/cam01)
         frame_queue: AI 처리 프로세스와 공유하는 프레임 큐
         stop_event: 외부에서 프로세스 종료를 요청하는 이벤트
+        last_frame_at: 마지막 프레임 수신 시각 (워치독 모니터링용, epoch seconds)
     """
     cap = _open_capture(stream_url)
     if cap is None:
@@ -89,13 +91,16 @@ def rtsp_reader_process(
 
             try:
                 frame_queue.put(frame, timeout=QUEUE_PUT_TIMEOUT)
+                if last_frame_at is not None:
+                    last_frame_at.value = time.time()
             except Exception:
                 pass
 
     except Exception as e:
         logger.error("[RTSP] Fatal error in reader. url=%s error=%s", stream_url, e)
     finally:
-        cap.release()
+        if cap is not None:
+            cap.release()
         logger.info("[RTSP] Stream closed. url=%s", stream_url)
 
 
