@@ -21,6 +21,10 @@ authInternalUsers:
 
 # RTSP 서버 (AI rtsp_reader가 소비)
 rtspAddress: :8554
+protocols: [tcp]
+readTimeout: 60s
+writeTimeout: 60s
+writeQueueSize: 1024
 
 # WebRTC 서버 (프론트엔드 실시간 영상 시청)
 webrtcAddress: :8889
