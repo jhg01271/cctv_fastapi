@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from core.database.session import get_db
 from core.response.response import ResultResponse, response
 from core.utils.formatters.user_code import parse_comp_id
-from service.cctv.schema import CameraRead
+from service.cctv.schema import CameraCreate, CameraDelete, CameraRead
 from service.cctv import service
 
 router = APIRouter(prefix="/cctv/cctv_crud", tags=["cctv_crud"])
@@ -61,13 +61,12 @@ def get_server_by_camera(
     summary="카메라 등록/수정",
     response_model=ResultResponse[list[CameraRead]],
 )
-async def save_camera(
-    request: Request,
+def save_camera(
+    body: CameraCreate,
     db: Session = Depends(get_db),
 ) -> ResultResponse[list[CameraRead]]:
     """카메라를 등록하거나 수정한다."""
-    body = await request.json()
-    result = service.save_camera(db, body)
+    result = service.save_camera(db, body.model_dump())
     return response(data=result, msg_key="success.create")
 
 
@@ -76,12 +75,10 @@ async def save_camera(
     summary="카메라 삭제",
     response_model=ResultResponse[dict],
 )
-async def delete_camera(
-    request: Request,
+def delete_camera(
+    body: CameraDelete,
     db: Session = Depends(get_db),
 ) -> ResultResponse[dict]:
     """카메라를 삭제한다."""
-    body = await request.json()
-    camera_id = body.get("camera_id")
-    deleted = service.remove_camera(db, camera_id)
+    deleted = service.remove_camera(db, body.camera_id)
     return response(data={"deleted": deleted}, msg_key="success.delete")

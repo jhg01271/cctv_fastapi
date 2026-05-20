@@ -30,6 +30,24 @@ class CameraRead(BaseModel):
     location: str | None = None
 
 
+class CameraCreate(BaseModel):
+    """카메라 등록/수정 요청 스키마."""
+
+    camera_id: str | None = None
+    comp_id: str
+    camera_nm: str
+    camera_desc: str | None = None
+    ai_server_id: str | None = None
+    rtsp_addr: str | None = None
+    out_path: str | None = None
+    remark: str | None = None
+    jit_only: bool = False
+    port_number: int | None = None
+    location: str | None = None
+    created_by: str | None = None
+    updated_by: str | None = None
+
+
 class CameraDelete(BaseModel):
     """카메라 삭제 요청 스키마."""
 
