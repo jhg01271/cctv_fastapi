@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from core.database.session import get_db
 from core.response.response import ResultResponse, response
 from core.utils.formatters.user_code import parse_comp_id
-from service.roi.schema import RoiRead
+from service.roi.schema import RoiRead, RoiSaveRequest
 from service.roi import service
 
 router = APIRouter(prefix="/cctv/roi_crud", tags=["roi_crud"])
@@ -56,15 +56,12 @@ def get_cctv_image(
     summary="ROI 저장",
     response_model=ResultResponse[list[dict]],
 )
-async def save_roi(
-    request: Request,
+def save_roi(
+    body: list[RoiSaveRequest],
     db: Session = Depends(get_db),
 ) -> ResultResponse[list[dict]]:
     """ROI를 등록하거나 수정한다."""
-    body = await request.json()
-    if isinstance(body, list):
-        results = []
-        for item in body:
-            results.extend(service.save_roi(db, item))
-        return response(data=results, msg_key="success.create")
-    return response(data=service.save_roi(db, body), msg_key="success.create")
+    results = []
+    for item in body:
+        results.extend(service.save_roi(db, item.model_dump()))
+    return response(data=results, msg_key="success.create")

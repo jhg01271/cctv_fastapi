@@ -2,9 +2,36 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+
+class RoiModelItem(BaseModel):
+    """ROI 모델 항목."""
+
+    model_nm: str
+    point_arr: str = "{}"
+    is_run: bool = False
+    userCd: str = "system"
+
+    @field_validator("point_arr")
+    @classmethod
+    def validate_point_arr(cls, v: str) -> str:
+        """point_arr이 유효한 JSON인지 검증한다."""
+        try:
+            json.loads(v)
+        except (json.JSONDecodeError, TypeError):
+            raise ValueError(f"point_arr이 유효한 JSON이 아닙니다: {v[:100]}")
+        return v
+
+
+class RoiSaveRequest(BaseModel):
+    """ROI 저장 요청 스키마."""
+
+    cctv_id: str
+    model_list: list[RoiModelItem]
 
 
 class RoiRead(BaseModel):
