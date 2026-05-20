@@ -4,13 +4,20 @@ from __future__ import annotations
 
 import base64
 
-from fastapi import APIRouter, Depends, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi import APIRouter, Depends
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from core.database.session import get_db
 from core.response.response import ResultResponse, response
-from service.event.schema import EventRead
+from service.event.schema import (
+    EventDetailRequest,
+    EventFileRequest,
+    EventGroupRequest,
+    EventListRequest,
+    EventRead,
+    EventRemarkRequest,
+)
 from service.event import service
 
 router = APIRouter(prefix="/cctv/ce", tags=["camera_event"])
@@ -21,13 +28,12 @@ router = APIRouter(prefix="/cctv/ce", tags=["camera_event"])
     summary="이벤트 상세 조회",
     response_model=ResultResponse[EventRead],
 )
-async def get_camera_event(
-    request: Request,
+def get_camera_event(
+    body: EventDetailRequest,
     db: Session = Depends(get_db),
 ) -> ResultResponse[EventRead]:
     """단일 이벤트 상세를 조회한다."""
-    body = await request.json()
-    result = service.get_event(db, body)
+    result = service.get_event(db, body.model_dump())
     return response(data=result, msg_key="success.read")
 
 
@@ -36,13 +42,12 @@ async def get_camera_event(
     summary="이벤트 이력 조회",
     response_model=ResultResponse[list[EventRead]],
 )
-async def list_camera_events(
-    request: Request,
+def list_camera_events(
+    body: EventListRequest,
     db: Session = Depends(get_db),
 ) -> ResultResponse[list[EventRead]]:
     """이벤트 이력을 조회한다."""
-    body = await request.json()
-    result = service.list_events(db, body)
+    result = service.list_events(db, body.model_dump())
     return response(data=result, msg_key="success.read")
 
 
@@ -51,13 +56,12 @@ async def list_camera_events(
     summary="그룹별 이벤트 이력 조회",
     response_model=ResultResponse[list[EventRead]],
 )
-async def list_camera_events_by_group(
-    request: Request,
+def list_camera_events_by_group(
+    body: EventGroupRequest,
     db: Session = Depends(get_db),
 ) -> ResultResponse[list[EventRead]]:
     """그룹별 이벤트 이력을 조회한다."""
-    body = await request.json()
-    result = service.list_events_by_group(db, body)
+    result = service.list_events_by_group(db, body.model_dump())
     return response(data=result, msg_key="success.read")
 
 
@@ -65,16 +69,15 @@ async def list_camera_events_by_group(
     "/camera_events_get_file",
     summary="이벤트 이미지 파일 조회",
 )
-async def get_camera_event_file(
-    request: Request,
+def get_camera_event_file(
+    body: EventFileRequest,
     db: Session = Depends(get_db),
 ) -> JSONResponse:
     """이벤트 이미지를 base64로 인코딩하여 반환한다.
 
     프론트엔드 기대 형식: { success, img_decode_data, ratio }
     """
-    body = await request.json()
-    file_path = service.get_event_file(db, body)
+    file_path = service.get_event_file(db, body.model_dump())
 
     with open(file_path, "rb") as f:
         img_data = base64.b64encode(f.read()).decode("utf-8")
@@ -96,11 +99,10 @@ async def get_camera_event_file(
     summary="이벤트 비고 수정",
     response_model=ResultResponse[dict],
 )
-async def update_camera_event_remark(
-    request: Request,
+def update_camera_event_remark(
+    body: EventRemarkRequest,
     db: Session = Depends(get_db),
 ) -> ResultResponse[dict]:
     """이벤트 비고를 수정한다."""
-    body = await request.json()
-    result = service.save_remark(db, body)
+    result = service.save_remark(db, body.model_dump())
     return response(data=result, msg_key="success.update")

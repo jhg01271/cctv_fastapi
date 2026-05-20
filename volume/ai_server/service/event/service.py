@@ -43,6 +43,7 @@ def list_events(db: Session, data: dict) -> list[dict]:
     events = fetch_events(
         db,
         camera_id=data.get("camera_id") or data.get("cctv_id"),
+        event_type=data.get("event_type"),
         start_date=data.get("start_date"),
         end_date=data.get("end_date"),
     )
@@ -92,7 +93,7 @@ def save_remark(db: Session, data: dict) -> dict:
     updated = update_remark(
         db,
         event_time=data.get("event_time"),
-        camera_id=data.get("camera_id"),
+        camera_id=data.get("camera_id") or data.get("cctv_id"),
         remark=data.get("remark", ""),
     )
     return {"updated": updated}
