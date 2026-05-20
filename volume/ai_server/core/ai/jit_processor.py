@@ -91,7 +91,7 @@ def jit_process(
         except Exception:
             continue
 
-        heartbeat.value = int(time.time())
+        heartbeat.value += 1
         now = time.time()
 
         # 10분 주기 저장
