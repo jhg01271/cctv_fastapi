@@ -366,7 +366,7 @@ def save_safety_grid(db: Session, camera_id: str, sort_direction: str, point_lis
     data = {
         "grid_data": grid_data,
         "sort_direction": sort_direction,
-        "grid_unit": grid_unit,
+        "grid_unit": float(grid_unit) if grid_unit else None,
         "point_list_data": point_list_data,
         "set_mode": set_mode,
         "extend_count": extend_count,

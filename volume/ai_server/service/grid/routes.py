@@ -196,7 +196,7 @@ def point_list_view(body: PointListViewRequest) -> JSONResponse:
         "success": True,
         "code": "200",
         "msg": "조회에 성공하였습니다.",
-        "data": result,
+        **result,
     })
 
 
@@ -241,5 +241,5 @@ def load_safety_grid(
         "success": True,
         "code": "200",
         "msg": "조회에 성공하였습니다.",
-        "data": result,
+        **result,
     })
