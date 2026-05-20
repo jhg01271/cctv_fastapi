@@ -246,95 +246,67 @@ def draw_right(approx: np.ndarray) -> np.ndarray:
 # 5. 방향별 복수 확장/축소
 # ---------------------------------------------------------------------------
 
-def up_extend(sort_direction: str, approx_list: list, count: int = 1) -> list:
+def extend_grid(direction: str, sort_direction: str, approx_list: list, count: int = 1) -> list:
+    """격자를 지정된 방향으로 확장한다 (공통 함수)."""
+    draw_fn_map = {"up": draw_up, "down": draw_down, "left": draw_left, "right": draw_right}
+    draw_fn = draw_fn_map.get(direction)
+    if not draw_fn:
+        return approx_list
+
     for _ in range(count):
-        local = []
-        if sort_direction == "up":
-            local = approx_list
-            new_row = [draw_up(a) for a in local[0]]
-            local.insert(0, new_row)
-        elif sort_direction == "down":
-            local = approx_list
-            new_row = [draw_up(a) for a in local[-1]]
-            local.append(new_row)
-        elif sort_direction == "left":
-            for row in approx_list:
-                row.append(draw_up(row[-1]))
-                local.append(row)
-        elif sort_direction == "right":
-            for row in approx_list:
-                row.insert(0, draw_up(row[0]))
-                local.append(row)
-        approx_list = local
-    return approx_list
+        if direction == "up":
+            if sort_direction == "up":
+                new_row = [draw_fn(a) for a in approx_list[0]]
+                approx_list.insert(0, new_row)
+            elif sort_direction == "down":
+                new_row = [draw_fn(a) for a in approx_list[-1]]
+                approx_list.append(new_row)
+            elif sort_direction == "left":
+                for row in approx_list:
+                    row.append(draw_fn(row[-1]))
+            elif sort_direction == "right":
+                for row in approx_list:
+                    row.insert(0, draw_fn(row[0]))
+        elif direction == "down":
+            if sort_direction == "up":
+                new_row = [draw_fn(a) for a in approx_list[-1]]
+                approx_list.append(new_row)
+            elif sort_direction == "down":
+                new_row = [draw_fn(a) for a in approx_list[0]]
+                approx_list.insert(0, new_row)
+            elif sort_direction == "left":
+                for row in approx_list:
+                    row.insert(0, draw_fn(row[0]))
+            elif sort_direction == "right":
+                for row in approx_list:
+                    row.append(draw_fn(row[-1]))
+        elif direction == "left":
+            if sort_direction == "up":
+                for row in approx_list:
+                    row.insert(0, draw_fn(row[0]))
+            elif sort_direction == "down":
+                for row in approx_list:
+                    row.append(draw_fn(row[-1]))
+            elif sort_direction == "left":
+                new_row = [draw_fn(a) for a in approx_list[0]]
+                approx_list.insert(0, new_row)
+            elif sort_direction == "right":
+                new_row = [draw_fn(a) for a in approx_list[-1]]
+                approx_list.append(new_row)
+        elif direction == "right":
+            if sort_direction == "up":
+                for row in approx_list:
+                    row.append(draw_fn(row[-1]))
+            elif sort_direction == "down":
+                for row in approx_list:
+                    row.insert(0, draw_fn(row[0]))
+            elif sort_direction == "left":
+                new_row = [draw_fn(a) for a in approx_list[-1]]
+                approx_list.append(new_row)
+            elif sort_direction == "right":
+                new_row = [draw_fn(a) for a in approx_list[0]]
+                approx_list.insert(0, new_row)
 
-
-def down_extend(sort_direction: str, approx_list: list, count: int = 1) -> list:
-    for _ in range(count):
-        local = []
-        if sort_direction == "up":
-            local = approx_list
-            new_row = [draw_down(a) for a in local[-1]]
-            local.append(new_row)
-        elif sort_direction == "down":
-            local = approx_list
-            new_row = [draw_down(a) for a in local[0]]
-            local.insert(0, new_row)
-        elif sort_direction == "left":
-            for row in approx_list:
-                row.insert(0, draw_down(row[0]))
-                local.append(row)
-        elif sort_direction == "right":
-            for row in approx_list:
-                row.append(draw_down(row[-1]))
-                local.append(row)
-        approx_list = local
-    return approx_list
-
-
-def left_extend(sort_direction: str, approx_list: list, count: int = 1) -> list:
-    for _ in range(count):
-        local = []
-        if sort_direction == "up":
-            for row in approx_list:
-                row.insert(0, draw_left(row[0]))
-                local.append(row)
-        elif sort_direction == "down":
-            for row in approx_list:
-                row.append(draw_left(row[-1]))
-                local.append(row)
-        elif sort_direction == "left":
-            local = approx_list
-            new_row = [draw_left(a) for a in local[0]]
-            local.insert(0, new_row)
-        elif sort_direction == "right":
-            local = approx_list
-            new_row = [draw_left(a) for a in local[-1]]
-            local.append(new_row)
-        approx_list = local
-    return approx_list
-
-
-def right_extend(sort_direction: str, approx_list: list, count: int = 1) -> list:
-    for _ in range(count):
-        local = []
-        if sort_direction == "up":
-            for row in approx_list:
-                row.append(draw_right(row[-1]))
-                local.append(row)
-        elif sort_direction == "down":
-            for row in approx_list:
-                row.insert(0, draw_right(row[0]))
-                local.append(row)
-        elif sort_direction == "left":
-            local = approx_list
-            new_row = [draw_right(a) for a in local[-1]]
-            local.append(new_row)
-        elif sort_direction == "right":
-            local = approx_list
-            new_row = [draw_right(a) for a in local[0]]
-            local.insert(0, new_row)
-        approx_list = local
     return approx_list
 
 
@@ -342,59 +314,35 @@ def right_extend(sort_direction: str, approx_list: list, count: int = 1) -> list
 # 6. 방향별 축소
 # ---------------------------------------------------------------------------
 
-def up_shrink(approx_list: list, sort_direction: str) -> list:
-    if sort_direction == "up":
-        approx_list.pop(0)
-    elif sort_direction == "down":
-        approx_list.pop()
-    elif sort_direction == "left":
-        for row in approx_list:
-            row.pop()
-    elif sort_direction == "right":
-        for row in approx_list:
-            row.pop(0)
-    return approx_list
+def shrink_grid(direction: str, sort_direction: str, approx_list: list) -> list:
+    """격자를 지정된 방향으로 축소한다 (공통 함수)."""
+    ACTION_MAP = {
+        # shrink_dir: { sort_dir: (axis, end) }
+        "up":    {"up": ("row", "front"), "down": ("row", "back"),  "left": ("col", "back"),  "right": ("col", "front")},
+        "down":  {"up": ("row", "back"),  "down": ("row", "front"), "left": ("col", "front"), "right": ("col", "back")},
+        "left":  {"up": ("col", "front"), "down": ("col", "back"),  "left": ("row", "front"), "right": ("row", "back")},
+        "right": {"up": ("col", "back"),  "down": ("col", "front"), "left": ("row", "back"),  "right": ("row", "front")},
+    }
 
+    config = ACTION_MAP.get(direction, {}).get(sort_direction)
+    if not config:
+        return approx_list
 
-def down_shrink(approx_list: list, sort_direction: str) -> list:
-    if sort_direction == "up":
-        approx_list.pop(-1)
-    elif sort_direction == "down":
-        approx_list.pop(0)
-    elif sort_direction == "left":
-        for row in approx_list:
-            row.pop(0)
-    elif sort_direction == "right":
-        for row in approx_list:
-            row.pop()
-    return approx_list
+    axis, end = config
 
+    if axis == "row":
+        if end == "front":
+            if approx_list: approx_list.pop(0)
+        else:  # back
+            if approx_list: approx_list.pop()
+    elif axis == "col":
+        if end == "front":
+            for row in approx_list:
+                if row: row.pop(0)
+        else:  # back
+            for row in approx_list:
+                if row: row.pop()
 
-def left_shrink(approx_list: list, sort_direction: str) -> list:
-    if sort_direction == "up":
-        for row in approx_list:
-            row.pop(0)
-    elif sort_direction == "right":
-        approx_list.pop(-1)
-    elif sort_direction == "left":
-        approx_list.pop(0)
-    elif sort_direction == "down":
-        for row in approx_list:
-            row.pop(-1)
-    return approx_list
-
-
-def right_shrink(approx_list: list, sort_direction: str) -> list:
-    if sort_direction == "up":
-        for row in approx_list:
-            row.pop(-1)
-    elif sort_direction == "right":
-        approx_list.pop(0)
-    elif sort_direction == "left":
-        approx_list.pop(-1)
-    elif sort_direction == "down":
-        for row in approx_list:
-            row.pop(0)
     return approx_list
 
 
@@ -575,18 +523,30 @@ def finalize_grid(grid: list, point_buffer: list) -> None:
         point_buffer.clear()
 
 
+def _flatten_point(p) -> tuple:
+    """중첩된 좌표를 (x, y) 튜플로 평탄화한다. [[x,y]] → (x,y), [x,y] → (x,y)."""
+    if isinstance(p, str):
+        import json
+        p = json.loads(p)
+
+    while isinstance(p, (list, np.ndarray)) and len(p) == 1:
+        p = p[0]
+    return tuple(int(v) for v in p)
+
+
 def draw_grid_on_image(image: np.ndarray, grid: list) -> np.ndarray:
     """2D 격자를 이미지에 그린다."""
     for row_idx, row in enumerate(grid):
         for col_idx, rectangle in enumerate(row):
-            if len(rectangle) == 4:
-                points = np.array(rectangle, np.int32)
+            flat_pts = [_flatten_point(p) for p in rectangle]
+            if len(flat_pts) == 4:
+                points = np.array(flat_pts, np.int32)
                 cv2.polylines(image, [points], isClosed=True, color=(255, 0, 0), thickness=2)
-                cx = sum(p[0] for p in points) // 4
-                cy = sum(p[1] for p in points) // 4
+                cx = sum(p[0] for p in flat_pts) // 4
+                cy = sum(p[1] for p in flat_pts) // 4
                 cv2.putText(image, f"{row_idx},{col_idx}", (cx, cy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-            for p in rectangle:
-                cv2.circle(image, tuple(p), 5, (0, 255, 0), -1)
+            for pt in flat_pts:
+                cv2.circle(image, pt, 5, (0, 255, 0), -1)
     return image
 
 
@@ -617,13 +577,6 @@ def sort_grid(grid: list, order: str = "up") -> list:
         return [list(r) for r in zip(*grid[::-1])]
     return grid
 
-
-def convert_nested_coordinates(data: list) -> list:
-    """OpenCV 컨투어 스타일(5차) → 일반 2D 좌표(4차)로 변환한다."""
-    return [
-        [[point[0] for point in polygon] for polygon in row]
-        for row in data
-    ]
 
 
 def convert_to_opencv_format(data: list) -> list:

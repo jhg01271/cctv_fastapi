@@ -16,27 +16,20 @@ from core.logging.logger import get_logger
 from service.grid import repository
 from service.grid.lib.grid_func import (
     check_grid_row_consistency,
-    convert_nested_coordinates,
     convert_to_opencv_format,
     decode_base64_to_image,
     detect_red_squares,
     detect_red_squares_near_point,
-    down_extend,
-    down_shrink,
     draw_grid_on_image,
     encode_image_to_base64,
     finalize_grid,
     generate_coordinates,
     generate_grid,
     get_image_size_from_base64,
-    left_extend,
-    left_shrink,
-    right_extend,
-    right_shrink,
     show_approx,
     sort_grid,
-    up_extend,
-    up_shrink,
+    extend_grid,
+    shrink_grid,
 )
 
 logger = get_logger(__name__)
@@ -118,31 +111,18 @@ def process_grid(unique_id: str, operations: list) -> dict:
     sort_direction = state["sort_direction"]
     extend_count = state["extend_count"]
 
-    extend_fn = {
-        "up_extend": up_extend,
-        "down_extend": down_extend,
-        "left_extend": left_extend,
-        "right_extend": right_extend,
-    }
-    shrink_fn = {
-        "up_shrink": ("up", up_shrink),
-        "down_shrink": ("down", down_shrink),
-        "left_shrink": ("left", left_shrink),
-        "right_shrink": ("right", right_shrink),
-    }
-
     for action, count in operations:
-        if action in extend_fn:
+        if action.endswith("_extend"):
             direction = action.replace("_extend", "")
-            approx_list = extend_fn[action](sort_direction, approx_list, count)
+            approx_list = extend_grid(direction, sort_direction, approx_list, count)
             extend_count[direction] += count
-        elif action in shrink_fn:
-            direction, fn = shrink_fn[action]
-            if extend_count[direction] <= 0:
-                raise BadRequestException(msg=f"'{direction}' 방향으로 더 이상 축소할 수 없습니다.")
+        elif action.endswith("_shrink"):
+            direction = action.replace("_shrink", "")
+            if extend_count[direction] < count:
+                raise BadRequestException(f"'{direction}' 방향으로 더 이상 축소할 수 없습니다.")
             for _ in range(count):
-                approx_list = fn(approx_list, sort_direction)
-                extend_count[direction] -= 1
+                approx_list = shrink_grid(direction, sort_direction, approx_list)
+            extend_count[direction] -= count
         else:
             raise BadRequestException(msg=f"잘못된 작업입니다: {action}")
 
@@ -392,10 +372,7 @@ def load_safety_grid(db: Session, camera_id: str, image_base64: str) -> dict:
     grid_data = record.grid_data
     image = decode_base64_to_image(image_base64)
 
-    try:
-        result_image = draw_grid_on_image(image, grid_data)
-    except Exception:
-        result_image = draw_grid_on_image(image, convert_nested_coordinates(grid_data))
+    result_image = draw_grid_on_image(image, grid_data)
 
     view_image_base64 = encode_image_to_base64(result_image)
 
