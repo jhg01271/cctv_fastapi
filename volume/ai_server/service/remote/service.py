@@ -308,6 +308,12 @@ def get_play_url(camera_id: str) -> dict:
     return {"camera_id": camera_id, "play_url": url}
 
 
+def count_running_cameras() -> int:
+    """현재 실행 중인 카메라 수를 반환한다."""
+    manager = get_manager()
+    return len(manager.list_cameras()) if manager else 0
+
+
 def stop_all(db: Session | None = None) -> dict:
     """전체 카메라 AI 프로세스를 중지한다."""
     manager = get_manager()
@@ -326,6 +332,25 @@ def stop_all(db: Session | None = None) -> dict:
             update_camera_run_state(db, camera.camera_id, False)
 
     return {"stopped": stopped, "total": len(stopped)}
+
+
+def stop_all_background() -> None:
+    """전체 카메라 AI 프로세스 중지를 백그라운드에서 수행한다."""
+    db = SessionLocal()
+    try:
+        result = stop_all(db)
+        log_event(
+            logger=logger,
+            level="INFO",
+            event_type="camera.stop_all.background",
+            message="Background stop_all finished",
+            stopped=len(result["stopped"]),
+            total=result["total"],
+        )
+    except Exception:
+        logger.exception("Background stop_all failed")
+    finally:
+        db.close()
 
 
 def restore_running_cameras() -> dict:

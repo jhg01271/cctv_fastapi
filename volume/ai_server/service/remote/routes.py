@@ -9,7 +9,7 @@ from core.database.session import get_db
 from core.response.response import ResultResponse, response
 from service.remote import service
 
-router = APIRouter(prefix="/cctv/remote", tags=["remote"])
+router = APIRouter(prefix="/cctv/remote", tags=["AI 프로세스 제어"])
 
 
 @router.get(
@@ -34,9 +34,11 @@ def run_all(background_tasks: BackgroundTasks, db: Session = Depends(get_db)) ->
     summary="전체 카메라 AI 중지",
     response_model=ResultResponse[dict],
 )
-def stop_all(db: Session = Depends(get_db)) -> ResultResponse[dict]:
-    """전체 카메라 AI 프로세스를 중지한다."""
-    result = service.stop_all(db)
+def stop_all(background_tasks: BackgroundTasks, db: Session = Depends(get_db)) -> ResultResponse[dict]:
+    """전체 카메라 AI 프로세스 중지 작업을 백그라운드로 예약한다."""
+    total = service.count_running_cameras()
+    background_tasks.add_task(service.stop_all_background)
+    result = {"status": "queued", "total": total}
     return response(data=result, msg_key="success.read")
 
 
