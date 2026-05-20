@@ -36,7 +36,8 @@ main/
 ├── core/                            # 도메인 무관 공통 인프라
 │   ├── ai/
 │   │   ├── model_loader.py          # ModelType enum, YOLO 모델 로딩/캐싱 (threading.Lock)
-│   │   ├── rtsp_reader.py           # rtsp_reader_process() — MediaMTX 경유 RTSP 수신 서브프로세스
+│   │   ├── rtsp_reader.py           # rtsp_reader_process() — MediaMTX 경유 RTSP 수신 (무한 재시도 + 지수 백오프)
+│   │   ├── jit_processor.py         # jit_process() — JIT 학습용 이미지 수집 (short/long/auto 주기)
 │   │   ├── process_manager.py       # CameraProcessManager, CameraWorker, 워치독
 │   │   ├── media_server.py          # MediaMTX REST API 연동 (path 등록/삭제, 스트림 URL)
 │   │   └── ws_bridge.py             # WebSocketBridge — mp.Queue → asyncio.Queue 팬아웃
@@ -77,6 +78,20 @@ main/
     │   ├── processor.py             # 스냅샷 배치 추론, result_queue 전달
     │   ├── persistence.py           # @transactional() 트랜잭션 경계
     │   └── worker.py                # ProgressWorker — 추론 프로세스 + DB 저장 스레드
+    ├── grid/                        # 격자 설정 도메인 (공정률 격자 + 안전 격자)
+    │   ├── model.py                 # CameraProcessGrid (tb_camera_grid), CameraSafetyGrid (tb_camera_safety_grid)
+    │   ├── schema.py                # Pydantic 요청 스키마
+    │   ├── repository.py            # 격자 DB 접근
+    │   ├── service.py               # 격자 비즈니스 로직 (메모리 상태 관리 + 격자 처리)
+    │   ├── routes.py                # /grid/grid_crud/* 엔드포인트
+    │   ├── lib/grid_func.py         # 격자 처리 유틸 (빨간 사각형 탐지, 확장/축소, 좌표 생성)
+    │   └── img/                     # 카메라별 테스트 이미지 ({camera_id}.jpg)
+    ├── roi/                         # ROI 관리 도메인 (안전 감시 구역 설정)
+    │   ├── model.py                 # CameraRoi (tb_camera_roi)
+    │   ├── schema.py                # Pydantic 요청/응답 스키마
+    │   ├── repository.py            # ROI DB 접근
+    │   ├── service.py               # ROI 비즈니스 로직 (RTSP 캡처 + 테스트 이미지 fallback)
+    │   └── routes.py                # /cctv/roi_crud/* 엔드포인트
     ├── camera_group/                # 카메라 그룹 관리
     └── item/                        # 예제 도메인
 ```
@@ -207,18 +222,17 @@ from core.utils.formatters.datetime import format_datetime
 
 ### DB 접근 (메인 프로세스 / 워커 스레드)
 
-`Depends(get_db)` 또는 `SessionLocal()`로 세션을 얻고, repository에서 `text()` raw SQL을 사용한다.
+라우터에서는 `Depends(get_db)`, 워커 스레드에서는 `SessionLocal()`로 세션을 얻는다. repository에서는 항상 ORM 방식을 사용한다.
 
 ```python
-from sqlalchemy import text
+from sqlalchemy import select
 from sqlalchemy.orm import Session
+from service.cctv.model import Camera
 
 def fetch_something(db: Session, camera_id: str) -> list[dict]:
-    rows = db.execute(
-        text("SELECT ... FROM ... WHERE camera_id = :id"),
-        {"id": camera_id},
-    ).fetchall()
-    return [{"field": r[0]} for r in rows]
+    stmt = select(Camera).where(Camera.camera_id == camera_id)
+    rows = db.scalars(stmt).all()
+    return [{"camera_id": r.camera_id, "camera_nm": r.camera_nm} for r in rows]
 ```
 
 ### 트랜잭션
@@ -294,10 +308,21 @@ progress_process()          # 서브프로세스: 전체 카메라 스냅샷 →
     └─► result_queue        # → ProgressWorker DB 저장 스레드
                             #   → persistence.save_progress_result() [@transactional]
                             #   → tb_twin_image + tb_twin_detection
-
 ```
 
 **cameras, grid_map** — lifespan 시작 시 DB 조회 후 프로세스 인자로 전달 (1회)
+
+### JIT 학습 데이터 수집
+
+`jit_only=True`인 카메라에 대해 AI 감지 없이 주기적으로 프레임을 저장한다.
+
+| 모드 | 주기 | 설명 |
+|------|------|------|
+| short | 10분 | 무조건 저장 |
+| long | 60분 | 무조건 저장 |
+| auto | 최소 1시간 | 이전 프레임 대비 변화 감지 시 저장 |
+
+저장 경로: `{JIT_IMAGE_DIR}/{camera_id}/{short|long|auto}/`
 
 ### YOLO 모델 (3개)
 
@@ -310,9 +335,11 @@ progress_process()          # 서브프로세스: 전체 카메라 스냅샷 →
 ### 프로세스 관리
 
 `CameraProcessManager`가 카메라당 두 개의 서브프로세스를 관리한다.
-- **rtsp_reader**: RTSP 스트림 수신
-- **ai_process**: AI 추론 (`ai_target` 함수로 교체 가능)
+- **rtsp_reader**: RTSP 스트림 수신 (무한 재시도, 지수 백오프 5→10→20→30초 상한)
+- **ai_process**: AI 추론 (`ai_target` 함수로 교체 가능 — safety_process 또는 jit_process)
 - **watchdog**: 10초 주기로 프로세스 생존 + heartbeat 확인, 비정상 시 재시작
+
+**heartbeat 방식**: `mp.Value("i", 0)` 카운터를 사용한다. AI 프로세스가 프레임 처리마다 `heartbeat.value += 1`로 증가시키고, 워치독이 값 변화를 감시한다. `time.time()` 사용 금지 (같은 초에 두 번 체크하면 false stuck 판정).
 
 ---
 
@@ -339,6 +366,30 @@ progress_process()          # 서브프로세스: 전체 카메라 스냅샷 →
 }
 ```
 
+### ROI 설정 (`/cctv/roi_crud`)
+
+| 메서드 | 경로 | 설명 |
+|--------|------|------|
+| GET | `/cctv/roi_crud/rois/{comp_id}` | 회사별 ROI 목록 조회 (comp_id = 회사코드, camera_id 아님) |
+| GET | `/cctv/roi_crud/get_cctv_img/{camera_id}` | RTSP 실시간 캡처 이미지 (실패 시 테스트 이미지 fallback) |
+| POST | `/cctv/roi_crud/roi` | ROI 저장 (Pydantic 스키마: `list[RoiSaveRequest]`) |
+
+### 격자 설정 (`/grid/grid_crud`)
+
+| 메서드 | 경로 | 설명 |
+|--------|------|------|
+| GET/POST | `/grid/grid_crud/get_test_img` | 테스트 이미지 조회 (grid/img/ 폴더) |
+| POST | `/grid/grid_crud/initialize_coordinates` | 빨간 사각형 탐지로 격자 초기화 |
+| POST | `/grid/grid_crud/update_sort_direction` | 정렬 방향 변경 |
+| POST | `/grid/grid_crud/process_grid` | 격자 확장/축소 |
+| POST | `/grid/grid_crud/save_grid` | 공정률 격자 저장 (tb_camera_grid) |
+| POST | `/grid/grid_crud/load_grid` | 공정률 격자 로드 |
+| POST | `/grid/grid_crud/get_raw_img` | 원본 이미지 조회 |
+| POST | `/grid/grid_crud/save_grid_unit` | 격자 단위 저장 |
+| POST | `/grid/grid_crud/point_list_view` | 안전 격자 미리보기 |
+| POST | `/grid/grid_crud/save_safety_grid` | 안전 격자 저장 (tb_camera_safety_grid) |
+| POST | `/grid/grid_crud/load_safety_grid` | 안전 격자 로드 |
+
 ### 공정률 (`/progress`)
 
 | 메서드 | 경로 | 설명 |
@@ -355,10 +406,11 @@ progress_process()          # 서브프로세스: 전체 카메라 스냅샷 →
 |--------|--------|------|
 | `tb_camera_info` | safety | 카메라 기본 정보 (camera_id, rtsp_url, camera_nm) |
 | `tb_camera_config` | safety | 카메라별 AI 스위치 (detection_is_run, pose_is_run) |
-| `tb_camera_roi` | safety | ROI 폴리곤 좌표 (E002 판정용) |
+| `tb_camera_roi` | roi | ROI 폴리곤 좌표 (E002 판정용) |
 | `tb_camera_event_hist` | safety | 안전 이벤트 이력 |
 | `tb_camera` | progress | 공정률 대상 카메라 (rtsp_url, jit_only, sort_direction) |
-| `tb_camera_grid` | progress | 격자 좌표 (grid_data JSON) |
+| `tb_camera_grid` | grid | 공정률 격자 좌표 (grid_data JSON) — CameraProcessGrid |
+| `tb_camera_safety_grid` | grid | 안전 격자 좌표 — CameraSafetyGrid |
 | `tb_twin_image` | progress | 공정률 결과 이미지 경로 |
 | `tb_twin_detection` | progress | 격자별 감지 결과 (result_id, row, col, class, conf) |
 
