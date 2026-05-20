@@ -20,7 +20,7 @@ from service.event.schema import (
 )
 from service.event import service
 
-router = APIRouter(prefix="/cctv/ce", tags=["camera_event"])
+router = APIRouter(prefix="/cctv/ce", tags=["안전 이벤트 이력"])
 
 
 @router.post(

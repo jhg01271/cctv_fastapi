@@ -50,8 +50,8 @@ def _prepare_items(items: list[ProfileSaveItem], db: Session) -> list[ProfileSav
 
     return items
 
-profile_router = APIRouter(prefix="/cctv/profile_crud", tags=["profile_crud"])
-pro_detail_router = APIRouter(prefix="/cctv/pro_detail_crud", tags=["pro_detail_crud"])
+profile_router = APIRouter(prefix="/cctv/profile_crud", tags=["모니터링 레이아웃"])
+pro_detail_router = APIRouter(prefix="/cctv/pro_detail_crud", tags=["모니터링 레이아웃"])
 
 
 # ── profile_crud ─────────────────────────────────────────────

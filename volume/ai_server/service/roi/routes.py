@@ -12,7 +12,7 @@ from core.utils.formatters.user_code import parse_comp_id
 from service.roi.schema import RoiRead, RoiSaveRequest
 from service.roi import service
 
-router = APIRouter(prefix="/cctv/roi_crud", tags=["roi_crud"])
+router = APIRouter(prefix="/cctv/roi_crud", tags=["ROI 설정"])
 
 
 @router.get(

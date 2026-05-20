@@ -10,7 +10,7 @@ from core.ai.ws_bridge import ws_bridge
 from core.logging.logger import get_logger
 
 logger = get_logger(__name__)
-router = APIRouter(prefix="/safety", tags=["safety"])
+router = APIRouter(prefix="/safety", tags=["안전 AI 추론"])
 
 
 # ──────────────────────────────────────────────────────────────

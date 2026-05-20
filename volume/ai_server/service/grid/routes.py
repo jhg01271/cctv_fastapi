@@ -22,7 +22,7 @@ from service.grid.schema import (
     UpdateSortDirectionRequest,
 )
 
-router = APIRouter(prefix="/grid/grid_crud", tags=["grid_crud"])
+router = APIRouter(prefix="/grid/grid_crud", tags=["격자 설정"])
 
 
 @router.api_route(

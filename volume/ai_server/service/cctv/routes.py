@@ -11,7 +11,7 @@ from core.utils.formatters.user_code import parse_comp_id
 from service.cctv.schema import CameraCreate, CameraDelete, CameraRead
 from service.cctv import service
 
-router = APIRouter(prefix="/cctv/cctv_crud", tags=["cctv_crud"])
+router = APIRouter(prefix="/cctv/cctv_crud", tags=["카메라 관리"])
 
 
 @router.get(

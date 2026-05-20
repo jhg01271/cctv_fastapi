@@ -13,7 +13,7 @@ from core.utils.pagination.schema import PageResponse
 from service.progress.schema import ProgressCameraRead, ProgressResultRead
 from service.progress import service
 
-router = APIRouter(prefix="/progress", tags=["progress"])
+router = APIRouter(prefix="/progress", tags=["공정률 AI"])
 
 
 @router.get(

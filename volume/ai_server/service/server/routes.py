@@ -11,7 +11,7 @@ from core.utils.formatters.user_code import parse_comp_id
 from service.server.schema import AiServerCreate, AiServerDelete, AiServerRead
 from service.server import service
 
-router = APIRouter(prefix="/cctv/server_crud", tags=["server_crud"])
+router = APIRouter(prefix="/cctv/server_crud", tags=["AI 서버 관리"])
 
 
 @router.get(
