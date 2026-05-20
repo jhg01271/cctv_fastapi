@@ -82,58 +82,53 @@ def save_roi(db: Session, data: dict) -> list[dict]:
 
 
 def capture_cctv_image(db: Session, camera_id: str) -> dict:
-    """카메라 RTSP에서 한 프레임을 캡처해 base64 인코딩 이미지와 크기 정보를 반환한다.
+    """카메라 이미지를 반환한다.
 
-    RTSP 캡처 실패 시 grid/img/ 폴더의 테스트 이미지를 fallback으로 사용한다.
+    테스트 이미지(grid/img/)를 우선 사용하고, 없으면 RTSP 실시간 캡처로 fallback한다.
     """
     import base64
     import math
+    from pathlib import Path
+    from PIL import Image
     from service.cctv.model import Camera
 
     camera = db.get(Camera, camera_id)
-
     if not camera or not camera.rtsp_addr:
         raise NotFoundException(msg=f"카메라를 찾을 수 없습니다. camera_id={camera_id}")
-
-    rtsp_url = f"{settings.MEDIA_SERVER_RTSP_URL}/{camera_id}"
-    cap = cv2.VideoCapture(rtsp_url)
 
     img_base64 = None
     width = 0
     height = 0
 
-    if cap.isOpened():
-        ret, frame = cap.read()
-        cap.release()
-        if ret:
-            height, width = frame.shape[:2]
-            _, buffer = cv2.imencode(".jpg", frame)
-            img_base64 = base64.b64encode(buffer).decode("utf-8")
-            logger.info("CCTV image captured: camera_id=%s size=%dx%d", camera_id, width, height)
-    else:
-        cap.release()
+    # 1) 테스트 이미지 우선
+    img_dir = Path(__file__).parent.parent / "grid" / "img"
+    for ext in ("jpg", "png"):
+        candidate = img_dir / f"{camera_id}.{ext}"
+        if candidate.exists():
+            with open(candidate, "rb") as f:
+                img_base64 = base64.b64encode(f.read()).decode("utf-8")
+            img = Image.open(candidate)
+            width, height = img.size
+            logger.info("Test image used: camera_id=%s path=%s", camera_id, candidate)
+            break
 
-    # RTSP 캡처 실패 시 테스트 이미지 fallback
+    # 2) 테스트 이미지 없으면 RTSP 캡처
     if img_base64 is None:
-        from pathlib import Path
-        from PIL import Image
+        rtsp_url = f"{settings.MEDIA_SERVER_RTSP_URL}/{camera_id}"
+        cap = cv2.VideoCapture(rtsp_url)
+        if cap.isOpened():
+            ret, frame = cap.read()
+            cap.release()
+            if ret:
+                height, width = frame.shape[:2]
+                _, buffer = cv2.imencode(".jpg", frame)
+                img_base64 = base64.b64encode(buffer).decode("utf-8")
+                logger.info("CCTV image captured: camera_id=%s size=%dx%d", camera_id, width, height)
+        else:
+            cap.release()
 
-        img_dir = Path(__file__).parent.parent / "grid" / "img"
-        test_img = None
-        for ext in ("jpg", "png"):
-            candidate = img_dir / f"{camera_id}.{ext}"
-            if candidate.exists():
-                test_img = candidate
-                break
-
-        if test_img is None:
-            raise BadRequestException(msg=f"RTSP 캡처 실패 및 테스트 이미지 없음. camera_id={camera_id}")
-
-        with open(test_img, "rb") as f:
-            img_base64 = base64.b64encode(f.read()).decode("utf-8")
-        img = Image.open(test_img)
-        width, height = img.size
-        logger.info("Test image used: camera_id=%s path=%s", camera_id, test_img)
+    if img_base64 is None:
+        raise BadRequestException(msg=f"테스트 이미지 없음 및 RTSP 캡처 실패. camera_id={camera_id}")
 
     gcd = math.gcd(width, height)
     ratio = f"{width // gcd}:{height // gcd}"

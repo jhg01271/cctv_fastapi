@@ -75,17 +75,3 @@ class LoadSafetyGridRequest(BaseModel):
     image_base64: str
 
 
-class SaveInventoryGridRequest(BaseModel):
-    camera_id: str
-    sort_direction: str
-    point_list_data: list
-    grid_unit: str
-    created_by: str
-    updated_by: str
-    setMode: str
-    unique_id: str | None = None
-
-
-class LoadInventoryGridRequest(BaseModel):
-    camera_id: str
-    image_base64: str
