@@ -109,7 +109,7 @@ def create_zip(camera_id: str, data: dict) -> dict:
             zf.write(f, f.name)
 
     logger.info("ZIP created: camera_id=%s path=%s files=%d", camera_id, zip_path, len(files))
-    return {"camera_id": camera_id, "zip_name": zip_name, "file_count": len(files)}
+    return {"message": "Successfully created zip on remote server", "camera_id": camera_id, "zip_name": zip_name, "file_count": len(files)}
 
 
 def delete_images(camera_id: str, data: dict) -> dict:

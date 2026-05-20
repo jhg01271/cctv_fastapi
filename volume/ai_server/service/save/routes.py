@@ -36,9 +36,15 @@ def get_remote_server_cap(camera_id: str) -> JSONResponse:
 )
 async def get_remote_data_state(camera_id: str, request: Request) -> JSONResponse:
     """카메라 이미지 파일 수/용량 상태를 반환한다."""
-    body = await request.json()
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
     result = service.get_data_state(camera_id, body)
-    return _json(result)
+    return JSONResponse(content={
+        "success": True,
+        **result,
+    })
 
 
 @router.post(
@@ -49,7 +55,10 @@ async def create_remote_zip(camera_id: str, request: Request) -> JSONResponse:
     """카메라 이미지를 ZIP으로 압축한다."""
     body = await request.json()
     result = service.create_zip(camera_id, body)
-    return _json(result)
+    return JSONResponse(content={
+        "success": True,
+        **result,
+    })
 
 
 @router.post(
@@ -60,7 +69,10 @@ async def delete_remote_images(camera_id: str, request: Request) -> JSONResponse
     """카메라 이미지 파일을 삭제한다."""
     body = await request.json()
     result = service.delete_images(camera_id, body)
-    return _json(result)
+    return JSONResponse(content={
+        "success": True,
+        **result,
+    })
 
 
 @router.post(
@@ -69,13 +81,16 @@ async def delete_remote_images(camera_id: str, request: Request) -> JSONResponse
 )
 async def get_remote_zip_list(camera_id: str, request: Request) -> JSONResponse:
     """ZIP 파일 목록을 반환한다."""
-    body = await request.json()
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
     result = service.get_zip_list(camera_id, body)
     return JSONResponse(content={
         "success": True,
         "code": "200",
         "msg": "성공하였습니다.",
-        "data": {"zip_files": result},
+        "zip_files": result,
     })
 
 
@@ -98,4 +113,8 @@ async def delete_remote_zip(camera_id: str, request: Request) -> JSONResponse:
     """ZIP 파일을 삭제한다."""
     body = await request.json()
     result = service.delete_zip(camera_id, body)
-    return _json(result)
+    return JSONResponse(content={
+        "success": True,
+        "code": "200",
+        **result,
+    })

@@ -54,23 +54,31 @@ main/
 │   │   └── http_client.py           # http_client (lifespan 관리)
 │   ├── response/
 │   │   └── response.py              # ResultResponse[T], response()
+│   ├── tcp/                         # TCP 통신 모듈
+│   │   ├── client/tcp_client.py     # TCP 클라이언트
+│   │   ├── protocol/decoder.py      # 프로토콜 디코더
+│   │   ├── protocol/encoder.py      # 프로토콜 인코더
+│   │   └── exceptions.py            # TCP 예외 정의
 │   └── utils/
 │       ├── formatters/
-│       │   └── datetime.py          # format_datetime() → "%Y.%m.%d %H:%M:%S"
+│       │   ├── datetime.py          # format_datetime() → "%Y.%m.%d %H:%M:%S"
+│       │   └── user_code.py         # 사용자 코드 포맷 헬퍼
 │       ├── messages/
-│       │   └── catalog.py           # msg_key 카탈로그 (success.*, error.*)
+│       │   ├── catalog.py           # msg_key 카탈로그 (success.*, error.*)
+│       │   └── resolver.py          # 메시지 리졸버
 │       └── pagination/
+│           ├── schema.py            # PageResponse 스키마
 │           └── utils.py             # build_page_response(), calculate_offset()
 └── service/                         # 비즈니스 도메인 로직
     ├── safety/                      # 안전관리 도메인
     │   ├── schema.py                # Pydantic DTO
     │   ├── repository.py            # DB 접근 (SQLAlchemy) — SQL만, commit 포함
-    │   ├── service.py               # 비즈니스 로직
     │   ├── routes.py                # APIRouter, HTTP/WebSocket 진입점
     │   ├── processor.py             # AI 추론, 이벤트 판단, event_queue 전달
     │   ├── events.py                # 이벤트 판단 규칙, 이벤트 이미지 저장
     │   └── worker.py                # SafetyDBWorker — event_queue → repository
     ├── progress/                    # 공정률 도메인
+    │   ├── model.py                 # 공정률 DB 모델
     │   ├── schema.py
     │   ├── repository.py            # DB 접근 (SQLAlchemy) — SQL만, commit 없음
     │   ├── service.py
@@ -90,10 +98,39 @@ main/
     │   ├── model.py                 # CameraRoi (tb_camera_roi)
     │   ├── schema.py                # Pydantic 요청/응답 스키마
     │   ├── repository.py            # ROI DB 접근
-    │   ├── service.py               # ROI 비즈니스 로직 (RTSP 캡처 + 테스트 이미지 fallback)
+    │   ├── service.py               # ROI 비즈니스 로직 (테스트 이미지 우선 → RTSP fallback)
     │   └── routes.py                # /cctv/roi_crud/* 엔드포인트
-    ├── camera_group/                # 카메라 그룹 관리
-    └── item/                        # 예제 도메인
+    ├── cctv/                        # 카메라 기본 정보 관리
+    │   ├── model.py                 # Camera (tb_camera_info)
+    │   ├── schema.py
+    │   ├── repository.py
+    │   ├── service.py
+    │   └── routes.py                # /cameras/* 엔드포인트
+    ├── event/                       # 안전 이벤트 이력 관리
+    │   ├── model.py                 # CameraEventHist (tb_camera_event_hist)
+    │   ├── schema.py
+    │   ├── repository.py
+    │   ├── service.py
+    │   └── routes.py
+    ├── profile/                     # 프로필 관리
+    │   ├── model.py
+    │   ├── schema.py
+    │   ├── repository.py
+    │   ├── service.py
+    │   └── routes.py
+    ├── server/                      # 서버 상태 관리
+    │   ├── model.py
+    │   ├── schema.py
+    │   ├── repository.py
+    │   ├── service.py
+    │   └── routes.py
+    ├── remote/                      # 원격 제어
+    │   ├── service.py
+    │   └── routes.py
+    └── save/                        # 이미지 저장 관리
+        ├── processor.py
+        ├── service.py
+        └── routes.py
 ```
 
 ### core vs service 원칙
