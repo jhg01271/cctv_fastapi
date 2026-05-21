@@ -15,6 +15,12 @@ import numpy as np
 
 def decode_base64_to_image(base64_string: str) -> np.ndarray:
     """Base64 문자열을 OpenCV BGR 이미지로 변환한다."""
+    if "," in base64_string:
+        base64_string = base64_string.split(",", 1)[1]
+    # padding 보정
+    missing = len(base64_string) % 4
+    if missing:
+        base64_string += "=" * (4 - missing)
     image_data = base64.b64decode(base64_string)
     np_array = np.frombuffer(image_data, dtype=np.uint8)
     image = cv2.imdecode(np_array, cv2.IMREAD_COLOR)
@@ -526,11 +532,18 @@ def finalize_grid(grid: list, point_buffer: list) -> None:
 def _flatten_point(p) -> tuple:
     """중첩된 좌표를 (x, y) 튜플로 평탄화한다. [[x,y]] → (x,y), [x,y] → (x,y)."""
     if isinstance(p, str):
+        if not p or p in ("None", "null"):
+            return (0, 0)
         import json
-        p = json.loads(p)
+        try:
+            p = json.loads(p)
+        except (json.JSONDecodeError, ValueError):
+            return (0, 0)
 
     while isinstance(p, (list, np.ndarray)) and len(p) == 1:
         p = p[0]
+    if not hasattr(p, '__iter__') or len(p) < 2:
+        return (0, 0)
     return tuple(int(v) for v in p)
 
 

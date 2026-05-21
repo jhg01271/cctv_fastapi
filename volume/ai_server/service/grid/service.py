@@ -51,14 +51,18 @@ def _get_state(unique_id: str) -> dict:
 # 초기화
 # ---------------------------------------------------------------------------
 
-def initialize_coordinates(image_base64: str, click_coordinates: list) -> dict:
-    """이미지에서 빨간 사각형을 탐지하여 격자를 초기화한다."""
+def initialize_coordinates(camera_id: str, click_coordinates: list, image_base64: str | None = None) -> dict:
+    """이미지에서 빨간 사각형을 탐지하여 격자를 초기화한다. image_base64가 없으면 테스트 이미지를 사용한다."""
+    if not image_base64 or image_base64 in ("None", "null", "string"):
+        test_img = get_test_img(camera_id)
+        image_base64 = test_img["image_base64"]
     image = decode_base64_to_image(image_base64)
 
-    if click_coordinates[0] is None:
+    point = click_coordinates[0] if click_coordinates else None
+    if not point or not isinstance(point, (list, tuple)) or len(point) < 2:
         approx = detect_red_squares(image)
     else:
-        approx, message = detect_red_squares_near_point(image, click_coordinates, click_mouse=True)
+        approx, message = detect_red_squares_near_point(image, point, click_mouse=True)
         if approx is None:
             raise NotFoundException(msg=message or "사각형을 검출할 수 없습니다.")
 
@@ -363,11 +367,15 @@ def save_safety_grid(db: Session, camera_id: str, sort_direction: str, point_lis
     }
 
 
-def load_safety_grid(db: Session, camera_id: str, image_base64: str) -> dict:
-    """DB에서 안전 격자를 로드한다."""
+def load_safety_grid(db: Session, camera_id: str, image_base64: str | None = None) -> dict:
+    """DB에서 안전 격자를 로드한다. image_base64가 없으면 테스트 이미지를 사용한다."""
     record = repository.fetch_safety_grid_by_camera(db, camera_id)
     if record is None:
         raise NotFoundException(msg=f"안전 격자 데이터를 찾을 수 없습니다. camera_id={camera_id}")
+
+    if not image_base64 or image_base64 in ("None", "null", "string"):
+        test_img = get_test_img(camera_id)
+        image_base64 = test_img["image_base64"]
 
     grid_data = record.grid_data
     image = decode_base64_to_image(image_base64)
@@ -382,7 +390,18 @@ def load_safety_grid(db: Session, camera_id: str, image_base64: str) -> dict:
     if set_mode == "1":
         approx_list = []
         for row in grid_data:
-            approx_row = [np.array(col, dtype=np.int32) if col else None for col in row]
+            approx_row = []
+            for col in row:
+                if not col:
+                    approx_row.append(None)
+                    continue
+                if isinstance(col, str):
+                    try:
+                        col = json.loads(col)
+                    except (json.JSONDecodeError, ValueError):
+                        approx_row.append(None)
+                        continue
+                approx_row.append(np.array(col, dtype=np.int32))
             approx_list.append(approx_row)
 
         _loc_states[unique_id] = {

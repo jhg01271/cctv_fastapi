@@ -6,8 +6,9 @@ from pydantic import BaseModel
 
 
 class InitializeCoordinatesRequest(BaseModel):
-    image_base64: str
-    click_coordinates: list
+    camera_id: str
+    click_coordinates: list = [[None]]
+    image_base64: str | None = None
     search_radius: int | None = None
     use_click: bool | None = None
 
@@ -72,6 +73,6 @@ class SaveSafetyGridRequest(BaseModel):
 
 class LoadSafetyGridRequest(BaseModel):
     camera_id: str
-    image_base64: str
+    image_base64: str | None = None
 
 

@@ -17,7 +17,6 @@ from service.grid.schema import (
     PointListViewRequest,
     ProcessGridRequest,
     SaveGridRequest,
-    SaveGridUnitRequest,
     SaveSafetyGridRequest,
     UpdateSortDirectionRequest,
 )
@@ -25,9 +24,8 @@ from service.grid.schema import (
 router = APIRouter(prefix="/grid/grid_crud", tags=["격자 설정"])
 
 
-@router.api_route(
+@router.get(
     "/get_test_img",
-    methods=["GET", "POST"],
     summary="테스트 이미지 조회",
 )
 async def get_test_img(request: Request, camera_id: str | None = None) -> JSONResponse:
@@ -67,8 +65,9 @@ async def get_test_img(request: Request, camera_id: str | None = None) -> JSONRe
 def initialize_coordinates(body: InitializeCoordinatesRequest) -> JSONResponse:
     """이미지에서 빨간 사각형을 탐지하여 격자를 초기화한다."""
     result = service.initialize_coordinates(
-        image_base64=body.image_base64,
+        camera_id=body.camera_id,
         click_coordinates=body.click_coordinates,
+        image_base64=body.image_base64,
     )
     return JSONResponse(content={
         "success": True,
@@ -167,18 +166,6 @@ def get_raw_img(body: GetRawImgRequest) -> JSONResponse:
         "data": result,
     })
 
-
-@router.post(
-    "/save_grid_unit",
-    summary="격자 단위 저장",
-)
-def save_grid_unit(body: SaveGridUnitRequest) -> ResultResponse:
-    """격자 단위를 메모리에 저장한다."""
-    result = service.save_grid_unit(
-        unique_id=body.unique_id,
-        grid_unit=body.grid_unit,
-    )
-    return response(data=result, msg_key="success.update")
 
 
 @router.post(
