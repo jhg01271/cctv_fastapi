@@ -12,6 +12,7 @@ import threading
 from core.database.session import SessionLocal
 from core.logging.logger import get_logger
 from service.safety import repository
+from service.telegram.service import send_telegram_alert
 
 logger = get_logger(__name__)
 
@@ -57,6 +58,20 @@ class SafetyDBWorker:
                 image_path=item["image_path"],
                 timestamp=item["timestamp"],
             )
+            # 이벤트 저장 성공 시 텔레그램 알림 전송
+            try:
+                send_telegram_alert(
+                    db=db,
+                    camera_id=item["camera_id"],
+                    event_key=item["event_key"],
+                    image_path=item.get("image_path"),
+                )
+            except Exception:
+                logger.exception(
+                    "[SafetyDBWorker] Telegram alert failed camera=%s event=%s",
+                    item.get("camera_id"),
+                    item.get("event_key"),
+                )
         except Exception:
             logger.exception(
                 "[SafetyDBWorker] Save failed camera=%s event=%s",
