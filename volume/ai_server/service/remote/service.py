@@ -15,7 +15,7 @@ from core.logging.helpers import log_event
 from core.logging.logger import get_logger
 from service.cctv.model import Camera
 from service.cctv.repository import fetch_all_cameras, fetch_running_cameras, update_camera_run_state
-from service.safety.repository import fetch_roi, fetch_detection_flags
+from service.safety.repository import fetch_roi, fetch_detection_flags, fetch_safety_grid
 
 logger = get_logger(__name__)
 
@@ -134,6 +134,7 @@ def _register_camera(camera_id: str, rtsp_url: str, db: Session, jit_only: bool 
 
     roi_arr = fetch_roi(db, camera_id)
     detection_is_run, pose_is_run = fetch_detection_flags(db, camera_id)
+    safety_grid_arr = fetch_safety_grid(db, camera_id)
 
     manager.add_camera(
         camera_id,
@@ -143,6 +144,7 @@ def _register_camera(camera_id: str, rtsp_url: str, db: Session, jit_only: bool 
         roi_arr=roi_arr,
         detection_is_run=detection_is_run,
         pose_is_run=pose_is_run,
+        safety_grid_arr=safety_grid_arr,
     )
     log_event(
         logger=logger,

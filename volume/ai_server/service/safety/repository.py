@@ -61,6 +61,19 @@ def fetch_roi(db: Session, camera_id: str) -> list:
     return []
 
 
+def fetch_safety_grid(db: Session, camera_id: str) -> list:
+    """카메라의 안전 격자 데이터를 조회한다."""
+    from service.grid.model import CameraSafetyGrid
+
+    grid = db.get(CameraSafetyGrid, camera_id)
+    if grid and grid.grid_data:
+        data = grid.grid_data
+        if isinstance(data, str):
+            data = json.loads(data)
+        return data if isinstance(data, list) else []
+    return []
+
+
 def fetch_detection_flags(db: Session, camera_id: str) -> tuple[bool, bool]:
     """detection_is_run, pose_is_run 플래그를 반환한다."""
     stmt = select(CameraRoi.model_nm, CameraRoi.is_run).where(CameraRoi.camera_id == camera_id)
