@@ -26,7 +26,7 @@ from service.grid.lib.grid_func import (
     generate_coordinates,
     generate_grid,
     get_image_size_from_base64,
-    show_approx,
+    render_grid_overlay,
     sort_grid,
     extend_grid,
     shrink_grid,
@@ -34,15 +34,15 @@ from service.grid.lib.grid_func import (
 
 logger = get_logger(__name__)
 
-# 메모리 격자 상태 저장소
-_loc_states: dict[str, dict] = {}
+# 격자 편집 세션 저장소 (unique_id → 세션 상태)
+_grid_sessions: dict[str, dict] = {}
 
 
 def _get_state(unique_id: str) -> dict:
     """unique_id로 격자 상태를 조회한다. 없으면 NotFoundException."""
-    if not unique_id or unique_id not in _loc_states:
+    if not unique_id or unique_id not in _grid_sessions:
         raise NotFoundException(msg=f"격자 상태를 찾을 수 없습니다. unique_id={unique_id}")
-    state = _loc_states[unique_id]
+    state = _grid_sessions[unique_id]
     state["last_accessed"] = datetime.now()
     return state
 
@@ -70,11 +70,11 @@ def initialize_coordinates(camera_id: str, click_coordinates: list, image_base64
         raise NotFoundException(msg="이미지에서 빨간 사각형을 검출할 수 없습니다.")
 
     initial_coordinates = [{"row": 0, "col": 0, "coordinates": approx.tolist()}]
-    output_image = show_approx([[np.array(approx, dtype=np.int32)]], image, display_labels=False)
+    output_image = render_grid_overlay([[np.array(approx, dtype=np.int32)]], image, display_labels=False)
     updated_image_base64 = encode_image_to_base64(output_image)
 
     unique_id = str(uuid.uuid4())
-    _loc_states[unique_id] = {
+    _grid_sessions[unique_id] = {
         "initial_coordinates": initial_coordinates,
         "sort_direction": "up",
         "approx_list": [[np.array(approx, dtype=np.int32)]],
@@ -132,7 +132,7 @@ def process_grid(unique_id: str, operations: list) -> dict:
 
     # 원본 이미지에 다시 그리기
     original_image = decode_base64_to_image(state["origin_image_base64"])
-    updated_image = show_approx(approx_list, original_image, sort_direction)
+    updated_image = render_grid_overlay(approx_list, original_image, sort_direction)
     updated_image_base64 = encode_image_to_base64(updated_image)
 
     state["approx_list"] = approx_list
@@ -196,7 +196,7 @@ def load_grid(db: Session, camera_id: str) -> dict:
     unique_id = str(uuid.uuid4())
     img_size = get_image_size_from_base64(record.img_data)
 
-    _loc_states[unique_id] = {
+    _grid_sessions[unique_id] = {
         "camera_id": camera_id,
         "initial_coordinates": grid_data,
         "sort_direction": record.sort_direction or "up",
@@ -276,13 +276,6 @@ def get_raw_img(unique_id: str) -> dict:
     }
 
 
-def save_grid_unit(unique_id: str, grid_unit: str) -> dict:
-    """격자 단위를 메모리에 저장한다."""
-    state = _get_state(unique_id)
-    state["grid_unit"] = grid_unit
-    return {"grid_unit": grid_unit}
-
-
 # ---------------------------------------------------------------------------
 # 안전 격자
 # ---------------------------------------------------------------------------
@@ -309,7 +302,7 @@ def point_list_view(point_list: list, image_base64: str, sort_direction: str) ->
         transformed = [[[x, y]] for x, y in flattened]
         initial_coordinates = [{"row": 0, "col": 0, "coordinates": transformed}]
         unique_id = str(uuid.uuid4())
-        _loc_states[unique_id] = {
+        _grid_sessions[unique_id] = {
             "initial_coordinates": initial_coordinates,
             "sort_direction": "up",
             "approx_list": [[np.array(transformed, dtype=np.int32)]],
@@ -404,7 +397,7 @@ def load_safety_grid(db: Session, camera_id: str, image_base64: str | None = Non
                 approx_row.append(np.array(col, dtype=np.int32))
             approx_list.append(approx_row)
 
-        _loc_states[unique_id] = {
+        _grid_sessions[unique_id] = {
             "camera_id": camera_id,
             "initial_coordinates": grid_data,
             "sort_direction": record.sort_direction or "up",

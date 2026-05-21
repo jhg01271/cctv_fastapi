@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel
 
 
 class InitializeCoordinatesRequest(BaseModel):
     camera_id: str
-    click_coordinates: list = [[None]]
+    click_coordinates: list[list[int | None]] = [[None]]
     image_base64: str | None = None
     search_radius: int | None = None
     use_click: bool | None = None
@@ -20,7 +22,7 @@ class UpdateSortDirectionRequest(BaseModel):
 
 class ProcessGridRequest(BaseModel):
     unique_id: str
-    operations: list[list]
+    operations: list[list[str | int]]
     sort_direction: str | None = None
 
 
@@ -28,7 +30,7 @@ class SaveGridRequest(BaseModel):
     unique_id: str
     camera_id: str
     sort_direction: str | None = None
-    initial_coordinates: list | None = None
+    initial_coordinates: list[dict[str, Any]] | None = None
     image_base64: str | None = None
     grid_unit: str | None = None
     created_by: str
@@ -49,13 +51,8 @@ class GetRawImgRequest(BaseModel):
     unique_id: str
 
 
-class SaveGridUnitRequest(BaseModel):
-    unique_id: str
-    grid_unit: str
-
-
 class PointListViewRequest(BaseModel):
-    point_list: list
+    point_list: list[list[int]]
     image_base64: str
     sort_direction: str
 
@@ -63,7 +60,7 @@ class PointListViewRequest(BaseModel):
 class SaveSafetyGridRequest(BaseModel):
     camera_id: str
     sort_direction: str
-    point_list_data: list
+    point_list_data: list[list[int]]
     grid_unit: str
     created_by: str
     updated_by: str

@@ -356,7 +356,7 @@ def shrink_grid(direction: str, sort_direction: str, approx_list: list) -> list:
 # 7. 시각화
 # ---------------------------------------------------------------------------
 
-def show_approx(
+def render_grid_overlay(
     approx_list: list,
     img: np.ndarray,
     sort_direction: str = "up",
@@ -367,18 +367,15 @@ def show_approx(
         return img
 
     local_image = img.copy()
-    rows = len(approx_list)
-    cols = len(approx_list[0]) if rows > 0 else 0
 
     for index_row, row in enumerate(approx_list):
         for index_col, approx in enumerate(row):
-            row_num, col_num = calculate_coordinates(index_row, index_col, rows, cols, sort_direction)
             cv2.polylines(local_image, [approx], isClosed=True, color=(0, 255, 0), thickness=3)
             for point in approx:
                 cv2.circle(local_image, tuple(point[0]), 5, (255, 0, 0), -1)
 
             if display_labels:
-                text = f"({row_num}, {col_num})"
+                text = f"({index_row}, {index_col})"
                 font_scale = 0.7
                 thickness = 2
                 text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness)[0]
@@ -400,10 +397,6 @@ def sort_rectangle_points(approx: np.ndarray) -> np.ndarray:
     bottom = sorted(points[2:], key=lambda x: x[0][0])
     return np.array([top[0], top[1], bottom[1], bottom[0]])
 
-
-def calculate_coordinates(index_row: int, index_col: int, rows: int, cols: int, sort_direction: str) -> tuple[int, int]:
-    """정렬 방향에 따라 행/열 좌표를 계산한다."""
-    return index_row, index_col
 
 
 def generate_coordinates(approx_list: list, sort_direction: str) -> list[dict]:
@@ -454,7 +447,7 @@ def check_grid_row_consistency(grid: list) -> bool:
     return all(len(row) == row_length for row in grid)
 
 
-def sort_rectangle_points_1(points: list) -> list:
+def sort_rectangle_points_list(points: list) -> list:
     """4개 좌표를 좌상-우상-우하-좌하 순서로 정렬한다 (리스트 버전)."""
     points.sort(key=lambda p: p[1])
     top = sorted(points[:2], key=lambda p: p[0])
@@ -476,7 +469,7 @@ def generate_grid(grid: list, point_buffer: list, point: list) -> list:
     point_buffer.append(point)
 
     if len(point_buffer) == 4:
-        sorted_buf = sort_rectangle_points_1(point_buffer)
+        sorted_buf = sort_rectangle_points_list(point_buffer)
         row.append(sorted_buf.copy())
         point_buffer.clear()
     elif len(point_buffer) == 2:
