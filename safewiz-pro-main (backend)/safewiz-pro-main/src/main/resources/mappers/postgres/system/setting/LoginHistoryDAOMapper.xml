@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.system.setting.dao.postgres.LoginHistoryDAO">
+    <sql id="filter">
+        <if test='searchWords != "" and searchWords != null and searchWords.size > 0'>
+            AND
+            <foreach collection='searchWords' item='searchWord' index='idx' separator='OR' open='(' close=')'>
+                tui.user_nm LIKE CONCAT('%',#{searchWord},'%')
+             OR tui.user_id LIKE CONCAT('%',#{searchWord},'%')
+
+            </foreach>
+        </if>
+    </sql>
+
+    <select id='getLoginHistoryList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.setting.model.LoginHistoryVO'>
+        SELECT row_number() over (ORDER BY tulh.login_date desc) as row_num, tulh.*, tui.user_nm
+        FROM esg.tb_user_login_hi tulh
+        left join esg.tb_user_info tui on tui.user_id = tulh.user_id
+        WHERE 1=1
+        <include refid='kr.co.igns.system.setting.dao.postgres.LoginHistoryDAO.filter' />
+        ORDER BY tulh.login_date desc
+        LIMIT #{listSize, jdbcType=NUMERIC} OFFSET #{listStart, jdbcType=NUMERIC}
+    </select>
+
+    <select id='searchCount' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='int'>
+
+        SELECT
+        count(1)
+        FROM esg.tb_user_login_hi tulh
+        left join esg.tb_user_info tui on tui.user_id = tulh.user_id
+        WHERE 1=1
+        <include refid='kr.co.igns.system.setting.dao.postgres.LoginHistoryDAO.filter' />
+
+    </select>
+
+    <select id='getLastLoginDetails' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.setting.model.LoginHistoryVO'>
+
+        SELECT
+            user_id,
+            login_device,
+            count(login_success_yn = 'N') as login_fail_count
+        FROM  esg.tb_user_login_hi tulh
+        WHERE  user_id = #{userId}
+          AND login_date = (select MAX(login_date)
+                            from esg.tb_user_login_hi
+                            where user_id = #{userId})
+        GROUP BY  user_id, login_device
+
+    </select>
+
+</mapper>
+

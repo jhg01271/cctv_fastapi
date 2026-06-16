@@ -1,0 +1,467 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.impl.dao.postgres.SafetyInspectionLogDAO">
+    <select id='getSafetyInspectionLogList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.SafetyInspectionLogVO'>
+        select
+            t1.comp_id
+            , t1.std_eq_id
+            , t4.inspection_cycle
+            , (select check_dt
+                from esg.tb_safety_inspection_log
+                where write_year = #{writeYear}
+                    and comp_id = #{compId}
+                    and std_eq_id = t2.std_eq_id
+                    and equipment_id = t3.equipment_id
+                order by check_dt desc
+                limit 1
+            )
+            , t5.minor_nm as inspection_cycle_nm
+            , t2.std_eq_nm
+            , t3.equipment_id
+            , t3.equipment_nm
+            , t1.use_yn
+            , case
+                when t4.inspection_cycle = '0001' then
+                    case
+                        when exists (
+					        select 1
+					        from esg.tb_safety_inspection_log log
+					        left join esg.tb_safety_inspection_log_detail log_detail
+					            on log.write_year = log_detail.write_year
+					            and log.doc_no = log_detail.doc_no
+					            and log.check_dt = log_detail.check_dt
+					        where log.comp_id = t1.comp_id
+					          and log.std_eq_id = t1.std_eq_id
+					          and log.equipment_id = t3.equipment_id
+                              and log.check_dt = to_char(current_date, 'yyyymmdd')
+					          and (log_detail.acceptable_yn = 'Y' or log_detail.non_compliant_yn = 'Y')
+					    )
+					    and not exists (
+					        select 1
+					        from esg.tb_safety_inspection_log log
+					        left join esg.tb_safety_inspection_log_detail log_detail
+					            on log.write_year = log_detail.write_year
+					            and log.doc_no = log_detail.doc_no
+					            and log.check_dt = log_detail.check_dt
+					        where log.comp_id = t1.comp_id
+					          and log.std_eq_id = t1.std_eq_id
+					          and log.equipment_id = t3.equipment_id
+                              and log.check_dt = to_char(current_date, 'yyyymmdd')
+					          and log_detail.acceptable_yn = 'N'
+					          and log_detail.non_compliant_yn = 'N'
+					    )
+					    then 'Y'
+					    else 'N'
+                    end
+                when t4.inspection_cycle = '0002' then
+                    case
+                        when exists (
+					        select 1
+					        from esg.tb_safety_inspection_log log
+					        left join esg.tb_safety_inspection_log_detail log_detail
+					            on log.write_year = log_detail.write_year
+					            and log.doc_no = log_detail.doc_no
+					            and log.check_dt = log_detail.check_dt
+					        where log.comp_id = t1.comp_id
+					          and log.std_eq_id = t1.std_eq_id
+					          and log.equipment_id = t3.equipment_id
+					          and to_char(to_date(log.check_dt, 'yyyymmdd'), 'yyyymm') = to_char(current_date, 'yyyymm')
+					          and (log_detail.acceptable_yn = 'Y' or log_detail.non_compliant_yn = 'Y')
+					    )
+					    and not exists (
+					        select 1
+					        from esg.tb_safety_inspection_log log
+					        left join esg.tb_safety_inspection_log_detail log_detail
+					            on log.write_year = log_detail.write_year
+					            and log.doc_no = log_detail.doc_no
+					            and log.check_dt = log_detail.check_dt
+					        where log.comp_id = t1.comp_id
+					          and log.std_eq_id = t1.std_eq_id
+					          and log.equipment_id = t3.equipment_id
+					          and to_char(to_date(log.check_dt, 'yyyymmdd'), 'yyyymm') = to_char(current_date, 'yyyymm')
+					          and log_detail.acceptable_yn = 'N'
+					          and log_detail.non_compliant_yn = 'N'
+					    )
+					    then 'Y'
+					    else 'N'
+                    end
+                else 'N'
+            end as inspection_yn
+        from esg.tb_safety_checklist t1
+        left join esg.tb_dataset_typeofequipment t2
+            on t1.comp_id = t2.comp_id
+            and t1.std_eq_id = t2.std_eq_id
+        left join esg.tb_equipment_info t3
+            on t1.comp_id = t3.comp_id
+            and t2.std_eq_id = t3.std_eq_id
+            and t3.use_yn = 'Y'
+        left join (
+            select distinct on (write_year, std_eq_id)
+                   *
+            from esg.tb_safety_checklist_history
+            where comp_id = #{compId}
+            order by write_year, std_eq_id, created_at desc
+        ) t4
+            on t1.write_year = t4.write_year
+            and t1.std_eq_id = t4.std_eq_id
+        left join esg.tb_common_d t5
+            on t5.major_cd = 'C0046'
+            and t1.inspection_cycle = t5.minor_cd
+        <if test="myDataOnly">
+        left join esg.tb_safety_checkList_hr t6
+            on t3.equipment_id = t6.equipment_id
+        </if>
+        where t1.comp_id = #{compId}
+        <if test="myDataOnly">
+            and t6.hr_id = #{hrId}
+        </if>
+        order by t1.std_eq_id desc, t3.equipment_id desc,t1.use_yn desc
+    </select>
+    <select id='getSafetyInspectionLog' parameterType='kr.co.igns.business.impl.model.SafetyInspectionLogSearchVO' resultType='kr.co.igns.business.impl.model.SafetyInspectionLogVO'>
+
+        SELECT tsil.*,
+        	   tsil.check_dt,
+               tdt.std_eq_nm,
+               tei.equipment_nm,
+               thi.hr_nm,
+               tsc.title,
+               tcd.minor_nm as inspectionCycleNm,
+               tsil.check_start || ' ~ ' || tsil.check_end AS check_time,
+               toi.orgn_nm as hr_orgn_nm,
+               tai.signature
+        FROM esg.tb_safety_inspection_log tsil
+   LEFT JOIN esg.tb_safety_checklist tsc
+          ON tsil.write_year = tsc.write_year
+          AND tsil.std_eq_id = tsc.std_eq_id
+         AND tsil.comp_id = tsc.comp_id
+   LEFT JOIN esg.tb_dataset_typeofequipment tdt
+          ON tdt.std_eq_id = tsil.std_eq_id
+         AND tdt.comp_id = tsil.comp_id
+   LEFT JOIN esg.tb_equipment_info tei
+          ON tei.equipment_id = tsil.equipment_id
+   LEFT JOIN esg.tb_approval_info tai
+          ON tai.target_type = tsil.doc_type
+         AND tai.target_id = tsil.write_year||tsil.doc_no
+         AND tai.type = 'inspector'
+   LEFT JOIN esg.tb_hr_info thi on thi.hr_id = tai.hr_id
+   LEFT JOIN esg.tb_orgn_info toi on toi.orgn_id = thi.orgn_id
+   LEFT JOIN esg.tb_common_d tcd ON tcd.major_cd ='C0046' AND tcd.minor_cd = tsc.inspection_cycle
+        WHERE tsil.comp_id = #{compId}
+    <choose>
+        <when test="writeYear != null and writeYear != '' and docNo != null and docNo != ''">
+            AND tsil.write_year = #{writeYear}
+            AND tsil.doc_no = #{docNo}
+        </when>
+        <otherwise>
+            AND tsil.std_eq_id = #{stdEqId}
+            AND tsil.equipment_id= #{equipmentId}
+            AND tsil.check_dt = #{checkDt}
+        </otherwise>
+    </choose>
+    </select>
+
+    <select id='getEquipInfo' parameterType='kr.co.igns.business.impl.model.SafetyInspectionLogSearchVO' resultType="kr.co.igns.business.impl.model.SafetyInspectionLogVO">
+        select
+            t1.equipment_nm
+           	, t2.std_eq_nm
+           	, esg.fn_getsystemcodeminornm('C0046',t3.inspection_cycle) as inspectionCycleNm
+        from esg.tb_equipment_info t1
+        left join esg.tb_dataset_typeofequipment t2
+            on t1.std_eq_id = t2.std_eq_id
+        left join esg.tb_safety_checklist t3
+        	on t2.comp_id = t3.comp_id
+        	and t2.std_eq_id = t3.std_eq_id
+        where t1.std_eq_id = #{stdEqId}
+            and t1.equipment_id = #{equipmentId}
+        order by t3.write_year desc
+        limit 1
+    </select>
+    <select id='getSafetyInspectionStdEqList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType="kr.co.igns.system.base.model.EquipVO">
+        select t1.std_eq_id
+            , t2.std_eq_id
+            , t2.std_eq_nm
+            , esg.fn_getsystemcodeminornm('C0046',t4.inspection_cycle) as inspectionCycleNm
+        from esg.tb_safety_checklist t1
+        left join esg.tb_dataset_typeofequipment t2
+            on t1.comp_id = t2.comp_id
+            and t1.std_eq_id = t2.std_eq_id
+            and t2.use_yn = 'Y'
+        left join (
+            select write_year, comp_id, std_eq_id, max(hist_seq) as hist_seq
+            from esg.tb_safety_checklist_history
+            group by write_year, comp_id, std_eq_id
+        ) t3 on t1.std_eq_id = t3.std_eq_id
+            and t1.comp_id = t3.comp_id
+            and t1.write_year = t3.write_year
+        left join esg.tb_safety_checklist_history t4
+            on t3.hist_seq = t4.hist_seq
+        where t1.comp_id = #{compId}
+            and t1.use_yn = 'Y'
+        order by t2.ord_seq asc
+    </select>
+    <select id='getSafetyInspectionLogDates' parameterType='kr.co.igns.business.impl.model.SafetyInspectionLogSearchVO' resultType="String">
+        select
+            t1.check_dt
+        from esg.tb_safety_inspection_log t1
+        where t1.std_eq_id = #{stdEqId}
+            and t1.equipment_id = #{equipmentId}
+            and t1.comp_id = #{compId}
+            and t1.check_dt between #{writeYear}||'0101' and #{writeYear}||'1231'
+        order by t1.check_dt desc
+    </select>
+    <select id='getSafetyInspectionLogDetail' parameterType='kr.co.igns.business.impl.model.SafetyInspectionLogSearchVO' resultType="kr.co.igns.business.impl.model.SafetyInspectionLogDetailVO">
+		WITH inspection_data AS (
+              SELECT tsild.*,
+                     0 as item_ord_seq
+                FROM esg.tb_safety_inspection_log tsil
+           LEFT JOIN esg.tb_safety_inspection_log_detail tsild
+                 ON tsil.write_year = tsild.write_year
+                 AND tsil.doc_no = tsild.doc_no
+                 AND tsil.doc_type = tsild.doc_type
+               WHERE 1 = 1
+                 AND tsil.std_eq_id = #{stdEqId}
+                 AND tsil.equipment_id= #{equipmentId}
+                 AND tsil.check_dt = #{checkDt}
+            ),
+        inspection_log_flag AS (
+                SELECT CASE WHEN EXISTS (
+                    SELECT 1
+                      FROM inspection_data
+                     LIMIT 1
+                    ) THEN 1 ELSE 0 END AS log_exists
+            ),
+        detailed_inspection AS (
+                SELECT * FROM inspection_data
+            ),
+        checklist_item AS (
+            SELECT
+                   NULL as write_year,
+                   NULL as doc_no,
+                   NULL as doc_type,
+                   NULL as doc_seq,
+                   tscd.ord_seq,
+                   tsci.check_item,
+                   tscd.check_list,
+                   'N' as acceptable_yn,
+                   'N' as non_compliant_yn,
+                   NULL::timestamp as created_at,
+                   NULL as created_by,
+                   NULL::timestamp as updated_at,
+                   NULL as updated_by,
+                   NULL as check_dt,
+                   tsci.ord_seq as item_ord_seq
+              FROM esg.tb_safety_checklist tsc
+         LEFT JOIN esg.tb_safety_checklist_detail tscd
+                ON tscd.write_year = tsc.write_year
+               AND tscd.doc_no = tsc.doc_no
+               AND tscd.doc_type = tsc.doc_type
+         LEFT JOIN esg.tb_safety_checklist_item tsci
+                ON tsci.doc_seq = tscd.check_item_seq
+               AND tsci.write_year = tsc.write_year
+               AND tsci.doc_no = tsc.doc_no
+               AND tsci.doc_type = tsc.doc_type
+             WHERE tsc.std_eq_id = #{stdEqId}
+               AND tsc.comp_id = #{compId}
+               AND tscd.use_yn = 'Y'
+               AND tsci.use_yn = 'Y'
+            )
+        SELECT *
+          FROM detailed_inspection
+         WHERE (SELECT log_exists FROM inspection_log_flag) = 1
+            AND check_dt = #{checkDt}
+     UNION ALL
+        SELECT *
+          FROM checklist_item
+         WHERE (SELECT log_exists FROM inspection_log_flag) = 0
+     order by item_ord_seq asc, ord_seq asc;    
+    </select>
+
+    <insert id="insertSafetyInspectionLog" parameterType="kr.co.igns.business.impl.model.SafetyInspectionLogVO">
+
+        <selectKey keyProperty="docNo" resultType="kr.co.igns.business.impl.model.SafetyInspectionLogVO" order="BEFORE">
+            <![CDATA[
+            SELECT
+                LPAD((COALESCE(MAX(SUBSTRING(doc_no, 1, 5)::INTEGER), 0) + 1)::TEXT, 5, '0') AS docNo
+             FROM esg.tb_safety_inspection_log
+            WHERE write_year = #{writeYear}
+              AND check_dt = #{checkDt}
+         ]]>
+        </selectKey>
+
+        INSERT INTO esg.tb_safety_inspection_log (
+            write_year,
+            doc_no,
+            doc_type,
+            comp_id,
+            std_eq_id,
+            equipment_id,
+            check_dt,
+            check_start,
+            check_end,
+            setup_location,
+            mf_spec,
+            orgn_nm,
+            non_compliance_action,
+            use_yn,
+            created_at,
+            created_by
+        )
+        VALUES (
+                   #{writeYear},
+                   #{docNo},
+                   #{docType},
+                   #{compId},
+                   #{stdEqId},
+                   #{equipmentId},
+                   #{checkDt},
+                   #{checkStart},
+                   #{checkEnd},
+                   #{setupLocation},
+                   #{mfSpec},
+                   #{orgnNm},
+                   #{nonComplianceAction},
+                   'Y',
+                   now(),
+                   #{createdBy}
+               )
+
+    </insert>
+
+    <insert id="insertSafetyInspectionLogDetail" parameterType="kr.co.igns.business.impl.model.SafetyInspectionLogDetailVO">
+        <selectKey keyProperty="docSeq" resultType="kr.co.igns.business.impl.model.SafetyInspectionLogDetailVO" order="BEFORE">
+            <![CDATA[
+            SELECT
+                LPAD((COALESCE(MAX(SUBSTRING(doc_seq, 1, 5)::INTEGER), 0) + 1)::TEXT, 5, '0') AS docSeq
+              FROM esg.tb_safety_inspection_log_detail
+             WHERE write_year = #{writeYear}
+               AND doc_type = #{docType}
+               AND doc_no = #{docNo}
+               AND check_dt = #{checkDt}
+         ]]>
+        </selectKey>
+
+        INSERT INTO esg.tb_safety_inspection_log_detail (
+            write_year,
+            doc_type,
+            doc_no,
+            doc_seq,
+            ord_seq,
+            check_item,
+            check_list,
+            acceptable_yn,
+            non_compliant_yn,
+            created_at,
+            created_by,
+            check_dt
+        )
+        VALUES (
+            #{writeYear},
+            #{docType},
+            #{docNo},
+            #{docSeq},
+            #{ordSeq},
+            #{checkItem},
+            #{checkList},
+            #{acceptableYn},
+            #{nonCompliantYn},
+            now(),
+            #{createdBy},
+            #{checkDt}
+        )
+
+    </insert>
+
+    <update id="updateSafetyInspectionLog" parameterType="kr.co.igns.business.impl.model.SafetyInspectionLogVO">
+
+        UPDATE esg.tb_safety_inspection_log
+        SET
+            check_start = #{checkStart},
+            check_end = #{checkEnd},
+            setup_location = #{setupLocation},
+            mf_spec = #{mfSpec},
+            orgn_nm = #{orgnNm},
+            non_compliance_action = #{nonComplianceAction},
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND check_dt = #{checkDt}
+
+    </update>
+
+    <update id="updateSafetyInspectionLogDetail" parameterType="kr.co.igns.business.impl.model.SafetyInspectionLogDetailVO">
+
+        UPDATE esg.tb_safety_inspection_log_detail
+        SET
+            acceptable_yn = #{acceptableYn},
+            non_compliant_yn = #{nonCompliantYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE 1 = 1
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND doc_seq = #{docSeq}
+          AND check_dt = #{checkDt}
+
+    </update>
+
+    <delete id="deleteSafetyInspectionLog" parameterType="kr.co.igns.business.impl.model.SafetyInspectionLogVO">
+
+    DELETE FROM esg.tb_safety_inspection_log
+          WHERE comp_id = #{compId}
+            AND write_year = #{writeYear}
+            AND doc_no = #{docNo}
+            AND doc_type = #{docType}
+            AND check_dt = #{checkDt}
+
+<!--        update esg.tb_safety_inspection_log set-->
+<!--            use_yn = 'N'-->
+<!--        where comp_id = #{compId}-->
+<!--            and write_year = #{writeYear}-->
+<!--            and doc_no = #{docNo}-->
+<!--            and doc_type = #{docType};-->
+
+    </delete>
+
+    <delete id="deleteSafetyInspectionLogDetail" parameterType="kr.co.igns.business.impl.model.SafetyInspectionLogVO">
+
+        DELETE FROM esg.tb_safety_inspection_log_detail
+        WHERE 1 = 1
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND check_dt = #{checkDt}
+
+    </delete>
+
+    <select id='getSafetyInspectionLogById' parameterType='kr.co.igns.business.impl.model.SafetyInspectionLogVO' resultType='kr.co.igns.business.impl.model.SafetyInspectionLogVO'>
+
+        SELECT *
+        FROM esg.tb_safety_inspection_log
+        WHERE comp_id = #{compId}
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND check_dt = #{checkDt}
+
+    </select>
+
+    <select id='getSafetyInspectionLogDetailById' parameterType='kr.co.igns.business.impl.model.SafetyInspectionLogDetailVO' resultType='kr.co.igns.business.impl.model.SafetyInspectionLogDetailVO'>
+
+        SELECT *
+        FROM esg.tb_safety_inspection_log_detail
+        WHERE 1 = 1
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND doc_seq = #{docSeq}
+          AND check_dt = #{checkDt}
+
+    </select>
+
+</mapper>

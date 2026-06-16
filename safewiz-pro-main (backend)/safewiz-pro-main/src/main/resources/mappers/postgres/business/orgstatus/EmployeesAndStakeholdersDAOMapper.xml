@@ -1,0 +1,346 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.orgstatus.dao.postgres.EmployeesAndStakeholdersDAO">
+	
+	<!-- 년도 조회 -->
+	<select id='searchYear' parameterType='kr.co.igns.business.orgstatus.model.EmployeesAndStakeholdersVO' resultType='kr.co.igns.business.orgstatus.model.EmployeesAndStakeholdersVO'>
+        SELECT SUBSTR(emp_id, 1,4) as year
+		FROM esg.tb_employees
+		GROUP BY year
+    </select>
+    
+    <!-- 데이터 조회 -->
+    <select id='searchEmployeesStakeholders' parameterType='kr.co.igns.business.orgstatus.model.EmployeesAndStakeholdersVO' resultType='kr.co.igns.business.orgstatus.model.EmployeesAndStakeholdersVO'>
+        select write_year as year
+		     , a.write_year
+		     , a.doc_type
+		     , a.doc_no
+		     , a.write_dt
+		     , a.comp_id
+		     , a.orgn_id
+		     , (select orgn_nm
+		          from esg.tb_orgn_info
+		         where orgn_id = a.orgn_id) as orgn_nm
+		     , to_char(a.created_at, 'YYYY-MM-DD') as created_at
+		     , (select hr_nm 
+			      from esg.tb_hr_info
+			     where user_id = a.created_by) as created_by
+		     , (select count(*)
+		          from esg.tb_employees_detail
+		         where write_year = a.write_year
+		           and doc_type = a.doc_type
+		           and doc_no = a.doc_no) as detail_count
+		     , (case when d.signature is not null then 'Y'
+		             when c.signature is not null then 'I'
+		             when b.signature is not null then 'W'
+		             else 'C'
+		        end) as approval_status
+		     , a.use_yn
+			 , b.hr_nm as writer
+		  from esg.tb_employees a
+		       left join esg.tb_approval_info b
+		              on b.target_type = a.doc_type
+		              and b.target_id = a.write_year||a.doc_no
+		              and b.param = 'writer'
+		       left join esg.tb_approval_info c
+		              on c.target_type = a.doc_type
+		              and c.target_id = a.write_year||a.doc_no
+		              and c.param = 'reviewer'
+		       left join esg.tb_approval_info d
+		              on d.target_type = a.doc_type
+		              and d.target_id = a.write_year||a.doc_no
+		              and d.param = 'approver'
+		 where a.comp_id = #{compId}
+		order by write_year desc, a.use_yn desc, doc_no desc;
+    </select>
+    
+    <!-- 신규 추가 -->
+    <insert id="addEmployeesStakeholders" parameterType="kr.co.igns.business.orgstatus.model.EmployeesAndStakeholdersVO">
+    
+    	<selectKey keyProperty="docNo" resultType="string" order="BEFORE">
+    	     select case when max(doc_no) is null then '00001'
+				         else LPAD(CAST(max(doc_no)::BIGINT +1 as TEXT),5,'0')
+				          end as doc_no
+			   from esg.tb_employees
+			  where write_year = #{writeYear}
+			    and doc_type = #{docType}
+    	</selectKey>
+    	
+    	INSERT 
+		  INTO esg.tb_employees (write_year
+		  					   , doc_type		  
+		  					   , doc_no
+		  					   , write_dt
+							   , comp_id
+							   , orgn_id
+							   , created_at
+							   , created_by
+					   ) values (#{writeYear}
+					   		   , #{docType}
+					   		   , #{docNo}
+					   		   , #{writeDt}
+						  	   , #{compId}
+						  	   , #{orgnId}
+						  	   , now()
+						  	   , #{createdBy})
+    </insert>
+    
+    <!-- 수정 -->
+    <update id="modifyEmployeesStakeholders" parameterType="kr.co.igns.business.orgstatus.model.EmployeesAndStakeholdersVO">
+		UPDATE esg.tb_employees
+		   SET orgn_id			= #{orgnId}
+		   	 , write_dt         = #{writeDt}
+             , use_yn           = #{mainYn}
+			 , updated_at		= now()
+			 , updated_by		= #{createdBy}	
+		 WHERE write_year = #{writeYear}
+		   AND doc_type = #{docType}
+		   AND doc_no = #{docNo} 
+		   AND comp_id = #{compId}
+	</update>
+  
+	
+	<!-- 삭제 -->
+	<delete id="deleteEmployeesStakeholders" parameterType="kr.co.igns.business.orgstatus.model.EmployeesAndStakeholdersVO">
+		UPDATE esg.tb_employees
+		   SET use_yn = 'N'
+		 WHERE emp_id = #{empId}
+	</delete>
+	
+	<!-- 삭제(리스트) -->
+	<delete id="deleteEmployeesStakeholdersList" parameterType="kr.co.igns.business.orgstatus.model.EmployeesAndStakeholdersVO">
+		update esg.tb_employees
+		   set use_yn = 'N'
+		 WHERE write_year = #{writeYear}
+		   and doc_type = #{docType}
+		   and doc_no = #{docNo};
+	</delete>
+	
+    <!-- detail 데이터 조회 -->
+    <select id='searchEmployeesStakeholdersDetail' parameterType='kr.co.igns.business.orgstatus.model.EmployeesAndStakeholdersVO' resultType='kr.co.igns.business.orgstatus.model.EmployeesAndStakeholdersVO'>
+        select a.write_year
+        	 , a.doc_type
+        	 , a.doc_no
+        	 , a.doc_seq
+        	 , b.write_dt
+        	 , a.comp_id
+			 , a.gubun
+		     , b.orgn_id
+		     , (select orgn_nm
+		          from esg.tb_orgn_info
+		         where orgn_id = b.orgn_id) as orgn_nm
+			 --, a.stakeholders
+			 , (select array_to_string(array_agg(bb.hr_id), ',')
+		          from esg.tb_employees_detail_stakeholders aa
+		               left join esg.tb_hr_info bb
+		                      on bb.hr_id  = aa.stakeholders
+		         where a.write_year = aa.write_year
+		           and a.doc_type = aa.doc_type
+		           and a.doc_no = aa.doc_no
+		           and a.doc_seq = aa.doc_seq) as stakeholders
+		     --, (select hr_nm 
+			 --     from esg.tb_hr_info
+			 --    where hr_id = a.stakeholders) as stakeholders_nm
+			 , (select array_to_string(array_agg(bb.hr_nm), ',')
+		          from esg.tb_employees_detail_stakeholders aa
+		               left join esg.tb_hr_info bb
+		                      on bb.hr_id  = aa.stakeholders
+		         where a.write_year = aa.write_year
+		           and a.doc_type = aa.doc_type
+		           and a.doc_no = aa.doc_no
+		           and a.doc_seq = aa.doc_seq) as stakeholders_nm
+			 , a.requirements
+			 , a.obligation
+			 , a.risk
+			 , a.chance
+			 , to_char(a.created_at, 'YYYY-MM-DD') as created_at
+			 , a.created_by
+			 , to_char(a.updated_at, 'YYYY-MM-DD') as updated_at
+			 , a.updated_by
+			 , a.use_yn
+			 , b.use_yn as main_yn
+		  from esg.tb_employees_detail a
+		     , esg.tb_employees b
+		 where a.write_year = b.write_year
+		   and a.doc_type = b.doc_type
+		   and a.doc_no = b.doc_no
+		   and a.comp_id = b.comp_id
+		   and a.write_year = #{writeYear}
+		   and a.doc_type = #{docType}
+		   and a.doc_no = #{docNo}
+		 order by a.use_yn desc, a.write_year, a.doc_type, a.doc_no, a.doc_seq, a.created_at;
+    </select>
+	
+	<!-- detail 신규  -->
+    <insert id="addEmployeesStakeholdersDetail" parameterType="kr.co.igns.business.orgstatus.model.EmployeesAndStakeholdersVO">
+    
+    	<selectKey keyProperty="docSeq" resultType="string" order="BEFORE">
+    	     SELECT case when max(doc_seq) is null then '00001'
+				         else LPAD(CAST(max(doc_seq)::BIGINT +1 as TEXT),5,'0')
+				          end as doc_seq
+			   FROM esg.tb_employees_detail
+			  WHERE write_year = #{writeYear}
+			    AND doc_type = #{docType}
+			    AND doc_no = #{docNo}
+    	</selectKey>
+    
+    	INSERT 
+		  INTO esg.tb_employees_detail (write_year
+		  							  , doc_type
+		  							  , doc_no
+		  							  , doc_seq
+		  							  , comp_id
+		  							  , gubun
+		  							  , stakeholders
+		  							  , requirements
+		  							  , obligation
+		  							  , risk
+		  							  , chance
+									  , created_at
+									  , created_by
+							   ) values (#{writeYear}
+							   		  , #{docType}
+							   		  , #{docNo}
+							   		  , #{docSeq}
+							   		  , #{compId}
+							   		  , #{gubun}
+							   		  , #{stakeholders}
+							   		  , #{requirements}
+							   		  , #{obligation}
+							   		  , #{risk}
+							   		  , #{chance}								  	  
+								  	  , now()
+								  	  , #{createdBy});
+		
+		INSERT INTO esg.tb_employees_detail_stakeholders (
+			  write_year
+			, doc_type
+			, doc_no
+			, doc_seq
+			, comp_id
+			, stakeholders
+			, created_at
+			, created_by
+		)
+		SELECT #{writeYear}
+			 , #{docType}
+			 , #{docNo}
+			 , #{docSeq}
+			 , #{compId}
+			 , unnest(string_to_array(#{stakeholders}, ',')) stakeholders
+			 , now()
+			 , #{createdBy};
+    </insert>
+    
+    <!-- detail 저장 -->
+    <update id="modifyEmployeesStakeholdersDetail" parameterType="kr.co.igns.business.orgstatus.model.EmployeesAndStakeholdersVO">
+		UPDATE esg.tb_employees_detail
+		   SET gubun			= #{gubun}
+		     , stakeholders		= #{stakeholders}	
+			 , requirements		= #{requirements}	
+			 , obligation		= #{obligation}	
+			 , risk				= #{risk}	
+			 , chance			= #{chance}
+			 , use_yn           = #{useYn}
+			 , updated_at		= now()
+			 , updated_by		= #{createdBy}	
+		 WHERE write_year = #{writeYear}
+		   AND doc_type = #{docType}
+		   AND doc_no = #{docNo} 
+		   AND doc_seq = #{docSeq};
+		
+		DELETE
+		  FROM esg.tb_employees_detail_stakeholders
+		 WHERE write_year = #{writeYear}
+		   AND doc_type = #{docType}
+		   AND doc_no = #{docNo} 
+		   AND doc_seq = #{docSeq};
+		
+		INSERT INTO esg.tb_employees_detail_stakeholders (
+			  write_year
+			, doc_type
+			, doc_no
+			, doc_seq
+			, comp_id
+			, stakeholders
+			, created_at
+			, created_by
+		)
+		SELECT #{writeYear}
+			 , #{docType}
+			 , #{docNo}
+			 , #{docSeq}
+			 , #{compId}
+			 , unnest(string_to_array(#{stakeholders}, ',')) stakeholders
+			 , now()
+			 , #{createdBy};
+	</update>
+	
+	<!-- detail 삭제 -->
+    <delete id="deleteEmployeesStakeholdersDetail" parameterType="kr.co.igns.business.orgstatus.model.EmployeesAndStakeholdersVO">
+    	update esg.tb_employees_detail
+    	   set use_yn = 'N'
+		 WHERE write_year = #{writeYear}
+		   AND doc_type = #{docType}
+		   AND doc_no = #{docNo} 
+		   AND doc_seq = #{docSeq}
+	</delete>
+	
+	<!-- 출력 데이터 조회 -->
+    <select id='getReportData' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.orgstatus.model.EmployeesAndStakeholdersVO'>
+        	SELECT tos.write_year,
+		     		tos.doc_type,
+		     		tos.doc_no,
+		     		toi.comp_id,
+		     	    toi.orgn_nm,
+		            tos.created_at,
+		            tos.created_by,
+		            tos.updated_at,
+		            tos.updated_by            
+		       FROM esg.tb_employees tos
+		       join esg.tb_orgn_info toi 
+		         on toi.comp_id = tos.comp_id
+		        and toi.orgn_id = tos.orgn_id
+		      WHERE tos.comp_id = #{compId}
+		        and tos.write_year = #{writeYear}
+		        and tos.doc_type = #{docType}
+		        and tos.doc_no = #{docNo}
+    </select>
+	
+    <select id='getReportGridData' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.orgstatus.model.EmployeesAndStakeholdersVO'>
+        select esg.fn_getsystemcodeminornm('C0004',b.gubun) as gubunNm
+		     , (select array_to_string(array_agg(bb.hr_nm), ',')
+		          from esg.tb_employees_detail_stakeholders aa
+		               left join esg.tb_hr_info bb
+		                      on bb.hr_id  = aa.stakeholders
+		         where b.write_year = aa.write_year
+		           and b.doc_type = aa.doc_type
+		           and b.doc_no = aa.doc_no
+		           and b.doc_seq = aa.doc_seq) as stakeholders_nm
+		     , b.requirements
+		     , b.obligation
+		     , b.risk
+		     , b.chance
+		  from esg.tb_employees_detail b
+	      WHERE b.comp_id = #{compId}
+	        and b.write_year = #{writeYear}
+	        and b.doc_type = #{docType}
+	        and b.doc_no = #{docNo}
+			and b.use_yn = 'Y'
+    </select>
+
+	<!-- 일괄 출력용 -->
+	<select id='getAllReport' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.common.model.SpSearchVO'>
+		select t1.write_year
+		 	, t1.doc_type
+			, t1.doc_no
+		    , t1.comp_id
+		from esg.tb_employees t1
+		where t1.write_year = #{writeYear}
+			and t1.comp_id  = #{compId}
+			and t1.use_yn = 'Y'
+			and t1.orgn_id = #{searchText}
+    </select>
+	
+</mapper>

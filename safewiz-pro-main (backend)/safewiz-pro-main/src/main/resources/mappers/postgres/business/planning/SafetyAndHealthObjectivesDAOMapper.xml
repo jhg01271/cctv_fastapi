@@ -1,0 +1,588 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.planning.dao.postgres.SafetyAndHealthObjectivesDAO">
+	<!-- 메인 조회 -->
+    <select id='getSafetyAndHealthObjectives' parameterType='kr.co.igns.business.planning.model.SafetyAndHealthObjectivesVO' resultType='kr.co.igns.business.planning.model.SafetyAndHealthObjectivesVO'>
+		SELECT A.comp_id
+			 , A.write_year
+			 , A.doc_type
+			 , A.doc_no
+			 , A.orgn_id
+			 , (select Z.orgn_nm
+		          from esg.tb_orgn_info Z
+		         where Z.orgn_id = A.orgn_id
+		       ) AS orgn_nm
+			 , A.revised_dt
+		     , A.enacted_dt
+		     , SUM(CASE WHEN B.USE_YN='N' THEN 0
+		     			ELSE 1 END) AS doc_count
+		     , A.use_yn AS useYnMain
+		     , (CASE WHEN E.signature IS NOT NULL THEN 'Y'
+		             WHEN D.signature IS NOT NULL THEN 'I'
+		             WHEN C.signature IS NOT NULL THEN 'W'
+		             ELSE 'C'
+		        END) AS approval_status
+		  FROM esg.tb_safety_health_objectives A
+		LEFT JOIN esg.tb_safety_health_objectives_detail B ON B.doc_type = A.doc_type
+														  AND B.doc_no = A.doc_no
+														  AND B.orgn_id = A.orgn_id
+		LEFT JOIN esg.tb_approval_info C
+		       ON C.target_type = A.doc_type
+		      AND C.target_id = A.write_year||A.doc_no
+		      AND C.param = 'writer'
+		LEFT JOIN esg.tb_approval_info D
+		       ON D.target_type = A.doc_type
+		      AND D.target_id = A.write_year||A.doc_no
+		      AND D.param = 'reviewer'
+		LEFT JOIN esg.tb_approval_info E
+		       ON E.target_type = A.doc_type
+		      AND E.target_id = A.write_year||A.doc_no
+		      AND E.param = 'approver'
+		WHERE A.comp_id = #{compId}
+		<if test="writeYear != null and !''.equals(writeYear)">
+			-- 일괄 출력용
+			and A.write_year = #{writeYear}
+			and A.use_yn = 'Y'
+		</if>
+		GROUP BY A.comp_id, A.write_year, A.doc_type, A.doc_no, A.orgn_id, E.signature, D.signature, C.signature
+		ORDER BY A.use_yn DESC, A.WRITE_YEAR DESC,A.CREATED_AT DESC;
+    </select>
+
+	<!-- 상세 메인 조회 -->
+	<select id='getMainSafetyAndHealthObjective' parameterType='kr.co.igns.business.planning.model.SafetyAndHealthObjectivesVO' resultType='kr.co.igns.business.planning.model.SafetyAndHealthObjectivesVO'>
+		SELECT A.comp_id
+		, A.write_year
+		, A.doc_type
+		, A.doc_no
+		, A.orgn_id
+		, A.use_yn as useYnMain
+		, (select Z.orgn_nm
+		from esg.tb_orgn_info Z
+		where Z.orgn_id = A.orgn_id
+		) AS orgn_nm
+		, A.revised_dt
+		, A.enacted_dt
+		FROM esg.tb_safety_health_objectives A
+		WHERE A.comp_id = #{compId}
+		AND A.write_year = #{writeYear}
+		AND A.doc_type = #{docType}
+		AND A.doc_no = #{docNo}
+		ORDER BY A.use_yn DESC, A.WRITE_YEAR DESC,A.CREATED_AT DESC;
+	</select>
+
+    <!-- 상세 조회 -->
+    <select id='getSafetyAndHealthObjectivesDetail' parameterType='kr.co.igns.business.planning.model.SafetyAndHealthObjectivesVO' resultType='kr.co.igns.business.planning.model.SafetyAndHealthObjectivesVO'>
+		SELECT A.orgn_id
+			 , A.write_year
+			 , A.doc_type
+			 , A.doc_no
+			 , A.doc_seq
+			 , A.safety_health_goal
+			 , A.detail_goal_method
+			 , A.hr_id
+			 , (select Z.hr_nm
+			      from esg.tb_hr_info Z
+			     where Z.hr_id = A.hr_id
+			   ) AS hr_nm
+			 , (select Z.orgn_nm
+		          from esg.tb_orgn_info Z
+		         where Z.orgn_id = A.orgn_id
+		       ) AS orgn_nm
+             , B.revised_dt
+		     , B.enacted_dt
+			 , A.required_resource
+			 , A.evaluation_method
+			 , A.remark
+			 , A.use_yn
+ 			 , action_doc_type
+			 , action_doc_no
+			 , action_doc_seq
+			 , action_doc_detail_seq
+			 , A.action_schedule1
+			 , A.action_schedule2
+			 , A.action_schedule3
+			 , A.action_schedule4
+			 , A.action_schedule5
+			 , A.action_schedule6
+			 , A.action_schedule7
+			 , A.action_schedule8
+			 , A.action_schedule9
+			 , A.action_schedule10
+			 , A.action_schedule11
+			 , A.action_schedule12
+             , taco.company_objective
+             , taop.action_objective
+             , tadp.detail_plan
+             , tadi.detail_item
+             , tadp.detail_item_id
+             , A.comp_id
+		     , CASE WHEN tom.orgn_id IS NULL THEN 'N' ELSE 'Y' END AS action_orgn_yn
+            FROM esg.tb_safety_health_objectives_detail A
+            LEFT JOIN esg.tb_safety_health_objectives B ON A.doc_type = B.doc_type AND A.write_year = B.write_year AND A.doc_no = B.doc_no 
+            LEFT JOIN esg.tb_action_objective_plan taop
+              ON A.write_year = taop.write_year
+             AND A.action_doc_type = taop.doc_type
+             AND A.action_doc_no = taop.doc_no
+             AND A.action_doc_seq = taop.doc_seq
+             AND A.comp_id = taop.comp_id
+            LEFT join esg.tb_action_company_objective taco
+              ON taco.comp_objective_id = taop.comp_objective_id
+            LEFT JOIN esg.tb_action_detail_plan tadp
+              ON A.write_year = tadp.write_year
+             AND A.action_doc_type = tadp.doc_type
+             AND A.action_doc_no = tadp.doc_no
+             AND A.action_doc_seq = tadp.doc_seq
+             AND A.action_doc_detail_seq = tadp.doc_detail_seq
+             AND A.comp_id = tadp.comp_id
+             AND taop.doc_seq  = tadp.doc_seq
+            LEFT JOIN esg.tb_action_detail_item tadi
+              ON tadi.detail_item_id = tadp.detail_item_id
+			LEFT JOIN esg.tb_orgn_map tom
+			  ON tom.target_type = taop.doc_type
+		     AND tom.target_id = A.write_year || A.action_doc_no || A.action_doc_seq
+			 AND tom.use_yn = 'Y'
+			 AND tom.orgn_id = A.orgn_id
+		   WHERE A.doc_type = #{docType}
+		     AND A.doc_no = #{docNo}
+		     AND A.write_year = #{writeYear}
+		 ORDER BY A.doc_seq DESC, A.use_yn = 'N' ASC; 
+								     	 
+    </select>
+    
+    <!-- 조직 조회 -->
+    <select id='getOrganizationInSafetyAndHealthObjectives' parameterType='kr.co.igns.business.planning.model.SafetyAndHealthObjectivesVO' resultType='kr.co.igns.business.planning.model.SafetyAndHealthObjectivesVO'>
+		SELECT toi.*,
+               thimH.hr_id as head_hr_id,
+               hrH.hr_nm as head_hr_nm,
+               thimS.hr_id as second_hr_id,
+               sf.file_id as primary_id,
+               sf1.file_id as secondary_id,
+               hrS.hr_nm as second_hr_nm,
+              (select count(*) from esg.tb_hr_info where orgn_id = toi.orgn_id) as result_cnt   -- 총인원 수
+        FROM esg.tb_orgn_info toi
+        LEFT JOIN esg.tb_hr_incharge_map thimH on thimH.target_id = toi.orgn_id AND thimH.target_type = 'orgn' AND thimH.gubun = 'HEAD'
+        LEFT JOIN esg.tb_hr_info hrH on hrH.hr_id = thimH.hr_id
+        LEFT JOIN esg.tb_hr_incharge_map thimS on thimS.target_id = toi.orgn_id AND thimS.target_type = 'orgn' AND thimS.gubun = '2ND'
+        LEFT JOIN esg.tb_hr_info hrS on hrS.hr_id = thimS.hr_id
+            -- 파일 location
+        LEFT JOIN esg.tb_sys_file sf on sf.target_id = thimH.hr_id and sf.target_type='hrImg'
+        LEFT JOIN esg.tb_sys_file sf1 on sf1.target_id = thimS.hr_id and sf1.target_type='hrImg'
+        WHERE 1=1
+          AND toi.comp_id = #{compId}
+          AND NOT EXISTS(
+          	SELECT 1
+          	FROM esg.tb_safety_health_objectives B
+          	WHERE B.WRITE_YEAR= #{writeYear}
+          	AND toi.ORGN_ID = B.orgn_id
+          )
+        ORDER BY toi.use_yn DESC, toi.ord_seq;
+    </select>
+    
+    <select id='getDocNo' parameterType='kr.co.igns.business.planning.model.SafetyAndHealthObjectivesVO' resultType="String">
+    	SELECT LPAD((COALESCE(MAX(CAST(A.doc_no AS INTEGER)), 0) + 1)::TEXT, 5, '0') AS docNo
+		  FROM esg.tb_safety_health_objectives A
+		 WHERE A.write_year = #{writeYear};
+    </select>
+    
+    <!-- 메인 추가 -->
+    <insert id="insertSafetyAndHealthObjectives" parameterType="kr.co.igns.business.planning.model.SafetyAndHealthObjectivesVO">
+   		INSERT INTO esg.tb_safety_health_objectives
+    	(
+    		  write_year
+    		, doc_type
+    		, doc_no
+    		, orgn_id
+    		, comp_id
+    		, revised_dt
+    		, enacted_dt
+    		, use_yn
+    		, created_at
+    		, created_by
+    	)
+    	VALUES
+    	(
+    		  #{writeYear}
+    		, #{docType}
+    		, #{docNo}
+    		, #{orgnId}
+    		, #{compId}
+    		, #{revisedDt}
+    		, #{enactedDt}
+    		, 'Y'
+    		, now()
+    		, #{createdBy}
+    	);
+    </insert>
+    
+    <!-- 상세 추가 -->
+    <insert id="insertSafetyAndHealthObjectivesDetail" parameterType="kr.co.igns.business.planning.model.SafetyAndHealthObjectivesVO" useGeneratedKeys="true" keyProperty="docSeq">
+   		INSERT INTO esg.tb_safety_health_objectives_detail
+    	(
+    		  comp_id
+    		, write_year
+			, doc_type
+			, doc_no
+			, orgn_id
+			, doc_seq
+			, safety_health_goal
+			, detail_goal_method
+			, hr_id
+			, required_resource
+			, evaluation_method
+			, remark
+			, action_schedule1
+			, action_schedule2
+			, action_schedule3
+			, action_schedule4
+			, action_schedule5
+			, action_schedule6
+			, action_schedule7
+			, action_schedule8
+			, action_schedule9
+			, action_schedule10
+			, action_schedule11
+			, action_schedule12
+			, action_doc_type
+			, action_doc_no
+			, action_doc_seq
+			, action_doc_detail_seq
+			, use_yn
+			, created_at
+			, created_by
+    	)
+    	VALUES
+    	(
+    		  #{compId}
+    		, #{writeYear}
+			, #{docType}
+			, #{docNo}
+			, #{orgnId}
+			, (SELECT CAST(COALESCE(MAX(doc_seq)::INTEGER, 0) AS INTEGER) + 1
+				 FROM esg.tb_safety_health_objectives_detail
+				WHERE doc_type = #{docType}
+				  AND doc_no = #{docNo}
+		      )
+			, #{safetyHealthGoal}
+			, #{detailGoalMethod}
+			, #{hrId}
+			, #{requiredResource}
+			, #{evaluationMethod}
+			, #{remark}
+			, #{actionSchedule1}
+			, #{actionSchedule2}
+			, #{actionSchedule3}
+			, #{actionSchedule4}
+			, #{actionSchedule5}
+			, #{actionSchedule6}
+			, #{actionSchedule7}
+			, #{actionSchedule8}
+			, #{actionSchedule9}
+			, #{actionSchedule10}
+			, #{actionSchedule11}
+			, #{actionSchedule12}
+			, #{actionDocType}
+			, #{actionDocNo}
+			, #{actionDocSeq}
+			, #{actionDocDetailSeq}
+			, 'Y'
+			, now()
+			, #{createdBy}
+    	);
+    </insert>
+    
+    <select id="getTaskList" parameterType="kr.co.igns.business.planning.model.SafetyAndHealthObjectivesVO" resultType="kr.co.igns.business.task.model.TaskVO">
+    	SELECT tmd.*
+    	FROM esg.tb_task_manager tm
+    	LEFT JOIN esg.tb_task_manager_detail tmd
+    	ON tm.comp_id = tmd.comp_id
+    	AND tm.user_id = tmd.user_id
+    	AND tm.task_year = tmd.task_year
+    	AND tm.task_month = tmd.task_month
+    	AND tm.task_day = tmd.task_day
+    	AND tm.task_seq = tmd.task_seq
+    	WHERE tm.req_info_key = #{reqInfoKey}
+    	AND tmd.task_detail_user_id != (select user_id from esg.tb_hr_info where hr_id =  #{hrId})
+    	AND tmd.cancel_dt is null
+    	AND tmd.complete_dt is null
+    </select>
+    
+    <update id="updateTask" parameterType='kr.co.igns.business.task.model.TaskVO'>	
+    	UPDATE esg.tb_task_manager_detail
+    	SET cancel_dt = now()
+    	  , task_detail_content = concat(#{taskDetailContent}, '- 취소')
+    	WHERE user_id = #{userId}
+    	AND comp_id = #{compId} 
+    	AND task_year = #{taskYear}
+    	AND task_month = #{taskMonth}
+    	AND task_day = #{taskDay}
+    	AND task_seq = #{taskSeq}
+    	AND detail_seq = #{detailSeq};
+    </update>
+    
+    <!-- 메인 수정 -->
+    <update id="updateSafetyAndHealthObjectives" parameterType="kr.co.igns.business.planning.model.SafetyAndHealthObjectivesVO">
+    	UPDATE esg.tb_safety_health_objectives
+    	   SET enacted_dt = #{enactedDt}
+    	   	 , revised_dt = #{revisedDt}
+    	     , orgn_id = #{orgnId}
+    	     , use_yn = #{useYnMain}
+    	     , updated_at = now()
+    	     , updated_by = #{updatedBy}
+    	 WHERE comp_id = #{compId}
+    	   AND write_year = #{writeYear}
+    	   AND doc_type = #{docType}
+    	   AND doc_no = #{docNo};
+    	   
+    	UPDATE esg.tb_safety_health_objectives_detail
+    	   SET orgn_id = #{orgnId}
+    	   	 , updated_at = now()
+    	   	 , updated_by = #{updatedBy}
+    	 WHERE comp_id = #{compId}
+    	   AND doc_type = #{docType}
+    	   AND doc_no = #{docNo};
+    	   
+    	 UPDATE esg.tb_hse_key_performance_result
+    	   SET hr_id = #{hrId}
+    	   	 , updated_at = now()
+    	   	 , updated_by = #{updatedBy}
+    	 WHERE doc_type = #{docType}
+    	   AND doc_no = #{docNo}
+    	   AND doc_seq = #{docSeq}; 
+    	   
+    </update>
+    
+        <!-- 메인 수정 -->
+    <update id="saveSafetyAndHealthObjectivesTop" parameterType="kr.co.igns.business.planning.model.SafetyAndHealthObjectivesVO">
+    	UPDATE esg.tb_safety_health_objectives
+    	   SET use_yn = #{useYnMain}
+    	     , revised_dt = #{revisedDt}
+    	     , updated_at = now()
+    	     , updated_by = #{updatedBy}
+    	 WHERE write_year = #{writeYear}
+    	   AND doc_type = #{docType}
+    	   AND doc_no = #{docNo}; 	   
+    </update>
+    
+    <!-- 상세 수정 -->
+    <update id="updateSafetyAndHealthObjectivesDetail" parameterType="kr.co.igns.business.planning.model.SafetyAndHealthObjectivesVO">
+    	UPDATE esg.tb_safety_health_objectives_detail
+		   SET safety_health_goal = #{safetyHealthGoal}
+			 , detail_goal_method = #{detailGoalMethod}
+			 , hr_id = #{hrId}
+			 , required_resource = #{requiredResource}
+			 , evaluation_method = #{evaluationMethod}
+			 , remark = #{remark}
+			 , action_doc_type = #{actionDocType}
+			 , action_doc_no = #{actionDocNo}
+			 , action_doc_seq = #{actionDocSeq}
+			 , action_doc_detail_seq = #{actionDocDetailSeq}
+			 , action_schedule1 = #{actionSchedule1}
+			 , action_schedule2 = #{actionSchedule2}
+			 , action_schedule3 = #{actionSchedule3}
+			 , action_schedule4 = #{actionSchedule4}
+		 	 , action_schedule5 = #{actionSchedule5}
+			 , action_schedule6 = #{actionSchedule6}
+			 , action_schedule7 = #{actionSchedule7}
+			 , action_schedule8 = #{actionSchedule8}
+			 , action_schedule9 = #{actionSchedule9}
+			 , action_schedule10 = #{actionSchedule10}
+			 , action_schedule11 = #{actionSchedule11}
+			 , action_schedule12 = #{actionSchedule12}
+			 , use_yn = #{useYn}
+			 , updated_at = now()
+			 , updated_by = #{updatedBy}
+		 WHERE comp_id = #{compId}
+		   AND doc_type = #{docType}
+		   AND doc_no = #{docNo}
+		   AND orgn_id = #{orgnId}
+		   AND doc_seq = #{docSeq};
+		
+		<!-- 상세에서 삭제된 행을 다시 저장하면 메인 데이터 활성화 -->
+		UPDATE esg.tb_safety_health_objectives
+		   SET use_yn = #{useYnMain}
+			 , updated_at = now()
+			 , updated_by = #{updatedBy}
+		 WHERE comp_id = #{compId}
+		   AND doc_type = #{docType}
+		   AND doc_no = #{docNo}
+		   AND orgn_id = #{orgnId};
+		   
+    </update>
+    
+    <!-- 메인 삭제 -->
+    <update id="delSafetyAndHealthObjectives" parameterType="kr.co.igns.business.planning.model.SafetyAndHealthObjectivesVO">
+    	UPDATE esg.tb_safety_health_objectives
+		   SET use_yn = 'N'
+			 , updated_at = now()
+			 , updated_by = #{updatedBy}
+		 WHERE comp_id = #{compId}
+		   AND write_year = #{writeYear}
+		   AND doc_type = #{docType}
+		   AND doc_no = #{docNo}
+		   AND orgn_id = #{orgnId};
+
+    </update>
+    
+    <!-- 상세 삭제 -->
+    <update id="delSafetyAndHealthObjectivesDetail" parameterType="kr.co.igns.business.planning.model.SafetyAndHealthObjectivesVO">
+    	UPDATE esg.tb_safety_health_objectives_detail
+		   SET use_yn = 'N'
+			 , updated_at = now()
+			 , updated_by = #{updatedBy}
+		 WHERE comp_id = #{compId}
+		   AND doc_type = #{docType}
+		   AND doc_no = #{docNo}
+		   AND orgn_id = #{orgnId}
+		   AND doc_seq = #{docSeq};
+    </update>
+    
+    <!-- 리포트 -->
+    <select id='getReportData' parameterType='kr.co.igns.business.planning.model.SafetyAndHealthObjectivesVO' resultType='kr.co.igns.business.planning.model.SafetyAndHealthObjectivesVO'>
+		SELECT (SELECT Z.orgn_nm
+		          FROM esg.tb_orgn_info Z
+		         WHERE Z.orgn_id = A.orgn_id
+		        ) AS orgn_nm
+		      , A.revised_dt
+		      , A.enacted_dt
+		      , B.signature as writer
+		      , C.signature as reviewer
+		      , D.signature as approver
+		  FROM esg.tb_safety_health_objectives A
+		LEFT JOIN esg.tb_approval_info B
+		       ON B.target_type = A.doc_type
+		      AND B.target_id = A.write_year||A.doc_no
+		      AND B.param = 'writer'
+		LEFT JOIN esg.tb_approval_info C
+		       ON C.target_type = A.doc_type
+		      AND C.target_id = A.write_year||A.doc_no
+		      AND C.param = 'reviewer'
+		LEFT JOIN esg.tb_approval_info D
+		       ON D.target_type = A.doc_type
+		      AND D.target_id = A.write_year||A.doc_no
+		      AND D.param = 'approver'
+		 WHERE A.orgn_id = #{orgnId}
+		   AND A.write_year = #{writeYear}
+		   AND A.doc_type = #{docType} 
+		   AND A.doc_no = #{docNo};
+    </select>
+    
+    <!-- 리포트 상세 체크하고 출력 했을때 -->
+    <select id='getReportGridData' parameterType='kr.co.igns.business.planning.model.SafetyAndHealthObjectivesVO' resultType='kr.co.igns.business.planning.model.SafetyAndHealthObjectivesVO'>
+		SELECT A.orgn_id
+			 , A.doc_type
+			 , A.doc_no
+			 , A.doc_seq
+			 , A.safety_health_goal
+			 , A.detail_goal_method
+			 , A.hr_id
+			 , (select Z.hr_nm
+			      from esg.tb_hr_info Z
+			     where Z.hr_id = A.hr_id
+			   ) AS hr_nm
+			 , (select Z.orgn_nm
+		          from esg.tb_orgn_info Z
+		         where Z.orgn_id = A.orgn_id
+		       ) AS orgn_nm
+			 , A.required_resource
+			 , A.evaluation_method
+			 , COALESCE(REMARK,'') AS remark
+		     , CASE WHEN A.action_schedule1 IS NULL OR A.action_schedule1 = '' THEN '' ELSE '●' END AS action_schedule1
+			 , CASE WHEN A.action_schedule2 IS NULL OR A.action_schedule2 = ''  THEN '' ELSE '●' END AS action_schedule2
+			 , CASE WHEN A.action_schedule3 IS NULL OR A.action_schedule3 = ''  THEN '' ELSE '●' END AS action_schedule3
+			 , CASE WHEN A.action_schedule4 IS NULL OR A.action_schedule4 = ''  THEN '' ELSE '●' END AS action_schedule4
+			 , CASE WHEN A.action_schedule5 IS NULL OR A.action_schedule5 = ''  THEN '' ELSE '●' END AS action_schedule5
+			 , CASE WHEN A.action_schedule6 IS NULL OR A.action_schedule6 = ''  THEN '' ELSE '●' END AS action_schedule6
+			 , CASE WHEN A.action_schedule7 IS NULL OR A.action_schedule7 = ''  THEN '' ELSE '●' END AS action_schedule7
+			 , CASE WHEN A.action_schedule8 IS NULL OR A.action_schedule8 = ''  THEN '' ELSE '●' END AS action_schedule8
+			 , CASE WHEN A.action_schedule9 IS NULL OR A.action_schedule9 = ''  THEN '' ELSE '●' END AS action_schedule9
+			 , CASE WHEN A.action_schedule10 IS NULL OR A.action_schedule10 = ''  THEN '' ELSE '●' END AS action_schedule10
+			 , CASE WHEN A.action_schedule11 IS NULL OR A.action_schedule11 = ''  THEN '' ELSE '●' END AS action_schedule11
+			 , CASE WHEN A.action_schedule12 IS NULL OR A.action_schedule12 = ''  THEN '' ELSE '●' END AS action_schedule12
+		  FROM esg.tb_safety_health_objectives_detail A
+		 WHERE A.orgn_id = #{orgnId}
+		   AND A.doc_type = #{docType} 
+		   AND A.doc_no = #{docNo}
+		   AND A.doc_seq = #{docSeq}
+		 ORDER BY A.doc_seq, A.use_yn = 'N';
+    </select>
+    <!-- 리포트 상세 체크하지 않고 출력 했을때 -->
+  <select id='getReportGridDataUseYn' parameterType='kr.co.igns.business.planning.model.SafetyAndHealthObjectivesVO' resultType='kr.co.igns.business.planning.model.SafetyAndHealthObjectivesVO'>
+		SELECT A.orgn_id
+			 , A.doc_type
+			 , A.doc_no
+			 , A.doc_seq
+			 , A.safety_health_goal
+			 , A.detail_goal_method
+			 , A.hr_id
+			 , (select Z.hr_nm
+			      from esg.tb_hr_info Z
+			     where Z.hr_id = A.hr_id
+			   ) AS hr_nm
+			 , (select Z.orgn_nm
+		          from esg.tb_orgn_info Z
+		         where Z.orgn_id = A.orgn_id
+		       ) AS orgn_nm
+			 , A.required_resource
+			 , A.evaluation_method
+			 , COALESCE(REMARK,'') AS remark
+		     , CASE WHEN A.action_schedule1 IS NULL OR A.action_schedule1 = '' THEN '' ELSE '●' END AS action_schedule1
+			 , CASE WHEN A.action_schedule2 IS NULL OR A.action_schedule2 = ''  THEN '' ELSE '●' END AS action_schedule2
+			 , CASE WHEN A.action_schedule3 IS NULL OR A.action_schedule3 = ''  THEN '' ELSE '●' END AS action_schedule3
+			 , CASE WHEN A.action_schedule4 IS NULL OR A.action_schedule4 = ''  THEN '' ELSE '●' END AS action_schedule4
+			 , CASE WHEN A.action_schedule5 IS NULL OR A.action_schedule5 = ''  THEN '' ELSE '●' END AS action_schedule5
+			 , CASE WHEN A.action_schedule6 IS NULL OR A.action_schedule6 = ''  THEN '' ELSE '●' END AS action_schedule6
+			 , CASE WHEN A.action_schedule7 IS NULL OR A.action_schedule7 = ''  THEN '' ELSE '●' END AS action_schedule7
+			 , CASE WHEN A.action_schedule8 IS NULL OR A.action_schedule8 = ''  THEN '' ELSE '●' END AS action_schedule8
+			 , CASE WHEN A.action_schedule9 IS NULL OR A.action_schedule9 = ''  THEN '' ELSE '●' END AS action_schedule9
+			 , CASE WHEN A.action_schedule10 IS NULL OR A.action_schedule10 = ''  THEN '' ELSE '●' END AS action_schedule10
+			 , CASE WHEN A.action_schedule11 IS NULL OR A.action_schedule11 = ''  THEN '' ELSE '●' END AS action_schedule11
+			 , CASE WHEN A.action_schedule12 IS NULL OR A.action_schedule12 = ''  THEN '' ELSE '●' END AS action_schedule12
+		  FROM esg.tb_safety_health_objectives_detail A
+		 WHERE A.orgn_id = #{orgnId}
+		   AND A.doc_type = #{docType} 
+		   AND A.doc_no = #{docNo}
+		   AND A.use_yn = 'Y'
+		   AND A.doc_seq = #{docSeq}
+		 ORDER BY A.doc_seq, A.use_yn = 'N';
+    </select>
+    
+        <!-- 리포트 메인에서 출력-->
+  <select id='getSafetyHealthObjectivesReportMain' parameterType='kr.co.igns.business.planning.model.SafetyAndHealthObjectivesVO' resultType='kr.co.igns.business.planning.model.SafetyAndHealthObjectivesVO'>
+		SELECT A.orgn_id
+			 , A.doc_type
+			 , A.doc_no
+			 , A.doc_seq
+			 , A.safety_health_goal
+			 , A.detail_goal_method
+			 , A.hr_id
+			 , (select Z.hr_nm
+			      from esg.tb_hr_info Z
+			     where Z.hr_id = A.hr_id
+			   ) AS hr_nm
+			 , (select Z.orgn_nm
+		          from esg.tb_orgn_info Z
+		         where Z.orgn_id = A.orgn_id
+		       ) AS orgn_nm
+			 , A.required_resource
+			 , A.evaluation_method
+			 , COALESCE(REMARK,'') AS remark
+		     , CASE WHEN A.action_schedule1 IS NULL OR A.action_schedule1 = '' THEN '' ELSE '●' END AS action_schedule1
+			 , CASE WHEN A.action_schedule2 IS NULL OR A.action_schedule2 = ''  THEN '' ELSE '●' END AS action_schedule2
+			 , CASE WHEN A.action_schedule3 IS NULL OR A.action_schedule3 = ''  THEN '' ELSE '●' END AS action_schedule3
+			 , CASE WHEN A.action_schedule4 IS NULL OR A.action_schedule4 = ''  THEN '' ELSE '●' END AS action_schedule4
+			 , CASE WHEN A.action_schedule5 IS NULL OR A.action_schedule5 = ''  THEN '' ELSE '●' END AS action_schedule5
+			 , CASE WHEN A.action_schedule6 IS NULL OR A.action_schedule6 = ''  THEN '' ELSE '●' END AS action_schedule6
+			 , CASE WHEN A.action_schedule7 IS NULL OR A.action_schedule7 = ''  THEN '' ELSE '●' END AS action_schedule7
+			 , CASE WHEN A.action_schedule8 IS NULL OR A.action_schedule8 = ''  THEN '' ELSE '●' END AS action_schedule8
+			 , CASE WHEN A.action_schedule9 IS NULL OR A.action_schedule9 = ''  THEN '' ELSE '●' END AS action_schedule9
+			 , CASE WHEN A.action_schedule10 IS NULL OR A.action_schedule10 = ''  THEN '' ELSE '●' END AS action_schedule10
+			 , CASE WHEN A.action_schedule11 IS NULL OR A.action_schedule11 = ''  THEN '' ELSE '●' END AS action_schedule11
+			 , CASE WHEN A.action_schedule12 IS NULL OR A.action_schedule12 = ''  THEN '' ELSE '●' END AS action_schedule12
+		  FROM esg.tb_safety_health_objectives_detail A
+		 WHERE A.orgn_id = #{orgnId}
+		   AND A.doc_type = #{docType} 
+		   AND A.doc_no = #{docNo}
+		 ORDER BY A.doc_seq, A.use_yn = 'N';
+    </select>
+</mapper>

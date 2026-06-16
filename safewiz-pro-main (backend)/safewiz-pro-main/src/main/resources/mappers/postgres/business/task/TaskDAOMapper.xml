@@ -1,0 +1,995 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.task.dao.postgres.TaskDAO">
+
+    <select id='getTask' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.task.model.TaskVO'>
+		SELECT
+		   ttmd.user_id,
+		      ttmd.comp_id,
+		      tci.comp_nm,
+		      ttmd.task_year,
+		      ttmd.task_month,
+		      ttmd.task_day,
+		      ttmd.task_seq,
+		      ttmd.detail_seq,
+		      ttmd.task_detail_div,
+		      ttmd.task_detail_content,
+		      ttmd.task_detail_user_chk,
+		      ttmd.task_detail_user_chk_dt,
+		      ttmd.req_user_id,
+		      ttmd.req_dt,
+		      ttmd.req_info_key,
+		      ttmd.req_menu_id,
+		      ttmd.complete_dt,
+		      ttmd.cancel_dt,
+		      tui.user_nm as req_user_nm,
+		      tsm.router_nm as router_nm,
+		      case when tsm_grand_parent.menu_nm is not null then tsm_grand_parent.menu_nm || '>' || tsm.menu_nm
+		      	when tsm_parent.menu_nm is not null then tsm_parent.menu_nm || '>' || tsm.menu_nm
+		      	else tsm.menu_nm
+		      end as req_menu_nm
+		  FROM esg.tb_task_manager_detail ttmd
+		  LEFT JOIN esg.tb_company_info tci
+		  	ON ttmd.comp_id = tci.comp_id
+		 LEFT JOIN esg.tb_user_info tui
+		        ON ttmd.req_user_id = tui.user_id
+		 LEFT JOIN esg.tb_sys_menu tsm
+		       ON ttmd.req_menu_id = tsm.menu_id
+		 LEFT JOIN esg.tb_sys_menu tsm_parent
+		       ON tsm.up_menu_id = tsm_parent.menu_id
+		 LEFT JOIN esg.tb_sys_menu tsm_grand_parent
+		       ON tsm_parent.up_menu_id = tsm_grand_parent.menu_id
+		WHERE ttmd.task_detail_user_id = #{searchText}
+		  AND ttmd.comp_id = #{compId}
+		  AND ttmd.req_dt BETWEEN to_timestamp(#{searchFrom} || ' 000000', 'yyyyMMdd HH24MISS') AND to_timestamp(#{searchTo} || ' 235959', 'yyyyMMdd HH24MISS')
+		  AND ttmd.cancel_dt IS null
+		  AND ttmd.use_yn = 'Y'
+		ORDER BY ttmd.complete_dt IS NOT NULL, ttmd.req_dt DESC
+    </select>
+
+	<select id='getTaskDashboard' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.dashboard.model.DashboardPerVO'>
+		SELECT
+			   CASE
+			     	WHEN ttm.complete_dt IS NOT NULL THEN '완료'
+			     	ELSE '진행'
+			     	END AS name,
+			   COUNT(*) AS cnt
+		  FROM esg.tb_task_manager_detail ttm
+		 WHERE ttm.comp_id = #{compId}
+				AND ttm.req_dt BETWEEN TO_DATE(#{searchText}, 'YYYYMM') AND CURRENT_DATE + interval '1 day'
+		       <if test="searchText3 != null">
+		       	AND ttm.task_detail_user_id = #{searchText3}
+	           </if>
+		   AND ttm.cancel_dt IS NULL
+		   AND ttm.use_yn = 'Y'
+	  GROUP BY name;
+	</select>
+
+	<select id='getTaskMasterYn' parameterType='kr.co.igns.business.task.model.TaskVO' resultType='kr.co.igns.business.task.model.TaskVO'>
+
+		SELECT
+			  task_year,
+			  task_month,
+			  task_day,
+			  task_seq
+		 FROM esg.tb_task_manager
+		WHERE req_info_key = #{reqInfoKey}
+		  AND user_id = #{userId}
+	      AND comp_id = #{compId}
+		  AND task_year = #{taskYear}
+		  AND task_month = #{taskMonth}
+		  AND task_day = #{taskDay}
+	    LIMIT 1
+
+	</select>
+
+	<select id='getTaskAll' parameterType='kr.co.igns.business.task.model.TaskVO' resultType='kr.co.igns.business.task.model.TaskVO'>
+		SELECT ttmd.*
+	      FROM esg.tb_task_manager ttm
+	 LEFT JOIN esg.tb_task_manager_detail ttmd
+	  	    ON ttm.comp_id = ttmd.comp_id
+	  	   AND ttm.task_year = ttmd.task_year
+	  	   AND ttm.task_month = ttmd.task_month
+	  	   AND ttm.task_day = ttmd.task_day
+	  	   AND ttm.task_seq = ttmd.task_seq
+	     WHERE ttm.req_info_key = #{reqInfoKey}
+	       AND ttm.comp_id = #{compId}
+	       AND ttmd.task_detail_div LIKE 'sign%'
+	       AND ttmd.cancel_dt IS NULL
+	</select>
+	<!-- 마스터 테이블에 이미 데이터가 존재하는지 확인 -->
+	<select id='getCurrentDocMasterTask' parameterType='kr.co.igns.business.task.model.TaskVO' resultType='kr.co.igns.business.task.model.TaskVO'>
+		select t1.*
+		from esg.tb_task_manager t1
+		where 1=1
+			and t1.comp_id = #{compId}
+			and t1.task_month = #{taskMonth}
+			and t1.task_day = #{taskDay}
+			and t1.req_info_key = #{reqInfoKey}
+			and t1.req_menu_id = #{reqMenuId}
+			and t1.cancel_dt is null
+	</select>
+
+	<!-- 디테일 테이블에 이미 데이터가 존재하는지 확인 -->
+	<select id='getCurrentDocDetailTask' parameterType='kr.co.igns.business.task.model.TaskVO' resultType='kr.co.igns.business.task.model.TaskVO'>
+		select t1.*
+		from esg.tb_task_manager_detail t1
+		where 1=1
+			and t1.comp_id = #{compId}
+			and t1.req_info_key = #{reqInfoKey}
+			and t1.req_menu_id = #{reqMenuId}
+			and t1.user_id = #{userId}
+			and t1.task_detail_div = #{taskDetailDiv}
+			and t1.cancel_dt is null
+	</select>
+
+	<!-- 안전점검일지 등록 시 TASK에 저장된 정보 호출용도 -->
+	<select id='originSafetyCheckListTask' parameterType='kr.co.igns.business.impl.model.SafetyInspectionLogVO' resultType='kr.co.igns.business.impl.model.SafetyInspectionLogVO'>
+		select t1.*
+		from esg.tb_safety_checklist t1
+	    where 1=1
+			and t1.write_year = #{writeYear}
+			and t1.comp_id = #{compId}
+			and t1.std_eq_id = #{stdEqId}
+	</select>
+
+	<update id="updateSafetyCheckListTask" parameterType="kr.co.igns.business.task.model.TaskVO">
+		update esg.tb_task_manager_detail set
+			complete_dt = now(),
+			task_detail_div = #{taskDetailDiv}
+		where comp_id = #{compId}
+			and task_year = #{taskYear}
+			and task_month = #{taskMonth}
+			and task_day = #{taskDay}
+			and req_info_key = #{reqInfoKey}
+			and task_detail_div = #{chkTaskDetailDiv}
+	</update>
+
+	<update id="cancelSafetyCheckListTask" parameterType="kr.co.igns.business.task.model.TaskVO">
+		update esg.tb_task_manager_detail set
+			cancel_dt = now()
+		where comp_id = #{compId}
+			and req_info_key = #{reqInfoKey}
+	</update>
+
+	<delete id="deleteApprovalInfo" parameterType="kr.co.igns.business.task.model.TaskVO">
+        DELETE FROM esg.tb_approval_info
+		WHERE target_type = #{targetType} AND target_id=#{targetId}
+	</delete>
+
+	<insert id="insertTask" parameterType="kr.co.igns.business.task.model.TaskVO">
+		<selectKey keyProperty="taskSeq" resultType="kr.co.igns.business.task.model.TaskVO" order="BEFORE">
+			<![CDATA[
+            SELECT
+                   COALESCE(MAX(task_seq), 0) + 1 AS taskSeq
+              FROM esg.tb_task_manager
+             WHERE user_id = #{userId}
+		       AND task_year = #{taskYear}
+		       AND task_month = #{taskMonth}
+		       AND task_day = #{taskDay}
+         ]]>
+		</selectKey>
+
+		INSERT INTO esg.tb_task_manager (
+			clnt_id,
+			user_id,
+			comp_id,
+			task_year,
+			task_month,
+			task_day,
+			task_seq,
+			task_content,
+			task_user_chk,
+			task_user_chk_dt,
+			req_user_id,
+			req_dt,
+			req_info_key,
+			req_menu_id,
+		    complete_dt
+		)
+		VALUES (
+				   #{clntId},
+				   #{userId},
+				   #{compId},
+				   #{taskYear},
+		           #{taskMonth},
+		           #{taskDay},
+				   #{taskSeq},
+				   #{taskContent},
+		           <if test="taskUserChk != null">
+						#{taskUserChk},
+		                now(),
+		           </if>
+		           <if test="taskUserChk == null">
+		           		'N',
+					   #{taskUserChkDt},
+		           </if>
+				   #{reqUserId},
+				   now(),
+				   #{reqInfoKey},
+				   #{reqMenuId},
+		           <if test="completeDt != null">
+		           	NOW()
+		           </if>
+		           <if test="completeDt == null">
+		           	NULL
+		           </if>
+		)
+
+	</insert>
+
+	<insert id="insertTaskDetail" parameterType="kr.co.igns.business.task.model.TaskVO">
+		<selectKey keyProperty="detailSeq" resultType="kr.co.igns.business.task.model.TaskVO" order="BEFORE">
+			<![CDATA[
+            SELECT
+                   COALESCE(MAX(detail_seq), 0) + 1 AS detailSeq
+              FROM esg.tb_task_manager_detail
+             WHERE user_id = #{userId}
+		       AND task_year = #{taskYear}
+		       AND task_month = #{taskMonth}
+		       AND task_day = #{taskDay}
+		       AND task_seq = #{taskSeq}
+         ]]>
+		</selectKey>
+
+		INSERT INTO esg.tb_task_manager_detail (
+			user_id,
+			comp_id,
+			task_year,
+			task_month,
+			task_day,
+			task_seq,
+			detail_seq,
+			task_detail_div,
+			task_detail_content,
+			task_detail_user_id,
+			task_detail_user_chk,
+			task_detail_user_chk_dt,
+			req_user_id,
+			req_dt,
+			req_info_key,
+			req_menu_id,
+			complete_dt,
+            use_yn
+		)
+		VALUES (
+			#{userId},
+			#{compId},
+			#{taskYear},
+			#{taskMonth},
+			#{taskDay},
+			#{taskSeq},
+			#{detailSeq},
+			#{taskDetailDiv},
+			#{taskDetailContent},
+		    (SELECT user_id FROM esg.tb_hr_info WHERE hr_id = #{taskDetailHrId}),
+		<if test="taskDetailUserChk != null">
+			#{taskDetailUserChk},
+			now(),
+		</if>
+		<if test="taskDetailUserChk == null">
+			'N',
+			#{taskDetailUserChkDt},
+		</if>
+			#{reqUserId},
+			now(),
+			#{reqInfoKey},
+			#{reqMenuId},
+		<if test="completeDt != null">
+			NOW(),
+		</if>
+		<if test="completeDt == null">
+			NULL,
+		</if>
+            #{useYn}
+		)
+
+	</insert>
+
+    <!-- 마스터 문서의 useYn이 변경되었을 때 Task의 use_yn 값을 변경시켜줌 (각각 개별 호출) -->
+    <update id="updateTaskUseYn" parameterType="kr.co.igns.business.utils.model.UtilsVO">
+        UPDATE esg.tb_task_manager_detail
+        SET use_yn = #{useYn}
+        WHERE req_info_key = #{formattedTargetId}
+            AND comp_id = #{compId}
+    </update>
+
+	<insert id="insertHseJob" parameterType="kr.co.igns.business.task.model.TaskVO">
+
+		<selectKey keyProperty="docNo" resultType="kr.co.igns.business.participation.model.HseJobAssignVO" order="BEFORE">
+			<![CDATA[
+            SELECT
+                   LPAD((COALESCE(MAX(SUBSTRING(doc_no, 1, 5)::INTEGER), 0) + 1)::TEXT, 5, '0') AS docNo
+              FROM esg.tb_hse_job_assignment
+             WHERE write_year = CAST(EXTRACT(YEAR FROM CURRENT_DATE) AS VARCHAR)
+               AND doc_type = 'JOB'
+         ]]>
+		</selectKey>
+
+		INSERT INTO esg.tb_hse_job_assignment (
+			write_year,
+			doc_no,
+			doc_type,
+			hr_id,
+			use_yn,
+			comp_id,
+			created_at,
+			created_by
+		)
+		SELECT
+		    CAST(EXTRACT(YEAR FROM CURRENT_DATE) AS VARCHAR),
+			#{docNo},
+			'JOB',
+		    thi.hr_id,
+			'Y',
+			#{compId},
+			now(),
+			#{createdBy}
+		FROM esg.tb_hr_info thi
+		WHERE thi.user_id = (SELECT user_id FROM esg.tb_hr_info WHERE hr_id = #{taskDetailHrId})
+	  	  AND NOT EXISTS (
+			       SELECT 1
+			       FROM esg.tb_hse_job_assignment thja
+			       WHERE thja.write_year = CAST(EXTRACT(YEAR FROM CURRENT_DATE) AS VARCHAR)
+			       AND thja.hr_id = thi.hr_id
+		);
+
+
+	</insert>
+
+	<update id="updateTaskComplete" parameterType="kr.co.igns.business.task.model.TaskVO">
+
+	   UPDATE esg.tb_task_manager_detail ttmd
+		  SET <choose>
+		      	<when test="completeDt == null">
+					complete_dt = NOW()
+				</when>
+		      	<otherwise>
+					complete_dt =NULL
+				</otherwise>
+		      </choose>
+		      	<if test="taskDetailContent != null">
+					, task_detail_content = #{taskDetailContent}
+				</if>
+		 FROM esg.tb_approval_info tai,
+	          esg.tb_common_d tdcd
+	    WHERE ttmd.task_detail_user_id = (SELECT user_id FROM esg.tb_hr_info WHERE hr_id = #{userId})
+	   	  AND ttmd.comp_id = #{compId}
+	   	  AND ttmd.req_info_key = #{reqInfoKey}
+		  AND ttmd.task_detail_div = #{taskDetailDiv}
+	   	  AND ttmd.cancel_dt IS NULL
+		  AND tai.target_type = split_part(ttmd.req_info_key, '^&amp;', 1)
+		  AND tai.target_id = replace(regexp_replace(ttmd.req_info_key, '^[^&amp;]+\^&amp;', ''), '^&amp;', '')
+		  AND tai.param = tdcd.extra_2
+		AND tdcd.minor_cd = ttmd.task_detail_div
+		AND tdcd.major_cd = 'C0044';
+
+	</update>
+
+	<update id="updateTaskChkByComplete" parameterType="kr.co.igns.business.task.model.TaskVO">
+
+		UPDATE esg.tb_task_manager_detail ttmd
+		SET
+			  task_detail_user_chk = 'Y',
+			  task_detail_user_chk_dt = NOW()
+		 FROM esg.tb_approval_info tai,
+              esg.tb_common_d tdcd
+		WHERE ttmd.task_detail_user_id = (SELECT user_id FROM esg.tb_hr_info WHERE hr_id = #{userId})
+		  AND ttmd.comp_id = #{compId}
+		  AND ttmd.req_info_key = #{reqInfoKey}
+		  AND ttmd.task_detail_user_chk_dt IS NULL
+		  AND ttmd.task_detail_div = #{taskDetailDiv}
+		  AND ttmd.cancel_dt IS NULL
+		  AND tai.target_type = split_part(ttmd.req_info_key, '^&amp;', 1)
+		  AND tai.target_id = replace(regexp_replace(ttmd.req_info_key, '^[^&amp;]+\^&amp;', ''), '^&amp;', '')
+		  AND tai.param = tdcd.extra_2
+		  AND tdcd.minor_cd = ttmd.task_detail_div
+		  AND tdcd.major_cd = 'C0044';
+
+	</update>
+
+	<update id="updateTaskCancel" parameterType="kr.co.igns.business.task.model.TaskVO">
+
+		UPDATE esg.tb_task_manager_detail ttmd
+	       SET
+			   cancel_dt = NOW(),
+			   task_detail_content = #{taskDetailContent}
+		  FROM esg.tb_approval_info tai,
+               esg.tb_common_d tdcd
+		 WHERE ttmd.task_detail_user_id = (SELECT user_id FROM esg.tb_hr_info WHERE hr_id = #{userId})
+		   AND ttmd.comp_id = #{compId}
+		   AND ttmd.req_info_key = #{reqInfoKey}
+		   AND ttmd.task_detail_div = #{taskDetailDiv}
+		   AND ttmd.cancel_dt IS NULL
+		   AND tai.target_type = split_part(ttmd.req_info_key, '^&amp;', 1)
+		   AND tai.target_id = replace(regexp_replace(ttmd.req_info_key, '^[^&amp;]+\^&amp;', ''), '^&amp;', '')
+		   AND tai.param = tdcd.extra_2
+		   AND tdcd.minor_cd = ttmd.task_detail_div
+		   AND tdcd.major_cd = 'C0044';
+
+	</update>
+
+	<update id="updateTaskCancelMulti" parameterType="kr.co.igns.business.task.model.TaskVO">
+
+		UPDATE esg.tb_task_manager_detail ttmd
+		   SET
+			   cancel_dt = NOW(),
+			   task_detail_content = #{taskDetailContent}
+		  FROM esg.tb_approval_info tai,
+               esg.tb_common_d tdcd
+		 WHERE 1 = 1
+		   AND ttmd.comp_id = #{compId}
+		   AND ttmd.req_info_key = #{reqInfoKey}
+		   AND ttmd.task_detail_div = #{taskDetailDiv}
+		   AND ttmd.cancel_dt IS NULL
+		   AND ttmd.complete_dt IS NULL
+		   AND tai.target_type = split_part(ttmd.req_info_key, '^&amp;', 1)
+		   AND tai.target_id = replace(regexp_replace(ttmd.req_info_key, '^[^&amp;]+\^&amp;', ''), '^&amp;', '')
+		   AND tai.param = tdcd.extra_2
+		   AND tdcd.minor_cd = ttmd.task_detail_div
+		   AND tdcd.major_cd = 'C0044';
+
+	</update>
+
+	<update id="updateTaskChk" parameterType="kr.co.igns.business.task.model.TaskVO">
+
+		UPDATE esg.tb_task_manager_detail
+		SET
+			  task_detail_user_chk = #{taskDetailUserChk},
+			  task_detail_user_chk_dt = NOW()
+		WHERE task_detail_user_id = #{userId}
+		  AND comp_id = #{compId}
+		  AND task_year = #{taskYear}
+		  AND task_month = #{taskMonth}
+		  AND task_day = #{taskDay}
+		  AND task_seq = #{taskSeq}
+		  AND task_detail_user_chk_dt IS NULL
+
+	</update>
+
+	<select id='getSchChecklist' resultType='kr.co.igns.business.task.model.TaskVO'>
+		SELECT tsc.inspection_cycle
+		  FROM esg.tb_safety_inspection_log tsil
+	 LEFT JOIN esg.tb_safety_checklist tsc
+		    ON tsil.std_eq_id = tsc.std_eq_id
+		   AND tsil.comp_id = tsc.comp_id
+	 LEFT JOIN esg.tb_dataset_typeofequipment tdt
+		    ON tdt.std_eq_id = tsil.std_eq_id
+		   AND tdt.comp_id = tsil.comp_id
+	 LEFT JOIN esg.tb_equipment_info tei
+			ON tei.equipment_id = tsil.equipment_id
+	</select>
+
+	<select id='getSafetyAndHealthObjectivesDetailList' parameterType='kr.co.igns.business.planning.model.SafetyAndHealthObjectivesVO' resultType='kr.co.igns.business.planning.model.SafetyAndHealthObjectivesVO'>
+		SELECT A.comp_id
+			 , A.write_year
+			 , A.doc_type
+			 , A.doc_no
+			 , B.doc_seq
+			 , F.doc_seq_detail
+			 , A.orgn_id
+			 , (select Z.orgn_nm
+		          from esg.tb_orgn_info Z
+		         where Z.orgn_id = A.orgn_id
+		       ) AS orgn_nm
+			 , A.revised_dt
+		     , A.enacted_dt
+		     , COUNT(DISTINCT B.doc_seq) AS doc_count
+			 , COUNT(CASE WHEN F.use_yn = 'Y' THEN F.doc_seq END) AS res_count
+		     , A.use_yn
+		     , B.hr_id
+		     , G.user_id
+		     , H.clnt_id
+		     , (CASE WHEN E.signature IS NOT NULL THEN 'Y'
+		             WHEN D.signature IS NOT NULL THEN 'I'
+		             WHEN C.signature IS NOT NULL THEN 'W'
+		             ELSE 'C'
+		        END) AS approval_status
+		  FROM esg.tb_safety_health_objectives A
+		LEFT JOIN esg.tb_safety_health_objectives_detail B
+			   ON B.doc_type = A.doc_type
+			  AND B.doc_no = A.doc_no
+			  AND B.orgn_id = A.orgn_id
+		LEFT JOIN esg.tb_approval_info C
+		       ON C.target_type = 'KPR'
+		      AND C.target_id = A.write_year||A.doc_no
+		      AND C.param = 'writer'
+		LEFT JOIN esg.tb_approval_info D
+		       ON D.target_type = 'KPR'
+		      AND D.target_id = A.write_year||A.doc_no
+		      AND D.param = 'reviewer'
+		LEFT JOIN esg.tb_approval_info E
+		       ON E.target_type = 'KPR'
+		      AND E.target_id = A.write_year||A.doc_no
+		      AND E.param = 'approver'
+		LEFT JOIN esg.tb_hse_key_performance_result F
+			  ON B.doc_no = F.doc_no
+			  AND B.write_year = F.write_year
+			  AND B.doc_seq = F.doc_seq
+		LEFT JOIN esg.tb_hr_info G
+			  ON B.created_by = G.user_id
+		LEFT JOIN esg.tb_user_info H
+			  ON G.user_id = H.user_id
+		WHERE A.use_yn = 'Y' and B.use_yn='Y'
+		AND (
+			1 != 1
+			<if test="actionSchedule1 != null">
+	    		or B.action_schedule1 = 'Y'
+			</if>
+			<if test="actionSchedule2 != null">
+			    or B.action_schedule2 = 'Y'
+			</if>
+			<if test="actionSchedule3 != null">
+			    or B.action_schedule3 = 'Y'
+			</if>
+			<if test="actionSchedule4 != null">
+			    or B.action_schedule4 = 'Y'
+			</if>
+			<if test="actionSchedule5 != null">
+			    or B.action_schedule5 = 'Y'
+			</if>
+			<if test="actionSchedule6 != null">
+			    or B.action_schedule6 = 'Y'
+			</if>
+			<if test="actionSchedule7 != null">
+			    or B.action_schedule7 = 'Y'
+			</if>
+			<if test="actionSchedule8 != null">
+			    or B.action_schedule8 = 'Y'
+			</if>
+			<if test="actionSchedule9 != null">
+			    or B.action_schedule9 = 'Y'
+			</if>
+			<if test="actionSchedule10 != null">
+			    or B.action_schedule10 = 'Y'
+			</if>
+			<if test="actionSchedule11 != null">
+			    or B.action_schedule11 = 'Y'
+			</if>
+			<if test="actionSchedule12 != null">
+			    or B.action_schedule12 = 'Y'
+			</if>
+		) AND (
+			1 = 1
+			<if test="actionSchedule1 == null">
+	    		AND B.action_schedule1 != 'Y'
+			</if>
+			<if test="actionSchedule2 == null">
+			    AND B.action_schedule2 != 'Y'
+			</if>
+			<if test="actionSchedule3 == null">
+			    AND B.action_schedule3 != 'Y'
+			</if>
+			<if test="actionSchedule4 == null">
+			    AND B.action_schedule4 != 'Y'
+			</if>
+			<if test="actionSchedule5 == null">
+			    AND B.action_schedule5 != 'Y'
+			</if>
+			<if test="actionSchedule6 == null">
+			    AND B.action_schedule6 != 'Y'
+			</if>
+			<if test="actionSchedule7 == null">
+			    AND B.action_schedule7 != 'Y'
+			</if>
+			<if test="actionSchedule8 == null">
+			    AND B.action_schedule8 != 'Y'
+			</if>
+			<if test="actionSchedule9 == null">
+			    AND B.action_schedule9 != 'Y'
+			</if>
+			<if test="actionSchedule10 == null">
+			    AND B.action_schedule10 != 'Y'
+			</if>
+			<if test="actionSchedule11 == null">
+			    AND B.action_schedule11 != 'Y'
+			</if>
+			<if test="actionSchedule12 == null">
+			    AND B.action_schedule12 != 'Y'
+			</if>
+		)
+		GROUP BY A.comp_id, A.write_year, A.doc_type, A.doc_no, A.orgn_id, E.signature, D.signature, C.signature, B.hr_id, B.doc_seq, F.doc_seq_detail, G.user_id, H.clnt_id
+		ORDER BY A.WRITE_YEAR DESC,A.CREATED_AT DESC;
+    </select>
+
+    <select id='getDetailList' parameterType='kr.co.igns.business.planning.model.SafetyAndHealthObjectivesVO'  resultType='kr.co.igns.business.impl.model.HseKeyPerformanceResultVO'>
+        select tkpr.*, thi.hr_nm from esg.tb_hse_key_performance_result tkpr
+		LEFT JOIN esg.tb_hr_info thi on tkpr.hr_id = thi.hr_id
+        where tkpr.doc_seq = #{docSeq} and tkpr.doc_no = #{docNo}
+		order by tkpr.created_at
+     </select>
+
+     <select id='getHseKeyDetailList' parameterType='kr.co.igns.business.planning.model.SafetyAndHealthObjectivesVO'  resultType='kr.co.igns.business.impl.model.HseKeyPerformanceResultVO'>
+        select tkpr.*, thi.hr_nm , tkpr.hr_id, B.comp_id, thi.user_id, h.clnt_id
+        from esg.tb_hse_key_performance_result tkpr
+		LEFT JOIN esg.tb_hr_info thi on tkpr.created_by = thi.user_id
+		LEFT JOIN esg.tb_safety_health_objectives_detail B
+		 	ON B.doc_no = tkpr.doc_no
+			AND B.write_year = tkpr.write_year
+			AND B.doc_seq = tkpr.doc_seq
+		LEFT JOIN esg.tb_user_info H
+			  on thi.user_id = H.user_id
+        where
+        (
+			1 != 1
+			<if test="actionSchedule1 != null">
+	    		or tkpr.action_result1 = 'Y'
+			</if>
+			<if test="actionSchedule2 != null">
+			    or tkpr.action_result2 = 'Y'
+			</if>
+			<if test="actionSchedule3 != null">
+			    or tkpr.action_result3 = 'Y'
+			</if>
+			<if test="actionSchedule4 != null">
+			    or tkpr.action_result4 = 'Y'
+			</if>
+			<if test="actionSchedule5 != null">
+			    or tkpr.action_result5 = 'Y'
+			</if>
+			<if test="actionSchedule6 != null">
+			    or tkpr.action_result6 = 'Y'
+			</if>
+			<if test="actionSchedule7 != null">
+			    or tkpr.action_result7 = 'Y'
+			</if>
+			<if test="actionSchedule8 != null">
+			    or tkpr.action_result8 = 'Y'
+			</if>
+			<if test="actionSchedule9 != null">
+			    or tkpr.action_result9 = 'Y'
+			</if>
+			<if test="actionSchedule10 != null">
+			    or tkpr.action_result10 = 'Y'
+			</if>
+			<if test="actionSchedule11 != null">
+			    or tkpr.action_result11 = 'Y'
+			</if>
+			<if test="actionSchedule12 != null">
+			    or tkpr.action_result12 = 'Y'
+			</if>
+		) AND (
+			1 = 1
+			<if test="actionSchedule1 == null">
+	    		AND tkpr.action_result1 != 'Y'
+			</if>
+			<if test="actionSchedule2 == null">
+			    AND tkpr.action_result2 != 'Y'
+			</if>
+			<if test="actionSchedule3 == null">
+			    AND tkpr.action_result3 != 'Y'
+			</if>
+			<if test="actionSchedule4 == null">
+			    AND tkpr.action_result4 != 'Y'
+			</if>
+			<if test="actionSchedule5 == null">
+			    AND tkpr.action_result5 != 'Y'
+			</if>
+			<if test="actionSchedule6 == null">
+			    AND tkpr.action_result6 != 'Y'
+			</if>
+			<if test="actionSchedule7 == null">
+			    AND tkpr.action_result7 != 'Y'
+			</if>
+			<if test="actionSchedule8 == null">
+			    AND tkpr.action_result8 != 'Y'
+			</if>
+			<if test="actionSchedule9 == null">
+			    AND tkpr.action_result9 != 'Y'
+			</if>
+			<if test="actionSchedule10 == null">
+			    AND tkpr.action_result10 != 'Y'
+			</if>
+			<if test="actionSchedule11 == null">
+			    AND tkpr.action_result11 != 'Y'
+			</if>
+			<if test="actionSchedule12 == null">
+			    AND tkpr.action_result12 != 'Y'
+			</if>
+		)
+		AND tkpr.percent != '100'
+		order by tkpr.created_at
+     </select>
+
+	<!-- 점검주기가 일별/월별 인 안전점검표 목록 조회 -->
+    <select id='getSafetyCheckList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.SafetyChecklistVO'>
+     	    select *
+	    	from esg.tb_safety_checklist tsc
+	    	where tsc.inspection_cycle = #{searchCd}
+	    	and use_yn = 'Y'
+    </select>
+	<!-- 해당 설비유형에 배정된 담당자 목록 조회 -->
+	<select id='getSafetyCheckInspector' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.SafetyChecklistHrVO'>
+     	    select tei.equipment_id,
+				   tei.equipment_nm,
+				   tei.comp_id,
+				   tsch.hr_id as id,
+				   thi.hr_nm as nm,
+				   tei.std_eq_id,
+				   thi.user_id,
+				   tui.clnt_id
+			from esg.tb_equipment_info tei
+			left join esg.tb_safety_checklist_hr tsch
+				ON tsch.equipment_id = tei.equipment_id
+			left join esg.tb_hr_info thi
+				ON thi.hr_id = tsch.hr_id
+			left join esg.tb_user_info tui
+				ON thi.user_id = tui.user_id
+			where 1 = 1
+			  and tei.std_eq_id = #{searchText}
+			  and tei.use_yn = 'Y'
+			  and tsch.hr_id is not null
+		  	order by thi.ord_seq
+    </select>
+
+	<!-- 오늘 날짜에 안전점검표가 있는지 확인 -->
+	<select id='getSafetyInspectionLogsToday' parameterType='kr.co.igns.business.impl.model.SafetyChecklistHrVO' resultType='kr.co.igns.business.impl.model.SafetyInspectionLogVO'>
+     	    select t1.*
+			from esg.tb_safety_inspection_log t1
+			where std_eq_id = #{stdEqId}
+				and equipment_id = #{equipmentId}
+				and check_dt = to_char(now(), 'YYYYMMDD')
+			limit 1
+	</select>
+
+	<select id='getExistsLogsToday' parameterType='kr.co.igns.business.impl.model.SafetyChecklistHrVO' resultType='Boolean'>
+     	    select not exists (
+			  select 1
+			  from esg.tb_safety_inspection_log_detail t1
+			  where 1=1
+				and t1.write_year = #{writeYear}
+				and t1.doc_no = #{docNo}
+				and t1.acceptable_yn = 'N'
+				and t1.non_compliant_yn = 'N'
+			) as result
+    </select>
+
+     <resultMap id="HseInspectionsResultMap" type="kr.co.igns.mobile.hseInspections.model.HseInspectionsVO">
+        <id property="id" column="id"/>
+        <result property="title" column="title"/>
+        <result property="done" column="done"/>
+        <result property="startedAt" column="startedat"/>
+        <result property="endedAt" column="endedat"/>
+        <result property="createdAt" column="createdat"/>
+        <!-- Use custom JsonTypeHandler -->
+        <result property="checkTarget" column="checktarget"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+        <result property="checker" column="checker"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+    </resultMap>
+
+     <!-- 안전점검 조회 -->
+	<select id="getSafetyInspections" parameterType='kr.co.igns.system.common.model.SpSearchVO' resultMap="HseInspectionsResultMap">
+		<![CDATA[
+			WITH inspections AS (
+			    SELECT
+			        sil.write_year,
+			        sil.doc_type,
+			        sil.doc_no,
+			        scl.title,
+			        sil.std_eq_id,
+			        sil.equipment_id,
+			        ei.equipment_nm,
+			        ei.setup_location AS defaultLocation,
+			        sil.setup_location AS LOCATION,
+			        CASE 
+			            WHEN sil.check_dt IS NOT NULL THEN
+			            CASE 
+			                WHEN sil.check_start IS NOT NULL THEN
+			                    TO_TIMESTAMP(sil.check_dt || ' ' || SUBSTRING(sil.check_start FROM '^\d{2}:\d{2}'), 'YYYYMMDD HH24:MI')::timestamp
+			                ELSE
+			                    TO_TIMESTAMP(sil.check_dt, 'YYYYMMDD')::timestamp
+			            END
+			            ELSE
+			                NULL
+			        END AS started_at,
+			        CASE 
+			            WHEN sil.check_dt IS NOT NULL THEN
+			            CASE 
+			                WHEN sil.check_end IS NOT NULL THEN
+			                    TO_TIMESTAMP(sil.check_dt || ' ' || SUBSTRING(sil.check_end FROM '^\d{2}:\d{2}'), 'YYYYMMDD HH24:MI')::timestamp
+			                ELSE 
+			                    TO_TIMESTAMP(sil.check_dt, 'YYYYMMDD')::timestamp
+			            END
+			            ELSE
+			                NULL
+			        END AS ended_at,
+			        sil.created_at,
+			        sil.comp_id,
+			        sil.created_by
+			    FROM esg.tb_safety_inspection_log sil
+			    LEFT JOIN esg.tb_safety_checklist scl
+			        ON scl.comp_id = sil.comp_id
+			            AND scl.std_eq_id = sil.std_eq_id
+			    LEFT JOIN esg.tb_equipment_info ei
+			        ON ei.std_eq_id = sil.std_eq_id
+			            AND ei.equipment_id = sil.equipment_id
+			            AND ei.comp_id = sil.comp_id
+			WHERE
+			        sil.check_dt BETWEEN #{startDate}
+			        AND #{endDate} -- :start_date, :end_date
+			        AND sil.use_yn = 'Y'
+			),
+			checker AS (
+			    -- 점검자 정보 조회
+			    SELECT
+			        i.write_year,
+			        i.doc_type,
+			        i.doc_no,
+			        MAX(ai.hr_id) AS hr_id,
+			        MAX(ai.hr_nm) AS hr_name,
+			        MAX(ai.jbrp_nm) AS job_title,
+			        MAX(ai.orgn_nm) AS org_name,
+			        MAX(ai.updated_at) AS signed_at,
+			        SUM(
+			            CASE 
+			                WHEN ai.type = 'change' THEN 1
+			                ELSE 0
+			            END
+			        ) AS checker_count,
+			        SUM(
+			            CASE 
+			                WHEN ai.type = 'change' AND ai.signature IS NOT NULL THEN 1
+			                ELSE 0
+			            END
+			        ) AS signed_checker_count
+			    FROM inspections i
+			    LEFT JOIN esg.tb_approval_info ai 
+			        ON ai.target_type = i.doc_type
+			            AND ai.target_id = CONCAT(i.write_year, i.doc_no)
+			    GROUP BY i.write_year, i.doc_type, i.doc_no
+			), 
+			details_count AS ( -- 체크항목의 체크 여부 개수 조회
+			    SELECT
+			        d.write_year,
+			        d.doc_type,
+			        d.doc_no,
+			        COUNT(d.doc_seq) AS details_count,
+			        SUM(CASE WHEN d.acceptable_yn = 'Y' OR d.non_compliant_yn = 'Y' THEN 1 ELSE 0 END) AS checked_details_count
+			    FROM
+			        inspections i
+			    LEFT JOIN esg.tb_safety_inspection_log_detail d ON d.write_year = i.write_year
+			        AND d.doc_type = i.doc_type
+			        AND d.doc_no = i.doc_no
+			    GROUP BY
+			            d.write_year,
+			            d.doc_type,
+			            d.doc_no
+			)			
+			SELECT
+			    CONCAT(i.write_year, '-', i.doc_type, '-', i.doc_no) AS id,
+			    COALESCE(dc.details_count, 0) AS details_count,
+			    COALESCE(dc.checked_details_count, 0) AS checked_details_count,
+			    i.title,
+			    i.comp_id,
+			    i.write_year,
+			    i.doc_type,
+			    i.doc_no,
+			    tui.user_id,
+			    tui.clnt_id,
+			    thi.hr_id,
+			    CASE 
+			        WHEN  COALESCE(dc.details_count, 0) <= COALESCE(dc.checked_details_count, 0) THEN TRUE
+			        ELSE FALSE
+			    END AS done,
+			    json_build_object(
+			        'id', i.equipment_id,
+			        'name', i.equipment_nm,
+			        'defaultLocation', i.defaultLocation,
+			        'typeId', i.std_eq_id
+			    ) AS checkTarget,
+			    CASE 
+			        WHEN c.hr_id IS NOT NULL THEN
+			            json_build_object(
+			                'hrId', c.hr_id,
+			                'name', c.hr_name,
+			                'jobTitle', c.job_title,
+			                'orgName', c.org_name,
+			                'signedAt', c.signed_at,
+			                'signed', CASE 
+			                              WHEN c.checker_count > 0
+			                                  AND c.checker_count <= c.signed_checker_count THEN TRUE
+			                              ELSE FALSE
+			                          END
+			                )
+			        ELSE NULL
+			    END AS checker,
+			    i.started_at AS startedAt,
+			    i.ended_at AS endedAt,
+			    i.created_at AS createdAt
+			FROM inspections i
+			LEFT JOIN checker c 
+			    ON c.write_year = i.write_year
+			        AND c.doc_type = i.doc_type
+			        AND c.doc_no = i.doc_no
+			LEFT JOIN details_count dc 
+			    ON dc.write_year = i.write_year
+			        AND dc.doc_type = i.doc_type
+			        AND dc.doc_no = i.doc_no
+			LEFT JOIN esg.tb_user_info tui
+				ON i.created_by = tui.user_id
+			LEFT JOIN esg.tb_hr_info thi
+				ON thi.user_id = tui.user_id
+			ORDER BY i.created_at DESC	
+       	]]>
+	</select>
+
+	<!-- 서명 정보 조회 - 사용자 정보 및 사진까지 (공통) -->
+    <select id='getApprovalInfo' resultType='kr.co.igns.business.utils.model.UtilsVO' parameterType='kr.co.igns.business.utils.model.UtilsVO'>
+
+        SELECT tai.*,
+               sf.file_id AS logo_id,
+               thi.user_id AS hr_user_id,
+               thi.user_id,
+			   tui.clnt_id,
+			   thi.hr_id,
+        FROM esg.tb_approval_info tai
+                 LEFT JOIN esg.tb_hr_info thi
+                           ON tai.hr_id = thi.hr_id
+                 LEFT JOIN esg.tb_user_info tui
+						   ON thi.user_id = tui.user_id
+                 LEFT JOIN esg.tb_sys_file sf
+                           ON sf.target_id = tai.hr_id
+                               AND sf.target_type = 'hrImg'
+                 LEFT JOIN esg.tb_common_d dc
+                           ON dc.major_cd = 'C0045'
+                               AND dc.minor_cd = tai.param
+        WHERE tai.target_type = #{targetType}
+          AND tai.target_id = #{targetId}
+          AND tai.type = #{type}
+        ORDER BY dc.ord_seq ASC
+
+    </select>
+
+	<!--SystemCode 기준 읽은 메세지 중, 삭제 기간을 넘은 공지사항 메세지 영구 삭제 처리-->
+	<delete id="deleteNoticeAlarm" parameterType="kr.co.igns.business.alarm.model.AlarmVO">
+		<![CDATA[
+        DELETE FROM esg.tb_notice_alarm_his
+        WHERE (CURRENT_DATE - TO_DATE(alarm_dt, 'YYYYMMDD')) >= #{deleteCycle}
+          AND read_yn = 'Y'
+        ]]>
+	</delete>
+
+	<!--SystemCode 기준 읽은 메세지 중, 삭제 기간을 넘은 비상상황 메세지 영구 삭제 처리-->
+	<delete id="deleteEmergencyAlarm" parameterType="kr.co.igns.business.alarm.model.AlarmVO">
+		<![CDATA[
+        DELETE FROM esg.tb_emergency_alarm_his
+        WHERE (CURRENT_DATE - TO_DATE(alarm_dt, 'YYYYMMDD')) >= #{deleteCycle}
+          AND read_yn = 'Y'
+        ]]>
+	</delete>
+
+	<!--SystemCode 기준 읽은 메세지 중, 삭제 기간을 넘은 안전보건 실시 계획서 메세지 영구 삭제 처리-->
+	<delete id="deleteTrainingPlanImplAlarm" parameterType="kr.co.igns.business.alarm.model.AlarmVO">
+		<![CDATA[
+        DELETE FROM esg.tb_training_plan_implementation_alarm_his
+        WHERE (CURRENT_DATE - TO_DATE(alarm_dt, 'YYYYMMDD')) >= #{deleteCycle}
+          AND read_yn = 'Y'
+        ]]>
+	</delete>
+
+    <!-- 서명 정보 조회 - 사용자 정보 및 사진까지 (공통) -->
+    <select id='getTrainingResultList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.support.model.TrainingResultReportVO'>
+			SELECT *
+			FROM esg.tb_training_result_report ttrr
+      		WHERE ttrr.use_yn = 'Y'
+
+    </select>
+
+
+	<select id="getTrainingPlanImpl" parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType="kr.co.igns.mobile.hseInspections.model.HseInspectionsVO">
+			<![CDATA[
+				select ttpi.doc_no, ttpi.doc_type, ttpi.write_year, ttpi.comp_id, ttrrh.hr_id, tui.user_id, tui.clnt_id, ttpi.title
+				from esg.tb_training_plan_implementation ttpi 
+				left join esg.tb_training_result_report ttrr on ttpi.doc_no = ttrr.plan_doc_no and ttpi.doc_type = ttrr.plan_doc_type and ttpi.write_year = ttrr.plan_write_year
+				left join esg.tb_training_result_report_hr ttrrh on ttpi.doc_no = ttrrh.doc_no and ttpi.doc_type = ttrrh.doc_type and ttpi.write_year = ttrrh.write_year
+				left join esg.tb_hr_info thi on thi.hr_id = ttrrh.hr_id 
+				left join esg.tb_user_info tui on thi.user_id = tui.user_id
+				where ttrr.doc_type is null
+				and ttpi.training_date < #{startDate}
+				and ttpi.use_yn = 'Y'
+			]]>
+	</select>
+
+</mapper>

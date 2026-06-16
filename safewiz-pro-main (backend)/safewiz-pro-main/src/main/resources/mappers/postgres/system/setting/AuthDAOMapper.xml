@@ -1,0 +1,428 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.system.setting.dao.postgres.AuthDAO">
+
+	<sql id='selectCol'>
+		ca.menu_seq,
+		ca.created_at,
+		ca.updated_at,
+	</sql>
+
+	<sql id="filter">
+		<if test='searchWords != "" and searchWords != null and searchWords.size > 0'>
+			AND
+			(
+			<foreach collection='searchWords' item='searchWord' index='idx' separator='OR' open='(' close=')'>
+				ca.grp_cd LIKE CONCAT('%',#{searchWord},'%')
+			</foreach>
+			OR
+			<foreach collection='searchWords' item='searchWord' index='idx' separator='OR' open='(' close=')'>
+				ca.grp_nm LIKE CONCAT('%',#{searchWord},'%')
+			</foreach>
+			)
+		</if>
+
+	</sql>
+
+	<sql id="filterMenu">
+		<if test='isWeb == true'>
+            AND sm.web_yn = 'Y'
+        </if>
+        <if test='isWeb == false'>
+            AND sm.app_yn = 'Y'
+        </if>
+<!--		<if test='searchWords != "" and searchWords != null and searchWords.size > 0'>-->
+<!--			AND-->
+<!--			<foreach collection='searchWords' item='searchWord' index='idx' separator='OR' open='(' close=')'>-->
+<!--				sm.menu_nm LIKE CONCAT('%',#{searchWord},'%')-->
+<!--			</foreach>-->
+<!--		</if>-->
+	</sql>
+
+	<select id='searchCount' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='int'>
+
+		SELECT
+		count(1)
+		FROM esg.tb_comp_auth ca
+		WHERE 1 = 1
+<!--		 <include refid='kr.co.igns.system.setting.dao.postgres.AuthDAO.filter' />-->
+
+	</select>
+
+	<select id='searchCountMenu' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='int'>
+
+		SELECT
+			count(1)
+		FROM (
+		    SELECT *
+			FROM esg.tb_sys_menu sm
+			LEFT JOIN esg.tb_comp_auth ca
+			ON ca.menu_id = sm.menu_id
+			AND ca.grp_cd = #{searchCd}
+			WHERE 1 = 1
+			<include refid='kr.co.igns.system.setting.dao.postgres.AuthDAO.filterMenu' />
+			GROUP BY ca.menu_seq,
+			sm.menu_id,
+			sm.up_menu_id,
+			sm.menu_nm
+				 ) AS grouped_results;
+
+	</select>
+
+	<select id='searchByGroup' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.setting.model.AuthVO'>
+
+		SELECT
+		ca.created_at,
+		ca.updated_at,
+		#{searchCd} AS grp_cd,
+		sm.menu_id,
+		sm.menu_nm,
+		sm.up_menu_id,
+		COALESCE(ca.del_ah, 'N') as del_ah,
+		COALESCE(ca.exl_ah, 'N') as exl_ah,
+		COALESCE(ca.sav_ah, 'N') as sav_ah,
+		CASE WHEN count(ca.*) > 0 THEN 'U' ELSE 'I' END AS cmd
+		FROM esg.tb_sys_menu sm
+		LEFT JOIN esg.tb_group_menu ca
+		ON ca.menu_id = sm.menu_id
+		AND ca.grp_id = #{grpId}
+		AND ca.comp_id = #{compId}
+		<if test='isWeb == true'>
+            AND ca.param='W'
+        </if>
+        <if test='isWeb == false'>
+            AND ca.param='A'
+        </if>
+		INNER JOIN esg.tb_comp_auth tc
+		ON tc.menu_id = sm.menu_id
+		AND tc.grp_cd = 'USER'
+		<if test='isWeb == true'>
+            AND tc.param='W'
+        </if>
+        <if test='isWeb == false'>
+            AND tc.param='A'
+        </if>
+		WHERE 1 = 1
+		<include refid='kr.co.igns.system.setting.dao.postgres.AuthDAO.filterMenu' />
+		GROUP BY 
+		ca.created_at,
+		ca.updated_at,
+		ca.del_ah,
+		ca.exl_ah,
+		ca.sav_ah,
+		sm.menu_id,
+				 sm.up_menu_id,
+				 sm.menu_nm
+		ORDER BY sm.menu_odr
+	</select>
+
+	<select id='findUserGroup' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='String'>
+        SELECT ghm.grp_id
+        FROM esg.tb_group_hr_map ghm
+        INNER JOIN esg.tb_hr_info hi ON ghm.hr_id = #{hrId}
+    </select>
+
+	<select id='searchByUser' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.setting.model.AuthVO'>
+
+		SELECT DISTINCT
+		sm.menu_id,
+		sm.menu_nm,
+		sm.up_menu_id,
+		sm.router_nm,
+		sm.menu_nm_eng,
+		sm.router_path,
+        sm.view_path,
+		sm.menu_icon,
+        sm.menu_odr,
+		<!-- 사용자별 테이블에 데이터가 없는 경우에도 조회는 가능 -->
+		COALESCE(thr.sch_ah,'Y') AS sch_ah,
+        <choose>
+		<!-- 관리자 및 매니저 (권한별 메뉴 기준으로 권한 조회) -->
+        <when test='userRole != "USER"'>
+			'U' AS cmd,
+            COALESCE(tc.del_ah, 'N') AS del_ah,
+            COALESCE(tc.exl_ah, 'N') AS exl_ah,
+            COALESCE(tc.sav_ah, 'N') AS sav_ah
+            FROM esg.tb_sys_menu sm
+        </when>
+		<!-- 일반 사용자 -->
+        <when test='userGroup != "" and userGroup != null and userGroup.size > 0'>
+			<!-- 해당 메뉴가 사용자 접근 권한을 가지고 있는 경우 -->
+			CASE WHEN thr.menu_id IS NOT NULL AND 
+				(thr.del_ah IS DISTINCT FROM MAX(COALESCE(ca.del_ah, NULL))
+				OR thr.exl_ah IS DISTINCT FROM MAX(COALESCE(ca.exl_ah, NULL))
+				OR thr.sav_ah IS DISTINCT FROM MAX(COALESCE(ca.sav_ah, NULL))
+				OR thr.sch_ah='N')   
+			THEN 'U'
+			<!-- 해당 메뉴가 그룹 접근 권한을 가지고 있는 경우 -->
+			WHEN count(ca.*) > 0 THEN 'G'
+			<!-- 해당 메뉴에 대한 접근 권한이 없는 경우 -->
+			ELSE 'I' END AS cmd,
+			<!-- 사용자별 CRUD 권한 체크 후 그룹별 CRUD  권한 체크 -->
+			CASE WHEN thr.del_ah IS NOT NULL THEN thr.del_ah
+			WHEN MAX(COALESCE(ca.del_ah, 'N')) = 'Y' THEN 'Y'
+			ELSE 'N' END AS del_ah,
+			CASE WHEN thr.exl_ah IS NOT NULL THEN thr.exl_ah
+			WHEN MAX(COALESCE(ca.exl_ah, 'N')) = 'Y' THEN 'Y'
+			ELSE 'N' END AS exl_ah,
+			CASE WHEN thr.sav_ah IS NOT NULL THEN thr.sav_ah
+			WHEN MAX(COALESCE(ca.sav_ah, 'N')) = 'Y' THEN 'Y'
+			ELSE 'N' END AS sav_ah
+            FROM esg.tb_sys_menu sm
+            LEFT JOIN esg.tb_group_menu ca
+            ON ca.menu_id = sm.menu_id
+			AND ca.comp_id = #{compId}
+			AND ca.grp_id = #{grpId}
+			<if test='isWeb == true'>
+				AND ca.param='W'
+			</if>
+			<if test='isWeb == false'>
+				  AND ca.param='A'
+			</if>
+            AND ca.grp_id in
+            <foreach item="id" index="index" collection="userGroup"
+                    open="(" separator="," close=")">
+                #{id}
+            </foreach> 
+        </when > 
+		<!-- 속한 그룹의 정보가 없는 경우 -->
+        <otherwise>
+			CASE WHEN thr.menu_id IS NOT NULL THEN 'U'
+			<!-- 해당 메뉴가 그룹 접근 권한을 가지고 있는 경우 -->
+			ELSE 'I' END AS cmd,
+			<!-- 사용자별 CRUD 권한 체크 후 그룹별 CRUD  권한 체크 -->
+			COALESCE(thr.del_ah, 'N') AS del_ah,
+			COALESCE(thr.exl_ah, 'N') AS exl_ah,
+			COALESCE(thr.sav_ah, 'N') AS sav_ah
+			FROM esg.tb_sys_menu sm
+			LEFT JOIN esg.tb_group_menu ca ON 1=0
+        </otherwise>
+        </choose>
+		INNER JOIN esg.tb_comp_auth tc
+		ON tc.menu_id = sm.menu_id
+		AND tc.grp_cd = #{userRole}
+		<if test='isWeb == true'>
+            AND tc.param='W'
+        </if>
+        <if test='isWeb == false'>
+            AND tc.param='A'
+        </if>
+		LEFT JOIN esg.tb_hr_menu thr
+		ON thr.comp_id = #{compId} AND
+		thr.hr_id = #{hrId} AND
+		sm.menu_id = thr.menu_id
+		WHERE 1 = 1
+		GROUP BY 
+        sm.menu_id,
+        sm.menu_nm,
+        sm.up_menu_id,
+        sm.router_nm,
+        sm.menu_nm_eng,
+        sm.router_path,
+        sm.view_path,
+        sm.menu_icon,
+        sm.menu_odr,
+		thr.menu_id,
+		thr.del_ah,
+		thr.exl_ah,
+		thr.sav_ah,
+		thr.sch_ah
+		ORDER BY sm.menu_odr
+		</select>
+
+
+	<select id='search' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.setting.model.AuthVO'>
+
+		SELECT
+		<include refid='kr.co.igns.system.setting.dao.postgres.AuthDAO.selectCol' />
+		#{searchCd} AS grp_cd,
+		sm.menu_id,
+		sm.menu_nm,
+		sm.up_menu_id,
+		COALESCE(ca.del_ah, 'N') as del_ah,
+		COALESCE(ca.exl_ah, 'N') as exl_ah,
+		COALESCE(ca.sav_ah, 'N') as sav_ah,
+		CASE WHEN count(ca.*) > 0 THEN 'U' ELSE 'I' END AS cmd
+		FROM esg.tb_sys_menu sm
+		LEFT JOIN esg.tb_comp_auth ca
+		ON ca.menu_id = sm.menu_id
+		AND ca.grp_cd = #{searchCd}
+		<if test='isWeb == true'>
+            AND ca.param='W'
+        </if>
+        <if test='isWeb == false'>
+            AND ca.param='A'
+        </if>WHERE 1 = 1
+		<include refid='kr.co.igns.system.setting.dao.postgres.AuthDAO.filterMenu' />
+		GROUP BY ca.menu_seq,
+				 sm.menu_id,
+				 sm.up_menu_id,
+				 sm.menu_nm
+		ORDER BY sm.menu_odr
+	</select>
+
+	<select id='findOne' parameterType='String' resultType='kr.co.igns.system.setting.model.AuthVO'>
+
+		SELECT
+		<include refid='kr.co.igns.system.setting.dao.postgres.AuthDAO.selectCol' />
+		ca.grp_cd,
+		ca.menu_id,
+		'U' cmd
+		FROM esg.tb_comp_auth ca
+		WHERE ca.menu_seq = #{menuSeq}
+
+	</select>
+
+	<insert id="insert" parameterType="kr.co.igns.system.setting.model.AuthVO" useGeneratedKeys="true" keyProperty="menuSeq">
+
+		INSERT INTO
+		esg.tb_comp_auth (
+		grp_cd,
+		menu_id,
+		sav_ah,
+		del_ah,
+		exl_ah,
+		param,
+		created_at,
+		created_by
+		) VALUES (
+		#{grpCd},
+		#{menuId},
+		#{savAh},
+		#{delAh},
+		#{exlAh},
+		#{param},
+		now(),
+		#{createdBy}
+		)
+
+	</insert>
+
+	<insert id="insertGrpMap" parameterType="kr.co.igns.system.setting.model.AuthVO">
+
+		INSERT INTO
+		esg.tb_group_menu (
+		comp_id,
+		grp_id,
+		menu_id,
+		sav_ah,
+		del_ah,
+		exl_ah,
+		param,
+		created_at,
+		created_by
+		) VALUES (
+		#{compId},
+		#{grpId},
+		#{menuId},
+		#{savAh},
+		#{delAh},
+		#{exlAh},
+		#{param},
+		now(),
+		#{createdBy}
+		)
+
+	</insert>
+
+	<insert id="insertMemMap" parameterType="kr.co.igns.system.setting.model.AuthVO">
+
+		INSERT INTO
+		esg.tb_hr_menu (
+		comp_id,
+		hr_id,
+		menu_id,
+		sch_ah,
+		sav_ah,
+		del_ah,
+		exl_ah,
+		param,
+		created_at,
+		created_by
+		) VALUES (
+		#{compId},
+		#{hrId},
+		#{menuId},
+		#{schAh},
+		#{savAh},
+		#{delAh},
+		#{exlAh},
+		#{param},
+		now(),
+		#{createdBy}
+		)
+
+	</insert>
+
+	<update id="update" parameterType="kr.co.igns.system.setting.model.AuthVO">
+
+		UPDATE esg.tb_comp_auth
+		SET
+		grp_cd = #{grpCd},
+		menu_id = #{menuId},
+		updated_at = now(),
+		updated_by = #{updatedBy}
+		WHERE menu_seq = #{menuSeq}
+	</update>
+
+	<delete id="delete" parameterType="String">
+
+		DELETE FROM esg.tb_comp_auth
+		WHERE menu_seq = #{menuSeq}
+
+	</delete>
+
+	<delete id="removeGrpMap" parameterType="kr.co.igns.system.setting.model.AuthVO">
+
+		DELETE FROM esg.tb_group_menu
+		WHERE grp_id = #{grpId} AND comp_id = #{compId}
+
+	</delete>
+
+	<delete id="removeGrpMapByParam" parameterType="kr.co.igns.system.setting.model.AuthVO">
+
+		DELETE FROM esg.tb_group_menu
+		WHERE grp_id = #{grpId} AND comp_id = #{compId} AND param = #{param}
+
+	</delete>
+
+	<delete id="removeMemMapByParam" parameterType="kr.co.igns.system.setting.model.AuthVO">
+
+		DELETE FROM esg.tb_hr_menu
+		WHERE hr_id = #{hrId} AND comp_id = #{compId} AND param = #{param}
+
+	</delete>
+
+
+	<delete id="deleteByGrpCdAndParam" parameterType="kr.co.igns.system.setting.model.AuthVO">
+
+		DELETE FROM esg.tb_comp_auth
+		WHERE grp_cd = #{grpCd}
+		AND param = #{param}
+
+	</delete>
+
+	<delete id="deleteByGrpCd" parameterType="kr.co.igns.system.setting.model.AuthVO">
+
+		DELETE FROM esg.tb_comp_auth
+		WHERE grp_cd = #{grpCd}
+
+	</delete>
+
+	<delete id="deleteGroupHrByGrpCd" parameterType="kr.co.igns.system.setting.model.AuthVO">
+
+		DELETE FROM esg.tb_group_hr_map
+		WHERE grp_id = #{grpId}
+			AND comp_id = #{compId}
+
+	</delete>
+
+	<delete id="deleteGroupMenuByGrpCd" parameterType="kr.co.igns.system.setting.model.AuthVO">
+
+		DELETE FROM esg.tb_group_menu
+		WHERE grp_id = #{grpId}
+			AND comp_id = #{compId}
+
+	</delete>
+</mapper>

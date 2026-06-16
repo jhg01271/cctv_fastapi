@@ -1,0 +1,325 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.system.base.dao.postgres.OrganizationDAO">
+    <select id='getOrganizationList' parameterType='kr.co.igns.system.common.model.SpSearchVO'  resultType='kr.co.igns.system.base.model.OrganizationVO'>
+        SELECT toi.*,
+               thimH.hr_id as head_hr_id,
+               hrH.hr_nm as head_hr_nm,
+               thimS.hr_id as second_hr_id,
+               sf.file_id as primary_id,
+               sf1.file_id as secondary_id,
+               hrS.hr_nm as second_hr_nm,
+               (select count(t1.hr_id)
+                from esg.tb_hr_info t1
+                inner join esg.tb_hr_info_comp_map t2 ON t2.comp_id = #{compId} and t1.hr_id =t2.hr_id
+                where t1.orgn_id = toi.orgn_id  and t1.use_yn = 'Y') as result_cnt   -- 총인원 수
+        FROM esg.tb_orgn_info toi
+        LEFT JOIN esg.tb_hr_incharge_map thimH on thimH.target_id = toi.orgn_id AND thimH.target_type = 'orgn' AND thimH.gubun = 'HEAD'
+        LEFT JOIN esg.tb_hr_info hrH on hrH.hr_id = thimH.hr_id
+        LEFT JOIN esg.tb_hr_incharge_map thimS on thimS.target_id = toi.orgn_id AND thimS.target_type = 'orgn' AND thimS.gubun = '2ND'
+        LEFT JOIN esg.tb_hr_info hrS on hrS.hr_id = thimS.hr_id
+            -- 파일 location
+        LEFT JOIN esg.tb_sys_file sf on sf.target_id = thimH.hr_id and sf.target_type='hrImg'
+        LEFT JOIN esg.tb_sys_file sf1 on sf1.target_id = thimS.hr_id and sf1.target_type='hrImg'
+        WHERE 1=1
+          AND toi.comp_id = #{compId}
+        ORDER BY toi.use_yn DESC, toi.ord_seq, toi.orgn_id
+    </select>
+
+    <select id='getOrganizationDetail' parameterType='kr.co.igns.system.common.model.SpSearchVO'  resultType='kr.co.igns.system.base.model.OrganizationVO'>
+        SELECT toi.*,
+               thimH.hr_id as head_hr_id,
+               hrH.hr_nm as head_hr_nm,
+               hrH.user_id as id,
+               thimS.hr_id as second_hr_id,
+               hrS.hr_nm as second_hr_nm,
+               hrJ.jbrp_nm,
+               sf.file_id as primary_id,
+               sf1.file_id as secondary_id
+        FROM esg.tb_orgn_info toi
+        LEFT JOIN esg.tb_hr_incharge_map thimH on thimH.target_id = toi.orgn_id AND thimH.target_type = 'orgn' AND thimH.gubun = 'HEAD'
+        LEFT JOIN esg.tb_hr_info hrH on hrH.hr_id = thimH.hr_id
+        LEFT JOIN esg.tb_hr_incharge_map thimS on thimS.target_id = toi.orgn_id AND thimS.target_type = 'orgn' AND thimS.gubun = '2ND'
+        LEFT JOIN esg.tb_hr_info hrS on hrS.hr_id = thimS.hr_id
+        LEFT JOIN esg.tb_hr_info_jbrp hrJ on hrH.jbrp = hrJ.jbrp_id and toi.comp_id = hrJ.comp_id
+            -- 파일 location
+        LEFT JOIN esg.tb_sys_file sf on sf.target_id = thimH.hr_id and sf.target_type='hrImg'
+        LEFT JOIN esg.tb_sys_file sf1 on sf1.target_id = thimS.hr_id and sf1.target_type='hrImg'
+        WHERE 1=1
+          AND toi.orgn_id = #{searchText}
+    </select>
+
+
+    <insert id="insertOrganization" parameterType="kr.co.igns.system.base.model.OrganizationVO">
+         <selectKey keyProperty="orgnId" resultType="kr.co.igns.system.base.model.OrganizationVO" order="BEFORE">
+    	     select to_char(now(), 'yyyymmdd') ||
+				   lpad(
+					   (coalesce(max(substring(orgn_id from 9 for 4))::int, 0) + 1)::text,
+					   4,
+					   '0'
+				   ) as orgn_id
+			from esg.tb_orgn_info
+			where orgn_id like to_char(now(), 'YYYYMMDD') || '%'
+    	</selectKey>
+        INSERT INTO esg.tb_orgn_info (
+            comp_id,
+            orgn_id,
+            orgn_nm,
+            orgn_desc,
+            ord_seq,
+            created_at,
+            created_by,
+            use_yn
+        )
+        VALUES (
+            #{compId},
+            #{orgnId},
+            #{orgnNm},
+            #{orgnDesc},
+            #{ordSeq},
+            now(),
+            #{createdBy},
+            #{useYn}
+        )
+
+    </insert>
+
+    <select id='getChartList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.base.model.OrgChartVO'>
+
+        SELECT *
+        FROM esg.tb_orgn_chart toc
+        WHERE toc.comp_id = #{compId}
+        ORDER BY use_yn desc, created_at desc
+    </select>
+    <select id='getChartDetail' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.base.model.OrgChartVO'>
+
+        SELECT *
+        FROM esg.tb_orgn_chart toc
+        WHERE toc.chart_id = #{searchText}
+    </select>
+
+    <insert id="insertOrganizationChart" parameterType="kr.co.igns.system.base.model.OrgChartVO">
+        <selectKey keyProperty="chartId" resultType="kr.co.igns.system.base.model.OrgChartVO" order="BEFORE">
+            select to_char(now(), 'yyyymmdd') ||
+				   lpad(
+					   (coalesce(max(substring(chart_id from 9 for 4))::int, 0) + 1)::text,
+					   4,
+					   '0'
+				   ) as chart_id
+			from esg.tb_orgn_chart
+			where chart_id like to_char(now(), 'YYYYMMDD') || '%'
+    	</selectKey>
+        INSERT INTO esg.tb_orgn_chart (
+            comp_id,
+            chart_id,
+            chart_nm,
+            chart_data,
+            org_count,
+            use_yn,
+            created_at,
+            created_by,
+            chart_blob_data
+        )
+        VALUES (
+            #{compId},
+            #{chartId},
+            #{chartNm},
+            #{chartData},
+            #{orgCount},
+            #{useYn},
+            now(),
+            #{createdBy},
+            #{chartBlobData}
+        )
+
+    </insert>
+
+    <update id="updateOrganization" parameterType="kr.co.igns.system.base.model.OrganizationVO">
+
+        UPDATE esg.tb_orgn_info
+        SET
+            comp_id = #{compId},
+            orgn_id = #{orgnId},
+            orgn_nm = #{orgnNm},
+            orgn_desc = #{orgnDesc},
+            ord_seq = #{ordSeq},
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE orgn_id = #{orgnId}
+
+    </update>
+
+    <update id="updateOrganizationChart" parameterType="kr.co.igns.system.base.model.OrgChartVO">
+
+        UPDATE esg.tb_orgn_chart
+        SET
+            comp_id = #{compId},
+            chart_nm = #{chartNm},
+            chart_data = #{chartData},
+            org_count = #{orgCount},
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy},
+            chart_blob_data = #{chartBlobData}
+        WHERE chart_id = #{chartId}
+
+    </update>
+    <update id="deleteOrganizationChart" parameterType="kr.co.igns.system.base.model.OrgChartVO">
+
+        UPDATE esg.tb_orgn_chart
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE chart_id = #{chartId}
+
+    </update>
+
+    <update id="confirmOrganizationChart" parameterType="kr.co.igns.system.base.model.OrgChartVO">
+
+        UPDATE esg.tb_orgn_chart
+        SET
+            confirm_yn = #{confirmYn},
+            <if test='confirmYn == "Y"'>
+                confirm_dt = now(),
+            </if>
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE chart_id = #{chartId}
+
+    </update>
+
+    <select id='getOrgnById' parameterType='String' resultType='kr.co.igns.system.base.model.OrganizationVO'>
+
+        SELECT toi.comp_id,
+               toi.orgn_id,
+               toi.orgn_nm,
+               toi.orgn_desc,
+               toi.ord_seq,
+               toi.use_yn
+        FROM esg.tb_orgn_info toi
+        WHERE 1=1
+          AND toi.orgn_id = #{orgnId}
+
+    </select>
+
+    <delete id="deleteOrganization" parameterType="kr.co.igns.system.base.model.OrganizationVO">
+
+        UPDATE esg.tb_orgn_info
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE orgn_id = #{orgnId}
+
+    </delete>
+
+    <select id='getOrgnMap' parameterType='kr.co.igns.system.base.model.BaseMapVO' resultType='kr.co.igns.system.base.model.BaseMapVO'>
+
+        SELECT tom.*
+             , tom.orgn_id as id
+             , toi.orgn_nm as nm
+        FROM esg.tb_orgn_map tom
+        LEFT JOIN esg.tb_orgn_info toi on toi.orgn_id = tom.orgn_id
+        WHERE 1=1
+          AND tom.target_id = #{targetId}
+          AND tom.target_type = #{targetType}
+
+    </select>
+
+    <select id='getOrgnMapByUseYn' parameterType='kr.co.igns.system.base.model.BaseMapVO' resultType='kr.co.igns.system.base.model.BaseMapVO'>
+
+        SELECT tom.*
+             , tom.orgn_id as id
+             , toi.orgn_nm as nm
+        FROM esg.tb_orgn_map tom
+                 LEFT JOIN esg.tb_orgn_info toi on toi.orgn_id = tom.orgn_id
+        WHERE 1=1
+          AND tom.target_id = #{targetId}
+          AND tom.target_type = #{targetType}
+          AND tom.use_yn = 'Y'
+        ORDER BY tom.orgn_id ASC
+
+    </select>
+
+    <select id='getOrgnMapByUseYnBatch' parameterType='kr.co.igns.system.base.model.BaseMapVO' resultType='kr.co.igns.system.base.model.BaseMapVO'>
+
+        SELECT tom.*
+             , tom.orgn_id as id
+             , toi.orgn_nm as nm
+        FROM esg.tb_orgn_map tom
+                 LEFT JOIN esg.tb_orgn_info toi on toi.orgn_id = tom.orgn_id
+        WHERE 1=1
+          AND tom.target_id IN
+          <foreach item="id" collection="targetIds" open="(" separator="," close=")">
+            #{id}
+          </foreach>
+          AND tom.target_type = #{targetType}
+          AND tom.use_yn = 'Y'
+        ORDER BY tom.orgn_id ASC
+
+    </select>
+
+    <insert id="addOrgnMap" parameterType="kr.co.igns.system.base.model.BaseMapVO">
+
+        INSERT INTO esg.tb_orgn_map (
+            target_type,
+            target_id,
+            orgn_id,
+            created_at,
+            created_by,
+            use_yn
+        )
+        VALUES (
+                   #{targetType},
+                   #{targetId},
+                   #{id},
+                   now(),
+                   #{createdBy},
+                   #{useYn}
+               )
+
+    </insert>
+
+    <update id="updateOrgnMap" parameterType="kr.co.igns.system.base.model.BaseMapVO">
+
+        UPDATE esg.tb_orgn_map
+        SET
+            orgn_id = #{id},
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE target_id = #{targetId}
+          AND target_type = #{targetType}
+
+    </update>
+
+    <update id="updateUseYnOrgnMap" parameterType="kr.co.igns.system.base.model.BaseMapVO">
+
+        UPDATE esg.tb_orgn_map
+        SET
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE target_id = #{targetId}
+          AND target_type = #{targetType}
+          AND orgn_id = #{id}
+
+    </update>
+
+    <delete id="deleteOrgnMap" parameterType="kr.co.igns.system.base.model.BaseMapVO">
+
+        UPDATE esg.tb_orgn_map
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE target_id = #{targetId}
+          AND target_type = #{targetType}
+          AND use_yn = 'Y'
+
+    </delete>
+</mapper>
+

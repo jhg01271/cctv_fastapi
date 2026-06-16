@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.participation.dao.postgres.ConsultationAndParticipationDAO">
+    <select id='getConsultationAndParticipation' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.participation.model.ConsultationAndParticipationVO'>
+        SELECT
+            'ohsCommittee' AS title
+            ,'/OhsCommittee' AS route
+            ,'ohsCommitteeDesc' AS description
+            , case when ohsCommittee.exist then 'Y'
+            	else 'N'
+            	end as activeYn
+        FROM
+        (
+            SELECT EXISTS (
+                SELECT 1
+                FROM esg.tb_committee thp
+                WHERE thp.comp_id  = #{compId}
+                    AND thp.write_year = #{searchText}
+                    AND thp.doc_type = 'OHC'
+            ) as exist
+        ) AS ohsCommittee
+        UNION ALL
+        SELECT
+            'partnerCommittee' AS title
+            ,'/PartnerCommittee' AS route
+            ,'partnerCommitteeDesc' AS description
+            , CASE WHEN partnerCommittee.exist THEN 'Y'
+            	ELSE 'N'
+            	END AS activeYn
+        FROM
+        (
+            SELECT EXISTS (
+                SELECT 1
+                FROM esg.tb_committee thp
+                WHERE thp.comp_id  = #{compId}
+                  AND thp.write_year = #{searchText}
+                  AND thp.doc_type = 'PAC'
+            ) as exist
+        ) AS partnerCommittee
+    </select>
+
+</mapper>

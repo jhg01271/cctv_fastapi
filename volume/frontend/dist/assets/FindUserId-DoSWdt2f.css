@@ -1,0 +1,1 @@
+label[required]{position:relative}label[required]:after{display:inline-block;right:2px;top:-2px;content:"*";color:#ff4f4f}.error{color:red}.valid{color:green}

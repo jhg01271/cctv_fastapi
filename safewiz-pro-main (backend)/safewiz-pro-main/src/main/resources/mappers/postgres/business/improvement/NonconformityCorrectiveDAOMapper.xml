@@ -1,0 +1,1174 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.improvement.dao.postgres.NonconformityCorrectiveDAO">
+
+    <!-- 부적합 및 시정조치 메뉴 쿼리 -->
+	<select id="getParticipation" parameterType="kr.co.igns.system.common.model.SpSearchVO"  resultType='kr.co.igns.business.improvement.model.ContinualImprovementVO'>
+		SELECT
+            'nearMissReport' AS title
+            ,'/NearMissReport' AS route
+            ,'nearMissReportDesc' AS description
+            , case when nearMissReport.exist then 'Y'
+            	else 'N'
+            	end as activeYn
+        FROM
+        (
+            SELECT EXISTS (
+                SELECT 1
+                FROM esg.tb_near_miss_report tnmr
+                WHERE tnmr.comp_id  = #{compId}
+                    AND tnmr.write_year = #{searchText}
+            ) as exist
+        ) AS nearMissReport
+		UNION ALL
+		SELECT
+            'incidentReport' AS title
+            ,'/IncidentReport' AS route
+            ,'incidentReportDesc' AS description
+            , case when incidentReport.exist then 'Y'
+            	else 'N'
+            	end as activeYn
+        FROM
+        (
+            SELECT EXISTS (
+                SELECT 1
+                FROM esg.tb_incident_report tir
+                WHERE tir.comp_id  = #{compId}
+                    AND tir.write_year = #{searchText}
+            ) as exist
+        ) AS incidentReport
+		UNION ALL
+		SELECT
+            'correctiveActionRequest' AS title
+            ,'/CorrectiveActionRequest' AS route
+            ,'correctiveActionRequestDesc' AS description
+            , case when correctiveActionRequest.exist then 'Y'
+            	else 'N'
+            	end as activeYn
+        FROM
+        (
+            SELECT EXISTS (
+                SELECT 1
+                FROM esg.tb_corrective_action_request tcar
+                WHERE tcar.comp_id  = #{compId}
+                  AND tcar.write_year = #{searchText}
+				  AND tcar.car_type = 'I'
+            ) as exist
+        ) AS correctiveActionRequest
+  	</select>
+
+    <select id='getFileId' parameterType='kr.co.igns.business.improvement.model.NearMissReportVO'  resultType='kr.co.igns.business.improvement.model.NearMissReportVO'>
+			SELECT FILE_ID FROM ESG.TB_SYS_FILE
+			 WHERE TARGET_TYPE = 'NMR'
+			   AND TARGET_ID = #{docNo}
+		  ORDER BY CREATED_AT DESC
+			 LIMIT 1;
+    </select>
+    
+    <select id='getOrgnHead' parameterType='kr.co.igns.business.improvement.model.NearMissReportVO'  resultType='kr.co.igns.business.improvement.model.NearMissReportVO'>
+         	select a.hr_id as orgnHeadId, 
+         		   b.hr_nm as orgnHeadNm 
+			  from esg.tb_hr_incharge_map a
+			 inner join esg.tb_hr_info b on a.hr_id = b.hr_id
+			 where b.orgn_id = #{actionOrgnId}
+		  	   and a.gubun = 'HEAD'
+		 	   and a.target_type = 'orgn'
+    </select>
+    
+    <select id='getNearMissReportFileList' parameterType='kr.co.igns.business.improvement.model.NearMissReportVO'  resultType='kr.co.igns.system.common.model.FileVO'>
+        SELECT FILE_ID,
+               FILE_NM AS FILE_NAME,
+               FILE_SIZE,
+               FILE_TYPE AS DOC_TYPE,
+               "extension"
+        FROM ESG.TB_SYS_FILE
+        WHERE TARGET_ID = CONCAT(#{writeYear}, #{docNo})
+          AND TARGET_TYPE = #{docType}
+    </select>
+
+    <select id='getNearMissReport' parameterType='kr.co.igns.system.common.model.SpSearchVO'  resultType='kr.co.igns.business.improvement.model.NearMissReportVO'>
+		SELECT TNMR.WRITE_YEAR,
+			   TNMR.DOC_TYPE,
+			   TNMR.DOC_NO,
+			   TNMR.COMP_ID,
+			   TNMR.HR_ID,
+			   TNMR.HR_NM,
+			   TNMR.CREAT_ORGN_ID,
+			   TNMR.CREAT_ORGN_NM,
+			   TNMR.ACTION_ORGN_ID,
+			   TNMR.ACTION_ORGN_NM,
+			   TNMR.ACCIDENT_CONTENT,
+			   TNMR.ACCIDENT_IMPROVED,
+			   TNMR.DANGER_CONTENT,
+			   TNMR.DANGER_IMPROVED,
+			   TNMR.ACTION_CONTENT,
+			   TNMR.WRITE_DT,
+			   TNMR.RECEIPT_DT,
+			   TNMR.ACTION_DT,
+			   TNMR.USE_YN,
+			   TNMR.CREATED_AT,
+			   TNMR.CREATED_BY,
+			   TNMR.UPDATED_AT
+		  FROM ESG.TB_NEAR_MISS_REPORT TNMR
+		 WHERE TNMR.COMP_ID = #{compId}
+		   AND TNMR.WRITE_YEAR = #{writeYear}
+		 ORDER BY TNMR.USE_YN DESC, TNMR.DOC_NO DESC
+    </select>
+
+    <select id='getNearMissReportDetail' parameterType='kr.co.igns.system.common.model.SpSearchVO'  resultType='kr.co.igns.business.improvement.model.NearMissReportVO'>
+		SELECT TNMR.WRITE_YEAR,
+			   TNMR.DOC_TYPE,
+			   TNMR.DOC_NO,
+			   TNMR.COMP_ID,
+			   TNMR.HR_ID,
+			   TNMR.HR_NM,
+			   TNMR.CREAT_ORGN_ID,
+			   TNMR.CREAT_ORGN_NM,
+			   TNMR.ACTION_ORGN_ID,
+			   TNMR.ACTION_ORGN_NM,
+			   TNMR.ACCIDENT_CONTENT,
+			   TNMR.ACCIDENT_IMPROVED,
+			   TNMR.DANGER_CONTENT,
+			   TNMR.DANGER_IMPROVED,
+			   TNMR.ACTION_CONTENT,
+			   TNMR.WRITE_DT,
+			   TNMR.RECEIPT_DT,
+			   TNMR.ACTION_DT,
+			   TNMR.USE_YN,
+			   TNMR.CREATED_AT,
+			   TNMR.CREATED_BY,
+			   TNMR.UPDATED_AT,
+			   TNMR.UPDATED_BY
+		  FROM ESG.TB_NEAR_MISS_REPORT TNMR
+		 WHERE DOC_NO = #{docNo}
+    </select>
+
+    <insert id="insertNearMissReport" parameterType="kr.co.igns.business.improvement.model.NearMissReportVO" useGeneratedKeys="true">
+		<selectKey keyProperty="docNo" resultType="kr.co.igns.business.improvement.model.NearMissReportVO" order="BEFORE">
+			select LPAD((COALESCE(MAX(doc_no)::integer, 0) + 1)::text, 5, '0') AS DOC_NO
+	        from esg.tb_near_miss_report
+			where write_year = #{writeYear}
+	    </selectKey>
+		INSERT INTO esg.tb_near_miss_report (
+				    write_year,
+				    doc_type,
+				    doc_no,
+				    comp_id,
+				    hr_id,
+				    hr_nm,
+				    creat_orgn_id,
+				    creat_orgn_nm,
+				    action_orgn_id,
+				    action_orgn_nm,
+				    accident_content,
+				    accident_improved,
+				    danger_content,
+				    danger_improved,
+				    action_content,
+				    write_dt,
+				    receipt_dt,
+				    action_dt,
+				    use_yn,
+				    created_at,
+				    created_by
+				) VALUES (
+				    TO_CHAR(NOW(), 'YYYY'),
+				    'NMR',
+				    (select LPAD((COALESCE(MAX(doc_no)::integer, 0) + 1)::text, 5, '0')
+				       from esg.tb_near_miss_report),
+				    #{compId},
+				    #{hrId},
+				    #{hrNm},
+				    #{creatOrgnId},
+				    #{creatOrgnNm},
+				    #{actionOrgnId},
+				    #{actionOrgnNm},
+				    #{accidentContent},
+				    #{accidentImproved},
+				    #{dangerContent},
+				    #{dangerImproved},
+				    #{actionContent},
+				    #{writeDt},
+				    #{receiptDt},
+				    #{actionDt},
+				    #{useYn},
+				    NOW(),
+				    #{createdBy}
+		);
+    </insert>
+
+    <update id="updateNearMissReport" parameterType="kr.co.igns.business.improvement.model.NearMissReportVO">
+
+       		UPDATE ESG.TB_NEAR_MISS_REPORT
+			   SET action_orgn_id = #{actionOrgnId},
+			       action_orgn_nm = #{actionOrgnNm},
+			       accident_content = #{accidentContent},
+			       accident_improved = #{accidentImproved},
+			       danger_content = #{dangerContent},
+			       danger_improved = #{dangerImproved},
+			       action_content = #{actionContent},
+			       write_dt = #{writeDt},
+			       receipt_dt = #{receiptDt},
+			       action_dt = #{actionDt},
+			       use_yn = #{useYn},
+			       updated_at = now(),
+			       updated_by = #{updatedBy}
+			 WHERE DOC_NO = #{docNo}
+
+    </update>
+
+    <select id='getNearMissReportById' parameterType='String' resultType='kr.co.igns.business.improvement.model.NearMissReportVO'>
+        SELECT
+            MSDS_ID,
+            COMP_ID,
+            MSDS_NM,
+            MSDS_SYNONYM,
+            CAS_NO,
+            DAILY_VOLUME,
+            DAILY_TIME,
+            "desc",
+            ORD_SEQ,
+            USE_YN,
+            CREATED_AT,
+            CREATED_BY,
+            UPDATED_AT,
+            UPDATED_BY
+        FROM ESG.TB_MSDS_INFO
+        WHERE 1=1
+          AND MSDS_ID = #{msdsId}
+
+    </select>
+
+    <delete id="deleteNearMissReport" parameterType="kr.co.igns.business.improvement.model.NearMissReportVO">
+        UPDATE ESG.TB_NEAR_MISS_REPORT
+        SET
+            USE_YN = 'N',
+            UPDATED_AT = now(),
+            UPDATED_BY = #{updatedBy}
+        WHERE DOC_NO = #{docNo} AND WRITE_YEAR = #{writeYear}
+    </delete>
+    
+    <select id="getCorrectiveActionRequest" parameterType='kr.co.igns.system.common.model.SpSearchVO'  resultType='kr.co.igns.business.improvement.model.CorrectiveActionRequestVO'>
+		SELECT 
+			WRITE_YEAR, 
+			DOC_TYPE, 
+			DOC_NO, 
+			COMP_ID,
+			CAR_TYPE, 
+			TITLE, 
+			CTRL_ORGN_ID,
+			CTRL_ORGN_NM, 
+			ACTION_ORGN_ID, 
+			ACTION_ORGN_NM, 
+			WRITE_DT, 
+			RETURN_DT,
+			ACTION_REQUEST_CONTENT, 
+			ANALYTIC_PREVENT_CONTENT,
+			RESULT_VALIDATION_CONTENT, 
+			RESULT_VALIDATION_YN, 
+			CHECK_DT, 
+			USE_YN,
+			CREATED_AT, 
+			CREATED_BY, 
+			UPDATED_AT, 
+			UPDATED_BY
+		FROM ESG.TB_CORRECTIVE_ACTION_REQUEST
+		WHERE 1=1 
+			AND CAR_TYPE='I'
+			<if test="writeYear != null and !writeYear.equals('')">
+			AND WRITE_YEAR = #{writeYear}
+			</if>
+			<if test="compId != null and !compId.equals('')">
+			AND COMP_ID = #{compId}
+			</if>
+		ORDER BY CTRL_ORGN_ID, CASE WHEN USE_YN = 'Y' THEN 1 ELSE 2 END, DOC_NO DESC 
+			
+	</select>
+	
+	<select id='getCorrectiveActionRequestDetail' parameterType='kr.co.igns.system.common.model.SpSearchVO'  resultType='kr.co.igns.business.improvement.model.CorrectiveActionRequestVO'>
+	    SELECT 
+			WRITE_YEAR, 
+			DOC_TYPE, 
+			DOC_NO, 
+			COMP_ID, 
+			CAR_TYPE,
+			TITLE, 
+			CTRL_ORGN_ID,
+			CTRL_ORGN_NM, 
+			ACTION_ORGN_ID, 
+			ACTION_ORGN_NM, 
+			WRITE_DT, 
+			RETURN_DT,
+			ACTION_REQUEST_CONTENT,  
+			ANALYTIC_PREVENT_CONTENT,
+			RESULT_VALIDATION_CONTENT, 
+			RESULT_VALIDATION_YN, 
+			CHECK_DT, 
+			USE_YN,
+			CREATED_AT, 
+			CREATED_BY, 
+			UPDATED_AT, 
+			UPDATED_BY
+		FROM ESG.TB_CORRECTIVE_ACTION_REQUEST TEI
+		WHERE 1=1
+			AND WRITE_YEAR 	= #{writeYear}
+			AND DOC_NO 		= #{docNo}
+			AND CAR_TYPE	= 'I'
+    </select>
+	
+	<insert id="insertCorrectiveActionRequest" parameterType="kr.co.igns.business.improvement.model.CorrectiveActionRequestVO" useGeneratedKeys="true">
+		INSERT INTO esg.tb_corrective_action_request(
+			WRITE_YEAR, 
+			DOC_TYPE,
+			DOC_NO, 
+			COMP_ID, 
+			CAR_TYPE,
+			TITLE, 
+			CTRL_ORGN_ID, 
+			CTRL_ORGN_NM, 
+			ACTION_ORGN_ID,
+			ACTION_ORGN_NM, 
+			<if test="writeDt != ''">
+			WRITE_DT,
+			</if>
+			<if test="returnDt != ''"> 
+			RETURN_DT, 
+			</if>
+			ACTION_REQUEST_CONTENT,
+			ANALYTIC_PREVENT_CONTENT,
+			RESULT_VALIDATION_CONTENT,
+			RESULT_VALIDATION_YN, 
+			<if test="checkDt != ''">
+			CHECK_DT, 
+			</if>
+			USE_YN, 
+			CREATED_AT, 
+			CREATED_BY,
+			UPDATED_AT, 
+			UPDATED_BY
+			)
+		VALUES(
+			#{writeYear},
+			'CAR',
+			(SELECT LPAD((coalesce(MAX(SUBSTRING(doc_no, 1, 5)::INTEGER), 0) + 1)::text, 5, '0') AS doc_no FROM ESG.TB_CORRECTIVE_ACTION_REQUEST CAR WHERE CAR.WRITE_YEAR = #{writeYear}),
+			#{compId}, 
+			'I',
+			#{title}, 
+			#{ctrlOrgnId}, 
+			#{ctrlOrgnNm}, 
+			#{actionOrgnId},
+			#{actionOrgnNm},
+			#{writeDt},
+			#{returnDt},
+			#{actionRequestContent},
+			#{analyticPreventContent},
+			#{resultValidationContent},
+			#{resultValidationYn}, 
+			#{checkDt},
+			'Y', 
+			NOW(), 
+			#{createdBy},
+			NOW(), 
+			#{updatedBy}
+			);
+			
+		 <selectKey keyProperty="docNo" resultType="kr.co.igns.business.improvement.model.CorrectiveActionRequestVO" order="AFTER">
+            <![CDATA[
+	            SELECT
+	                MAX(DOC_NO) DOC_NO
+	            FROM ESG.TB_CORRECTIVE_ACTION_REQUEST
+	            WHERE 1=1
+	            	AND WRITE_YEAR = #{writeYear}
+	            	AND DOC_TYPE = 'CAR'
+	            	AND CAR_TYPE = 'I'
+         	]]>
+        </selectKey>
+	</insert>
+	
+	<update id="updateCorrectiveActionRequest" parameterType="kr.co.igns.business.improvement.model.CorrectiveActionRequestVO">
+	    UPDATE ESG.TB_CORRECTIVE_ACTION_REQUEST 
+	    SET
+			COMP_ID						=#{compId},  
+			TITLE						=#{title},  
+			CTRL_ORGN_ID				=#{ctrlOrgnId},  
+			CTRL_ORGN_NM				=#{ctrlOrgnNm},  
+			ACTION_ORGN_ID				=#{actionOrgnId}, 
+			ACTION_ORGN_NM				=#{actionOrgnNm},
+			WRITE_DT					=#{writeDt},
+			RETURN_DT					=#{returnDt},
+			ACTION_REQUEST_CONTENT		=#{actionRequestContent}, 
+			ANALYTIC_PREVENT_CONTENT	=#{analyticPreventContent}, 
+			RESULT_VALIDATION_CONTENT	=#{resultValidationContent}, 
+			RESULT_VALIDATION_YN		=#{resultValidationYn}, 
+			CHECK_DT					=#{checkDt},
+			USE_YN						=#{useYn}, 
+			UPDATED_AT					=NOW(), 
+			UPDATED_BY					=#{updatedBy}
+		WHERE 1=1
+			AND WRITE_YEAR				=#{writeYear}
+			AND DOC_NO					=#{docNo}
+			AND CAR_TYPE				='I'
+    </update>
+    
+    <delete id="deleteCorrectiveActionRequest" parameterType="kr.co.igns.business.improvement.model.CorrectiveActionRequestVO">
+        UPDATE ESG.TB_CORRECTIVE_ACTION_REQUEST
+        SET
+            USE_YN 			='N',
+            UPDATED_AT 		=NOW(),
+            UPDATED_BY 		=#{updatedBy}
+        WHERE 1=1
+        	AND WRITE_YEAR	=#{writeYear}
+			AND DOC_NO		=#{docNo}
+			AND CAR_TYPE	='I'
+    </delete>
+    
+      <!-- 재해발생 보고서 Main select -->
+    <select id="getIncidentReport"  parameterType='kr.co.igns.business.improvement.model.IncidentReportVO' resultType="kr.co.igns.business.improvement.model.IncidentReportVO">
+		SELECT
+		    tir.write_year,
+		    doc_type,
+		    tir.doc_no,
+		    tir.comp_id,
+		    incident_person_id,
+		    incident_person_nm,
+		    witness_person_id,
+		    witness_person_nm,
+		    tir.incident_dt,
+		    incident_tm,
+		    thi.orgn_id,
+		    toi.orgn_nm,
+		    incident_location,
+		    incident_extent,
+		    comp_opinion,
+		    incident_type,
+		    incident_his,
+		    tir.use_yn,
+		    COALESCE(tirm.hosp_in, 0) AS hosp_in,
+		    COALESCE(tirm.hosp_out, 0) AS hosp_out
+		FROM 
+		    esg.tb_incident_report tir 
+		LEFT JOIN 
+		    esg.tb_hr_info thi 
+		ON 
+			tir.incident_person_id = thi.hr_id 
+		LEFT JOIN 
+		    esg.tb_orgn_info toi 
+		ON 
+			thi.orgn_id = toi.orgn_id 
+		LEFT JOIN (
+			SELECT
+				tirm.write_year,
+				tirm.doc_no,
+				SUM(
+				CASE
+					WHEN hosp_in_fr_dt is null OR tirm.hosp_in_to_dt is null THEN 0
+					ELSE COALESCE(DATE_PART('day', tirm.hosp_in_to_dt::timestamp - tirm.hosp_in_fr_dt::timestamp) + 1, 0)
+				END )AS hosp_in,
+				SUM(
+				CASE
+					WHEN hosp_out_fr_dt is null OR hosp_out_to_dt is null THEN 0
+					ELSE COALESCE(DATE_PART('day', coalesce(tirm.hosp_out_to_dt)::timestamp - tirm.hosp_out_fr_dt::timestamp) + 1, 0)
+				END )AS hosp_out
+			FROM
+				esg.tb_incident_report_manage tirm 
+			WHERE
+				tirm.use_yn = 'Y'
+			GROUP BY
+				tirm.write_year,
+				tirm.doc_no
+		) AS tirm 
+		ON 
+		    tir.write_year = tirm.write_year
+		    AND tir.doc_no = tirm.doc_no
+		WHERE
+		    tir.write_year = #{writeYear}
+		    AND tir.comp_id = #{compId}
+		ORDER BY
+		    tir.created_at DESC;
+    </select>
+    
+       <!-- 재해발생 보고서 Detail select -->
+    <select id="getIncidentDetailReport"  parameterType='kr.co.igns.business.improvement.model.IncidentReportVO' resultType="kr.co.igns.business.improvement.model.IncidentReportVO">
+		    select 
+			write_year, 
+			doc_type, 
+			tir.doc_no, 
+			tir.comp_id, 
+			incident_person_id, 
+			incident_person_nm,
+			coalesce (witness_person_id,'') as witness_person_id, 
+			coalesce (witness_person_nm,'') as witness_person_nm, 
+			incident_dt , 
+			coalesce (incident_tm,'') as incident_tm,
+			coalesce (incident_location,'') as incident_location,
+			coalesce (incident_extent,'') as incident_extent,
+			coalesce (comp_opinion,'') as comp_opinion,
+			coalesce (incident_type,'') as incident_type,
+			coalesce (incident_his,'') as incident_his,
+			coalesce (vhi.orgn_id,'') as orgn_id,
+			coalesce (jbrp.jbrp_nm,'') as jbrp_nm,
+			coalesce (vhi.birth_dt,'') as birth_dt, 
+			coalesce (vhi.phone,'') as phone,
+			vhi.working_at,
+			coalesce ((vhi.addrs1 || vhi.addrs2 ),'') as addrs,
+			case 
+				when vhi.part_comp_id ='' or vhi.part_comp_id is null
+					then '본사'
+				else
+					'협력사' 
+				end as part_comp,
+			coalesce (toi.orgn_nm,'') as orgn_nm,
+			coalesce (vhi2.orgn_id,'') as worgn_id,
+			coalesce (jbrp2.jbrp_nm,'') as wjbrp_nm,
+			coalesce (vhi2.birth_dt,'') as wbirth_dt, 
+			coalesce (vhi2.phone,'') as wphone,
+			coalesce (vhi2.working_at,'') as wworking_at,
+			coalesce ((vhi2.addrs1 || vhi2.addrs2 ),'') as waddrs,
+			case 
+				when witness_person_id ='' or witness_person_id isnull 
+					then ''
+				when vhi2.part_comp_id ='' or vhi2.part_comp_id is null
+					then '본사'
+				else
+					'협력사' 
+				end as wpart_comp,
+			coalesce (toi2.orgn_nm,'') as worgn_nm,
+			coalesce (tir.use_yn,'') as use_yn,
+			coalesce (tsf.file_id,'') as ifile_id,
+			coalesce (tsf2.file_id,'') as wfile_id,
+			coalesce(tir.incident_pm_so,'') as incident_pm_so 
+		from esg.tb_incident_report tir 
+			left join esg.v_hr_info vhi on tir.incident_person_id =vhi.hr_id
+			left join esg.v_hr_info vhi2 on tir.witness_person_id =vhi2.hr_id 
+			left join esg.tb_orgn_info toi on vhi.orgn_id = toi.orgn_id
+			left join esg.tb_orgn_info toi2 on vhi2.orgn_id = toi2.orgn_id
+			left join esg.tb_hr_info_jbrp jbrp
+                    on jbrp.jbrp_id = vhi.jbrp and jbrp.comp_id = #{compId}
+            left join esg.tb_hr_info_jbrp jbrp2
+                    on jbrp2.jbrp_id = vhi2.jbrp and jbrp2.comp_id = #{compId}
+			left join esg.tb_sys_file tsf on tsf.target_id = tir.incident_person_id and tsf.target_type='hrImg'
+			left join esg.tb_sys_file tsf2 on tsf2.target_id = tir.witness_person_id and tsf2.target_type='hrImg'
+		where tir.doc_no=#{docNo} and tir.write_year=#{writeYear}
+    </select>
+    
+ 	<!-- 재해발생 보고서 사고처리 select -->
+    <select id="getIncidentDetailManage"  parameterType='kr.co.igns.business.improvement.model.IncidentReportVO' resultType="kr.co.igns.business.improvement.model.IncidentReportVO">
+    	SELECT 
+			write_year, 
+			doc_type, 
+			doc_no, 
+			doc_seq, 
+			hospital_nm, 
+			hospital_tel, 
+			hospital_pl,
+			hosp_in_fr_dt,
+			hosp_in_to_dt,
+			hosp_out_fr_dt,
+			hosp_out_to_dt,
+			CASE
+				WHEN hosp_in_fr_dt is null  OR hosp_in_to_dt is null THEN 0
+				ELSE COALESCE(date_part('day', hosp_in_to_dt::timestamp - hosp_in_fr_dt::timestamp) + 1, 0)
+				END AS hosp_in,
+			CASE
+				WHEN hosp_out_fr_dt is null OR hosp_out_to_dt is null THEN 0
+				ELSE COALESCE(date_part('day', hosp_out_to_dt::timestamp - hosp_out_fr_dt::timestamp) + 1, 0)
+				END AS hosp_out,
+			created_at, 
+			created_by, 
+			updated_at, 
+			updated_by,
+			use_yn
+		FROM esg.tb_incident_report_manage
+			where doc_no=#{docNo} and write_year=#{writeYear}
+			order by doc_seq;
+    </select>
+    
+	<!-- 재해발생 보고서 사고경위 select -->
+    <select id="getIncidentDetailExtent"  parameterType='kr.co.igns.business.improvement.model.IncidentReportVO' resultType="kr.co.igns.business.improvement.model.IncidentReportVO">
+    	SELECT 
+			tird.write_year, 
+			tird.doc_type, 
+			tird.doc_no, 
+			tird.doc_seq, 
+			tird.incident_detail, 
+			tird.created_at, 
+			tird.created_by, 
+			tird.updated_at, 
+			tird.updated_by,
+			tird.use_yn
+		FROM esg.tb_incident_report_detail tird
+			where doc_no=#{docNo} and write_year=#{writeYear}
+			order by doc_seq;
+    </select>
+ 
+ 	<!-- 재해발생 보고서 예방 및 의견 select -->
+    <select id="getIncidentDetailOpinion"  parameterType='kr.co.igns.business.improvement.model.IncidentReportVO' resultType="kr.co.igns.business.improvement.model.IncidentReportVO">
+    	SELECT 
+			write_year, 
+			doc_type, 
+			doc_no, 
+			doc_seq, 
+			preventive_measures,
+			supervisors_opinion,
+			created_at, 
+			created_by, 
+			updated_at, 
+			updated_by,
+			use_yn
+		FROM esg.tb_incident_report_opinion
+			where doc_no=#{docNo} and write_year=#{writeYear}
+			order by doc_seq;
+    </select>
+    
+    <!-- 재해발생 보고서 진술서 select -->
+    <select id="getIncidentState"  parameterType='kr.co.igns.business.improvement.model.IncidentReportVO' resultType="kr.co.igns.business.improvement.model.IncidentReportVO">
+    	SELECT 
+    		tirs.doc_seq, 
+    		tirs.statement_type, 
+	    	write_dt, 
+    		tirs.statement_content,
+	   		case 
+	   			when tai.target_id is null
+	   			then 'I'
+	   			else 'U'
+	   		end as target_id
+		FROM esg.tb_incident_report_statement tirs
+		left join esg.tb_approval_info tai on tai.target_id =#{writeYear} || #{docNo} and tai.target_type ='ICR' and tai.type = #{type}
+			where doc_no=#{docNo} and write_year=#{writeYear} and statement_type=#{statementType}
+			
+		UNION ALL
+
+		SELECT 
+    		'' AS doc_seq, 
+    		'' AS statement_type, 
+    		to_char(now(),'YYYYMMDD') AS write_dt, 
+    		'' AS statement_content,
+    		case 
+	   			when (select 1 from esg.tb_approval_info tai where tai.target_id = #{writeYear} || #{docNo} and tai.type = #{type}) is null   
+	   			then 'I'
+	   			else 'U'
+	   		end as target_id
+    	WHERE NOT EXISTS (
+    		SELECT 1
+				FROM esg.tb_incident_report_statement tirs
+				left join esg.tb_approval_info tai on tai.target_id = #{writeYear} || #{docNo} and tai.target_type ='ICR' 
+    			where doc_no = #{docNo} and write_year = #{writeYear} and statement_type = #{statementType});
+    </select>
+    
+    <!-- 재해발생 보고서 입력을 위한 문서번호 채번 -->
+    <select id="getdoc" parameterType="String" resultType="String">
+    	select LPAD((COALESCE(MAX(doc_no)::integer, 0) + 1)::text, 5, '0') as doc_no from esg.tb_incident_report where write_year=#{writeYear};
+    </select>
+    
+    <!-- 재해발생 보고서 입력을 위한 문서번호 채번 -->
+    <select id="getDetailSeq" parameterType="String" resultType="String">
+    	select LPAD((COALESCE(MAX(doc_seq)::integer, 0) + 1)::text, 5, '0') as doc_Seq from esg.tb_incident_report_detail 
+    	where write_year = #{writeYear} and doc_no = #{docNo}
+    </select>
+    
+    <!-- 재해발생 보고서 입력 -->
+    <insert id ="insertIncidentReport" parameterType='kr.co.igns.business.improvement.model.IncidentReportVO'>
+    	INSERT INTO esg.tb_incident_report
+			(write_year, 
+			doc_type, 
+			doc_no, 
+			comp_id, 
+			incident_person_id, 
+			incident_person_nm, 
+			witness_person_id, 
+			witness_person_nm, 
+			incident_dt, 
+			incident_tm, 
+			incident_location, 
+			incident_extent, 
+			comp_opinion, 
+			incident_type, 
+			incident_his, 
+			use_yn, 
+			created_at, 
+			created_by,
+			incident_pm_so)
+			VALUES(
+			LEFT(#{incidentDt}, 4),
+			'ICR', 
+			(select LPAD((COALESCE(MAX(doc_no)::integer, 0) + 1)::text, 5, '0') 
+			from esg.tb_incident_report where write_year=LEFT(#{incidentDt}, 4)),
+			#{compId}, 
+			#{incidentPersonId}, 
+			#{incidentPersonNm}, 
+			#{witnessPersonId}, 
+			#{witnessPersonNm},
+			#{incidentDt},
+			#{incidentTm}, 
+			#{incidentLocation}, 
+			#{incidentExtent}, 
+			#{compOpinion}, 
+			#{incidentType}, 
+			#{incidentHis}, 
+			'Y'::character varying, 
+			now(),
+			#{createdBy},
+			#{incidentPmSo}
+			);
+    </insert>
+    
+    <!-- 재해발생 보고서 상세내역 입력 -->
+    <insert id ="insertIncidentReportDetail" parameterType='kr.co.igns.business.improvement.model.IncidentReportVO'>
+    	INSERT INTO esg.tb_incident_report_detail
+			(write_year, 
+			doc_type, 
+			doc_no, 
+			doc_seq,
+			incident_detail,
+			use_yn,
+			created_at, 
+			created_by)
+		VALUES(
+			#{writeYear},
+			'ICR',
+			#{docNo},
+			(select LPAD((COALESCE(MAX(doc_seq)::integer, 0) + 1)::text, 5, '0') 
+			from esg.tb_incident_report_detail where write_year=#{writeYear} and doc_no=#{docNo}),
+			#{incidentDetail},
+			#{useYn},
+			now(),
+			#{createdBy});
+    </insert>
+    
+    <!-- 재해발생 보고서 사고처리 insert -->
+    <insert id ="insertIncidentReportManage" parameterType='kr.co.igns.business.improvement.model.IncidentReportVO'>
+    	INSERT INTO esg.tb_incident_report_manage
+			(write_year, 
+			doc_type, 
+			doc_no, 
+			doc_seq, 
+			hospital_nm,
+			hospital_tel,
+			hospital_pl,
+			hosp_in_fr_dt,
+			hosp_in_to_dt,
+			hosp_out_fr_dt,
+			hosp_out_to_dt,
+			use_yn,
+			created_at, 
+			created_by)
+		VALUES(
+			#{writeYear},
+			'ICR',
+			#{docNo},
+			(select LPAD((COALESCE(MAX(doc_seq)::integer, 0) + 1)::text, 5, '0') 
+			from esg.tb_incident_report_manage 
+			where write_year=#{writeYear} AND doc_no=#{docNo}),
+			#{hospitalNm},
+			#{hospitalTel},
+			#{hospitalPl},
+			#{hospInfrDt},
+			#{hospIntoDt},
+			#{hospOutfrDt},
+			#{hospOuttoDt},
+			#{useYn},
+			now(),
+			#{createdBy});
+    </insert>
+
+    
+    <!-- 재해발생 보고서 예방대책 및 의견 insert -->
+    <insert id ="insertIncidentReportOpinion" parameterType='kr.co.igns.business.improvement.model.IncidentReportVO'>
+    	INSERT INTO esg.tb_incident_report_opinion
+			(write_year, 
+			doc_type, 
+			doc_no, 
+			doc_seq, 
+			preventive_measures,
+			supervisors_opinion,
+		    use_yn,
+			created_at, 
+			created_by)
+		VALUES(
+			#{writeYear},
+			'ICR',
+			#{docNo},
+			(select LPAD((COALESCE(MAX(doc_seq)::integer, 0) + 1)::text, 5, '0') 
+			from esg.tb_incident_report_opinion 
+			where write_year=#{writeYear} AND doc_no=#{docNo}),
+			#{preventiveMeasures},
+			#{supervisorsOpinion},
+		    #{useYn},
+			now(),
+			#{createdBy});
+    </insert>
+    
+    <update id="updateIncidentReport" parameterType="kr.co.igns.business.improvement.model.IncidentReportVO">
+    	UPDATE esg.tb_incident_report
+			SET 
+				incident_person_id=#{incidentPersonId}, 
+				incident_person_nm=#{incidentPersonNm}, 
+				witness_person_id=#{witnessPersonId}, 
+				witness_person_nm=#{witnessPersonNm}, 
+				incident_dt=#{incidentDt}, 
+				incident_tm=#{incidentTm}, 
+				incident_location=#{incidentLocation}, 
+				incident_extent=#{incidentExtent}, 
+				comp_opinion=#{compOpinion}, 
+				incident_type=#{incidentType}, 
+				incident_his=#{incidentHis}, 
+				updated_at=now(), 
+				updated_by=#{updatedBy},
+				incident_pm_so=#{incidentPmSo}
+			WHERE write_year=#{writeYear} AND doc_type='ICR' AND doc_no=#{docNo};
+    </update>
+    
+    <!-- 재해발생 보고서 진술서 insert -->
+    <insert id ="insertIncidentReportStatment" parameterType='kr.co.igns.business.improvement.model.IncidentReportVO'>
+    	INSERT INTO 
+    		esg.tb_incident_report_statement
+			(write_year, 
+			doc_type, 
+			doc_no, 
+			doc_seq, 
+			statement_type, 
+			write_dt, 
+			statement_content, 
+			created_at, 
+			created_by)
+		VALUES(
+			#{writeYear},
+			'ICR',
+			#{docNo},
+			(select LPAD((COALESCE(MAX(doc_seq)::integer, 0) + 1)::text, 5, '0') 
+			from esg.tb_incident_report_statement 
+			where write_year=#{writeYear} AND doc_no=#{docNo}),
+			#{statementType},
+			#{writeDt},
+			#{statementContent},
+			now(),
+			#{createdBy});
+    </insert>
+    
+    
+    <update id="updateIncidentReportDetail" parameterType="kr.co.igns.business.improvement.model.IncidentReportVO">
+    	UPDATE esg.tb_incident_report_detail
+			SET 
+				incident_detail=#{incidentDetail},
+				use_yn=#{useYn}, 
+				updated_at=now(), 
+				updated_by=#{updatedBy}
+			WHERE write_year=#{writeYear} AND doc_type='ICR' AND doc_no=#{docNo} AND doc_seq=#{docSeq};
+    </update>
+    
+    <update id="UpdateIncidentReportManage" parameterType="kr.co.igns.business.improvement.model.IncidentReportVO">
+    	UPDATE esg.tb_incident_report_manage
+			SET 
+				hospital_nm=#{hospitalNm}, 
+				hospital_tel=#{hospitalTel}, 
+				hospital_pl=#{hospitalPl}, 
+				hosp_in_fr_dt=#{hospInfrDt}, 
+				hosp_in_to_dt=#{hospIntoDt},
+				hosp_out_fr_dt=#{hospOutfrDt},
+				hosp_out_to_dt=#{hospOuttoDt},
+				use_yn=#{useYn}, 
+				updated_at=now(), 
+				updated_by=#{updatedBy}
+			WHERE write_year=#{writeYear} AND doc_type='ICR' AND doc_no=#{docNo} AND doc_seq=#{docSeq};
+    </update>
+    
+	<update id="UpdateIncidentReportOpinion" parameterType="kr.co.igns.business.improvement.model.IncidentReportVO">
+    	UPDATE esg.tb_incident_report_opinion
+			SET 
+			preventive_measures=#{preventiveMeasures}, 
+			supervisors_opinion=#{supervisorsOpinion},
+			use_yn=#{useYn}, 
+			updated_at=now(), 
+			updated_by=#{updatedBy}
+		WHERE write_year=#{writeYear} AND doc_type='ICR' AND doc_no=#{docNo} AND doc_seq=#{docSeq};
+    </update>
+    
+    <update id="updateIncidentReportStatment" parameterType="kr.co.igns.business.improvement.model.IncidentReportVO">
+    	UPDATE esg.tb_incident_report_Statement
+			SET  
+			write_dt= #{writeDt}, 
+			statement_content=#{statementContent}, 
+			updated_at=now(), 
+			updated_by=#{updatedBy}
+		WHERE 
+			write_year=#{writeYear} 
+			AND doc_type='ICR' 
+			AND doc_no=#{docNo} 
+			AND doc_seq=#{docSeq} 
+			and statement_type=#{statementType}
+    </update>
+    
+    <delete id="deleteIncidentReport" parameterType="kr.co.igns.business.improvement.model.IncidentReportVO">
+        UPDATE ESG.tb_incident_report
+        SET
+            USE_YN = 'N',
+            UPDATED_AT = now(),
+            UPDATED_BY = #{updatedBy}
+        WHERE DOC_NO = #{docNo} AND WRITE_YEAR = #{writeYear}
+    </delete>
+    
+    <select id="IncidentReportPrint" parameterType="kr.co.igns.business.improvement.model.IncidentReportVO" resultType="kr.co.igns.business.improvement.model.IncidentReportVO">
+		select 
+    	coalesce(tir.write_year,'')as write_year,
+    		coalesce(tir.doc_no,'')as doc_no,
+    		coalesce(tir.doc_type,'')as doc_type,
+			coalesce(tir.incident_person_id,'')as incident_person_id,
+			coalesce(tir.incident_person_nm,'')as incident_person_nm, 
+			coalesce(tir.witness_person_id,'')as witness_person_id,
+			coalesce(tir.witness_person_nm,'')as witness_person_nm,
+			coalesce(vhi.orgn_id,'')as orgn_id, 
+			coalesce(toi.orgn_nm,'')as orgn_nm,
+			coalesce (jbrp.jbrp_nm,'') as jbrp_nm,
+			coalesce(vhi.working_at,'') as working_at,
+			coalesce(vhi.birth_dt,'')as birth_dt,
+			coalesce(vhi.sabun,'')as sabun, 
+			coalesce(vhi.phone,'')as phone, 
+			coalesce((vhi.addrs1 || vhi.addrs2),'') as addrs,
+			coalesce(vhi2.orgn_id,'') as worgn_id, 
+			coalesce(toi2.orgn_nm,'') as worgn_nm,
+			coalesce(vhi2.sabun,'') as wsabun, 
+			coalesce(vhi2.phone,'') as wphone,
+			coalesce(tir.incident_extent,'')as incident_extent,
+			to_char(
+				to_timestamp(tir.incident_dt || ' ' || tir.incident_tm, 'YYYYMMDD HH24:MI'),
+				'YYYY"년 "MM"월 "DD"일 "HH24"시 "MI"분"경"'
+			) as incident_dt,
+			coalesce(tir.incident_location,'')as incident_location,
+			coalesce(tir.comp_opinion,'')as comp_opinion,
+			coalesce(tir.incident_his,'')as incident_his,
+			case 
+				when tir.incident_type='W' 
+				then 
+					'산재'	
+				else
+					'공상'
+				end as incident_type_nm,
+			coalesce(tir.incident_pm_so,'') as incident_pm_so
+ 		from esg.tb_incident_report tir
+ 			left join esg.v_hr_info vhi on tir.incident_person_id = vhi.hr_id  
+ 			left join esg.tb_orgn_info toi  on vhi.orgn_id = toi.orgn_id 
+  			left join esg.v_hr_info vhi2 on tir.witness_person_id = vhi2.hr_id  
+ 			left join esg.tb_orgn_info toi2  on vhi2.orgn_id = toi2.orgn_id 
+ 			left join esg.tb_hr_info_jbrp jbrp
+                    on jbrp.jbrp_id = vhi.jbrp and jbrp.comp_id = #{compId}
+ 		where tir.write_year=#{writeYear} and doc_no = #{docNo} 
+    </select>
+    
+    <select id="IncidentReportStatementPrint" parameterType="kr.co.igns.system.common.model.SpSearchVO" resultType="kr.co.igns.business.improvement.model.IncidentReportVO">
+		select 
+    		tir.write_year,
+    		tir.doc_no,
+    		tirs.doc_seq,
+			tir.incident_person_id,
+			tir.incident_person_nm,
+			tir.incident_dt,
+			tirs.statement_type ,
+			coalesce (jbrp.jbrp_nm,'') as jbrp_nm,
+			to_char(
+				to_timestamp(tirs.write_dt, 'YYYYMMDD'),
+				'YYYY"년 "MM"월 "DD"일'
+			) as write_dt,
+			coalesce(tirs.statement_content,'') as statement_content,
+			coalesce(thi.orgn_id,'') as orgn_id, 
+			coalesce(toi.orgn_nm,'') as orgn_nm,
+			coalesce(thi.working_at,'') as working_at ,
+			coalesce ((thi.addrs1 || '' ||thi.addrs2 ),'') as addrs,
+			coalesce (tdi."Static_desc",'') as StaticComment			
+		from esg.tb_incident_report tir
+			left join esg.tb_incident_report_statement tirs on (tir.write_year = tirs.write_year and tir.doc_no = tirs.doc_no)
+			left join esg.tb_hr_info thi  on tir.incident_person_id = thi.hr_id 
+			left join esg.tb_orgn_info toi  on thi.orgn_id = toi.orgn_id 
+			left join esg.tb_hr_info_jbrp jbrp
+                    on jbrp.jbrp_id = thi.jbrp and jbrp.comp_id = #{compId}
+			left join dataset.tb_dataset_incidnetstatmentdesc tdi on tdi.tagettype = tir.doc_type and tdi.type = 'ICR'
+			where tirs.write_year = #{writeYear} and tirs.doc_no = #{docNo} and tirs.statement_type='I'
+    </select>
+    
+    <select id="WitnessReportStatementPrint" parameterType="kr.co.igns.business.improvement.model.IncidentReportVO" resultType="kr.co.igns.business.improvement.model.IncidentReportVO">
+    	select 
+    		tir.write_year,
+    		tir.doc_no,
+    		tirs.doc_seq,
+			tir.Witness_person_id,
+			tir.Witness_person_nm,
+			coalesce (tir.incident_dt, '') as incident_dt,
+			coalesce (tir.incident_tm, '') as incident_tm,
+			tirs.statement_type ,
+			coalesce (jbrp.jbrp_nm,'') as jbrp_nm,
+			to_char(
+				to_timestamp(tirs.write_dt, 'YYYYMMDD'),
+				'YYYY"년 "MM"월 "DD"일'
+			) as write_dt,
+			coalesce(tirs.statement_content,'') as statement_content,
+			coalesce(thi.orgn_id,'') as orgn_id, 
+			coalesce(toi.orgn_nm,'') as orgn_nm,
+			coalesce(thi.working_at,'') as working_at ,
+			coalesce ((thi.addrs1 || '' ||thi.addrs2 ),'') as addrs,
+			coalesce (wtdi."Static_desc",'') as wStaticComment,
+			coalesce (tdi."Static_desc",'') as StaticComment
+		from esg.tb_incident_report tir
+			left join esg.tb_incident_report_statement tirs on (tir.write_year = tirs.write_year and tir.doc_no = tirs.doc_no) 
+			left join esg.tb_hr_info thi  on tir.Witness_person_id = thi.hr_id 
+			left join esg.tb_orgn_info toi  on thi.orgn_id = toi.orgn_id 
+			left join esg.tb_hr_info_jbrp jbrp
+                    on jbrp.jbrp_id = thi.jbrp and jbrp.comp_id = #{compId}
+			left join dataset.tb_dataset_incidnetstatmentdesc wtdi on wtdi.tagettype = tir.doc_type and wtdi.type = 'WICR'
+			left join dataset.tb_dataset_incidnetstatmentdesc tdi on tdi.tagettype = tir.doc_type and tdi.type = 'ICR'
+			where tirs.write_year = #{writeYear} and tirs.doc_no = #{docNo} and tirs.statement_type = 'W'
+    </select>
+    
+    <select id="getStatementdocSeq"  parameterType="kr.co.igns.business.improvement.model.IncidentReportVO" resultType="String">
+    	select doc_seq from esg.tb_incident_report_statement where write_year=#{writeYear} and doc_no=#{docNo} and statement_type=#{statementType}
+    </select>
+    
+    
+    <select id='getIncidentReportFileList' parameterType='kr.co.igns.business.improvement.model.IncidentReportVO'  resultType='kr.co.igns.system.common.model.FileVO'>
+        SELECT FILE_ID,
+               FILE_NM AS FILE_NAME,
+               FILE_SIZE,
+               FILE_TYPE AS DOC_TYPE,
+               "extension"
+        FROM ESG.TB_SYS_FILE
+        WHERE TARGET_ID = CONCAT(#{writeYear}, #{docNo},#{docSeq})
+          AND TARGET_TYPE = #{docType}
+          order by target_id
+    </select>
+    
+	<delete id="deleteIncidentDetail" parameterType="kr.co.igns.business.improvement.model.IncidentReportVO">
+        UPDATE ESG.tb_incident_report_detail
+        SET
+            USE_YN = 'N',
+            UPDATED_AT = now(),
+            UPDATED_BY = #{updatedBy}
+        WHERE DOC_NO = #{docNo} and write_year=#{writeYear} and doc_seq=#{docSeq}
+    </delete>
+    
+	<delete id="deleteIncidentHospi" parameterType="kr.co.igns.business.improvement.model.IncidentReportVO">
+        UPDATE ESG.tb_incident_report_manage
+        SET
+            USE_YN = 'N',
+            UPDATED_AT = now(),
+            UPDATED_BY = #{updatedBy}
+        WHERE DOC_NO = #{docNo} and write_year=#{writeYear} and doc_seq=#{docSeq}
+    </delete>
+    
+	<delete id="deleteIncidentOpinion" parameterType="kr.co.igns.business.improvement.model.IncidentReportVO">
+        UPDATE ESG.tb_incident_report_opinion
+        SET
+            USE_YN = 'N',
+            UPDATED_AT = now(),
+            UPDATED_BY = #{updatedBy}
+        WHERE DOC_NO = #{docNo} and write_year=#{writeYear} and doc_seq=#{docSeq}
+    </delete>
+    
+    <!-- 재해발생 보고서 사고처리 선택된것만 select -->
+    <select id="getIncidentDetailManagechk"  parameterType='kr.co.igns.business.improvement.model.IncidentReportVO' resultType="kr.co.igns.business.improvement.model.IncidentReportVO">
+    	SELECT 
+			write_year, 
+			doc_type, 
+			doc_no, 
+			doc_seq, 
+			hospital_nm, 
+			hospital_tel, 
+			hospital_pl, 
+			hosp_in_fr_dt,
+			hosp_in_to_dt, 
+			hosp_out_fr_dt, 
+			hosp_out_to_dt,
+			CASE 
+        		WHEN hosp_in_fr_dt is null OR hosp_in_to_dt is null THEN 0
+        		ELSE COALESCE(date_part('day', hosp_in_to_dt::timestamp - hosp_in_fr_dt::timestamp) + 1, 0)
+    			END AS hosp_in,
+			CASE 
+        		WHEN hosp_out_fr_dt is null OR hosp_out_to_dt is null THEN 0
+        		ELSE COALESCE(date_part('day', hosp_out_to_dt::timestamp - hosp_out_fr_dt::timestamp) + 1, 0)
+    			END AS hosp_out,
+			created_at, 
+			created_by, 
+			updated_at, 
+			updated_by,
+			use_yn
+		FROM esg.tb_incident_report_manage
+			where doc_no=#{docNo} and write_year=#{writeYear} and doc_seq=#{docSeq}
+			order by doc_seq;
+    </select>
+    
+	<!-- 재해발생 보고서 사고경위 선택된것만 select -->
+    <select id="getIncidentDetailExtentchk"  parameterType='kr.co.igns.business.improvement.model.IncidentReportVO' resultType="kr.co.igns.business.improvement.model.IncidentReportVO">
+    	SELECT 
+			tird.write_year, 
+			tird.doc_type, 
+			tird.doc_no, 
+			tird.doc_seq, 
+			tird.incident_detail, 
+			tird.created_at, 
+			tird.created_by, 
+			tird.updated_at, 
+			tird.updated_by,
+			tird.use_yn
+		FROM esg.tb_incident_report_detail tird
+			where doc_no=#{docNo} and write_year=#{writeYear} and doc_seq=#{docSeq}
+			order by doc_seq;
+    </select>
+ 
+ 	<!-- 재해발생 보고서 예방 및 의견  선택된것만 select -->
+    <select id="getIncidentDetailOpinionchk"  parameterType='kr.co.igns.business.improvement.model.IncidentReportVO' resultType="kr.co.igns.business.improvement.model.IncidentReportVO">
+    	SELECT 
+			write_year, 
+			doc_type, 
+			doc_no, 
+			doc_seq, 
+			preventive_measures,
+			supervisors_opinion,
+			created_at, 
+			created_by, 
+			updated_at, 
+			updated_by,
+			use_yn
+		FROM esg.tb_incident_report_opinion
+			where doc_no=#{docNo} and write_year=#{writeYear} and doc_seq=#{docSeq}
+			order by doc_seq;
+    </select>
+    
+    <select id="getIncidentPersonInfo" parameterType="kr.co.igns.system.common.model.SpSearchVO" resultType="kr.co.igns.business.improvement.model.IncidentReportVO">
+		select tir.incident_person_id, tir.incident_person_nm, tir.witness_person_id , tir.witness_person_nm,vhi.orgn_id, toi.orgn_nm 
+			from esg.tb_incident_report tir 
+			left join esg.v_hr_info vhi on tir.incident_person_id = vhi.hr_id
+			left join esg.tb_orgn_info toi  on vhi.orgn_id = toi.orgn_id
+			where write_year =#{writeYear} and doc_no =#{docNo}
+    </select>
+    
+    <update id="updateIncidentReportuseYn" parameterType="kr.co.igns.business.improvement.model.IncidentReportVO">
+    	UPDATE esg.tb_incident_report
+			SET  
+			use_yn=#{useYn}, 
+			updated_at=now(), 
+			updated_by=#{updatedBy}
+		WHERE 
+			write_year=#{writeYear} 
+			AND doc_no=#{docNo} 
+    </update>
+    
+    <delete id="DeteleStatement" parameterType="kr.co.igns.business.improvement.model.IncidentReportVO">
+    	Delete from esg.tb_incident_report_statement
+    		where write_year=#{writeYear} and doc_no=#{docNo} and statement_type=#{statementType}
+    </delete>
+
+
+	<!-- 일괄출력용 -->
+	<select id='getAllReport' parameterType='kr.co.igns.system.common.model.SpSearchVO'  resultType='kr.co.igns.system.common.model.SpSearchVO'>
+	    select t1.*
+			, t2.orgn_nm as searchText2
+		from esg.tb_corrective_action_request t1
+		left join esg.tb_orgn_info t2
+			on t1.comp_id = t2.comp_id
+			and t1.ctrl_orgn_id = t2.orgn_id
+		where t1.write_year = #{writeYear}
+			and t1.comp_id = #{compId}
+			and t1.use_yn = 'Y'
+			and t1.car_type = 'I'
+			and t1.ctrl_orgn_id = #{searchText}
+    </select>
+     
+</mapper>

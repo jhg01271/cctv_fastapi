@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.support.dao.postgres.ManageDocDAO">
+
+    <resultMap id="ManagerDetailMap" type="kr.co.igns.business.support.model.ManageDocVO">
+        <!-- 일반 필드 정의 -->
+        <result property="writeYear" column="write_year"/>
+        <result property="docType" column="doc_type"/>
+        <result property="docNo" column="doc_no"/>
+        <result property="compId" column="comp_id"/>
+        <result property="writeDt" column="write_dt"/>
+        <result property="writerId" column="writer_id"/>
+        <result property="writerNm" column="writer_nm"/>
+        <result property="manageDocNm" column="manage_doc_nm"/>
+        <result property="manageDocType" column="manage_doc_type"/>
+        <result property="manageDocTypeNm" column="manage_doc_type_nm"/>
+        <result property="useYn" column="use_yn"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="updatedBy" column="updated_by"/>
+
+        <!-- 여러 파일 ID 리스트로 매핑 -->
+        <collection property="files" ofType="kr.co.igns.system.common.model.FileVO">
+            <result property="fileId" column="file_id"/>
+            <result property="fileName" column="file_nm"/>
+            <result property="fileSize" column="file_size"/>
+        </collection>
+    </resultMap>
+
+    <select id='getManageDoc' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.support.model.ManageDocVO'>
+        SELECT tmd.*,
+               hr.hr_nm as writer_nm,
+               COUNT(sf.file_id) as file_count
+          FROM esg.tb_manage_doc tmd
+     LEFT JOIN esg.tb_sys_file sf ON sf.target_type = 'DOC' AND sf.target_id LIKE tmd.write_year || tmd.doc_no || '%' AND sf.comp_id = tmd.comp_id
+     LEFT JOIN esg.tb_hr_info hr on hr.hr_id = tmd.writer_id
+         WHERE tmd.comp_id = #{compId}
+      GROUP BY tmd.write_year, tmd.doc_type, tmd.doc_no, tmd.comp_id, tmd.write_dt, tmd.manage_doc_nm,
+               tmd.created_at, tmd.created_by, tmd.updated_at, tmd.updated_by,
+               hr.hr_nm
+      ORDER BY tmd.use_yn DESC, tmd.doc_no DESC
+    </select>
+
+    <select id='getManageDocDetail' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultMap="ManagerDetailMap">
+        SELECT tmd.*,
+               hr.hr_nm as writer_nm,
+               tdcd1.minor_cd as manage_doc_type,
+               tdcd1.minor_nm as manage_doc_type_nm,
+               sf.file_id,
+               sf.file_nm,  -- 파일 이름 가져오기
+               sf.file_size  -- 파일 크기 가져오기
+          FROM esg.tb_manage_doc tmd
+     LEFT JOIN esg.tb_common_d tdcd1 ON tdcd1.major_cd = 'C0029'
+     LEFT JOIN esg.tb_sys_file sf ON sf.target_type = 'DOC' AND sf.target_id = tmd.write_year || tmd.doc_no || tdcd1.minor_cd AND tmd.comp_id = sf.comp_id
+     LEFT JOIN esg.tb_hr_info hr on hr.hr_id = tmd.writer_id
+         WHERE tmd.comp_id = #{compId}
+           AND tmd.write_year = #{writeYear}
+           AND tmd.doc_no = #{docNo}
+           AND tmd.doc_type = #{docType}
+      GROUP BY tmd.write_year, tmd.doc_type, tmd.doc_no, tmd.comp_id, tmd.write_dt, tmd.manage_doc_nm,
+               tdcd1.minor_cd,tdcd1.minor_nm,
+               tmd.created_at, tmd.created_by, tmd.updated_at, tmd.updated_by, sf.file_id,
+               hr.hr_nm
+      ORDER BY tmd.use_yn DESC, tmd.doc_no DESC
+    </select>
+
+    <insert id="insertManageDoc" parameterType="kr.co.igns.business.support.model.ManageDocVO">
+
+        <selectKey keyProperty="docNo" resultType="kr.co.igns.business.support.model.ManageDocVO" order="BEFORE">
+            <![CDATA[
+            SELECT
+                LPAD((COALESCE(MAX(SUBSTRING(doc_no, 1, 5)::INTEGER), 0) + 1)::TEXT, 5, '0') AS docNo
+             FROM esg.tb_manage_doc
+            WHERE write_year = #{writeYear}
+              AND doc_type = #{docType}
+         ]]>
+        </selectKey>
+
+        INSERT INTO esg.tb_manage_doc (
+            write_year,
+            doc_no,
+            doc_type,
+            comp_id,
+            write_dt,
+            writer_id,
+            manage_doc_nm,
+            use_yn,
+            created_at,
+            created_by
+        )
+        VALUES (
+                   #{writeYear},
+                   #{docNo},
+                   #{docType},
+                   #{compId},
+                   #{writeDt},
+                   #{writerId},
+                   #{manageDocNm},
+                   #{useYn},
+                   now(),
+                   #{createdBy}
+               )
+
+    </insert>
+
+    <update id="updateManageDoc" parameterType="kr.co.igns.business.support.model.ManageDocVO">
+
+        UPDATE esg.tb_manage_doc
+        SET
+            write_dt = #{writeDt},
+            writer_id = #{writerId},
+            manage_doc_nm = #{manageDocNm},
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+
+    </update>
+
+    <delete id="deleteManageDoc" parameterType="kr.co.igns.business.support.model.ManageDocVO">
+
+        UPDATE esg.tb_manage_doc
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+
+    </delete>
+
+
+    <select id='getManageDocById' parameterType='kr.co.igns.business.support.model.ManageDocVO' resultType='kr.co.igns.business.support.model.ManageDocVO'>
+
+        SELECT *
+        FROM esg.tb_manage_doc
+        WHERE comp_id = #{compId}
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+
+    </select>
+
+</mapper>

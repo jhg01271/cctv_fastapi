@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.support.dao.postgres.CommunicationDAO">
+    <select id='getCommunication' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.support.model.EducationTrainingVO'>
+        SELECT
+            'safetyAndHealthInfoRegister' AS title
+            ,'/SafetyAndHealthInfoRegister' AS route
+            ,'safetyAndHealthInfoRegisterDesc' AS description
+            , case when safetyAndHealthInfoRegister.exist then 'Y'
+            	else 'N'
+            	end as activeYn
+        FROM
+        (
+            SELECT EXISTS (
+                SELECT 1
+                FROM esg.tb_safety_health_info_register tshir
+                WHERE tshir.comp_id  = #{compId}
+                    AND tshir.write_year = #{searchText}
+            ) as exist
+        ) AS safetyAndHealthInfoRegister
+        UNION all
+        SELECT
+            'mySafetyAndHealthInfoRegister' AS title
+            ,'/MySafetyAndHealthInfoRegister' AS route
+            ,'mySafetyAndHealthInfoRegisterDesc' AS description
+            , case when safetyAndHealthInfoRegister.exist then 'Y'
+            else 'N'
+            end as activeYn
+            FROM
+            (
+            SELECT EXISTS (
+            SELECT 1
+            FROM esg.tb_safety_health_info_register tshir
+            WHERE tshir.comp_id  = #{compId}
+            AND tshir.write_year = #{searchText}
+            ) as exist
+            ) AS safetyAndHealthInfoRegister
+        UNION ALL
+        SELECT
+            'safetyAndHealthCommPlan' AS title
+            ,'/SafetyAndHealthCommPlan' AS route
+            ,'safetyAndHealthCommPlanDesc' AS description
+            , CASE WHEN safetyAndHealthCommPlan.exist THEN 'Y'
+            	ELSE 'N'
+            	END AS activeYn
+        FROM
+        (
+            SELECT EXISTS (
+                SELECT 1
+                FROM esg.tb_safety_health_comm_plan tshcp
+                WHERE tshcp.comp_id  = #{compId}
+                    AND tshcp.write_year = #{searchText}
+            ) as exist
+        ) AS safetyAndHealthCommPlan
+    </select>
+
+</mapper>

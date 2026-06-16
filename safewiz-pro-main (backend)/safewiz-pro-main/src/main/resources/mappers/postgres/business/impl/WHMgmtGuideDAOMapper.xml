@@ -1,0 +1,390 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.impl.dao.postgres.WHMgmtGuideDAO">
+    <select id='getWHMgmtGuide' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.WHMgmtGuideVO'>
+        SELECT twhg.*,
+               hr.hr_nm,
+               COUNT(twhgc.health_opinion) as counsel_cnt,
+               COUNT(twhgr.counsel_start) as request_cnt
+          FROM esg.tb_worker_health_guide twhg
+     LEFT JOIN esg.tb_hr_info hr on hr.hr_id = twhg.hr_id
+     LEFT JOIN esg.tb_worker_health_guide_counsel twhgc
+            ON twhgc.write_year = twhg.write_year
+           AND twhgc.doc_no = twhg.doc_no
+           AND twhgc.doc_type = twhg.doc_type
+     LEFT JOIN esg.tb_worker_health_guide_request twhgr
+            ON twhgr.write_year = twhg.write_year
+           AND twhgr.doc_no = twhg.doc_no
+           AND twhgr.doc_type = twhg.doc_type
+        WHERE 1 = 1
+          AND twhg.comp_id = #{compId}
+          AND twhg.write_year = #{writeYear}
+     GROUP BY twhg.write_year, twhg.doc_type, twhg.doc_no, twhg.comp_id, twhg.hr_id, twhg.orgn_nm,
+              twhg.sex,twhg.age,twhg.service_years,twhg.counsel_dt,twhg.use_yn,twhg.created_at,twhg.created_by,twhg.updated_at,twhg.updated_by,
+              hr.hr_nm
+      ORDER BY twhg.use_yn DESC, twhg.counsel_dt DESC, twhg.doc_no DESC
+    </select>
+
+    <select id='getWHMgmtGuideHr' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.base.model.HrVO'>
+        SELECT vhi.*, hrMap.*
+         FROM esg.tb_worker_health_guide_hr hrMap
+    LEFT JOIN esg.v_hr_info vhi
+           ON hrMap.hr_id = vhi.hr_id
+        WHERE 1 = 1
+          AND hrMap.write_year = #{writeYear}
+          AND hrMap.doc_no = #{docNo}
+          AND hrMap.doc_type = #{docType}
+          AND hrMap.comp_id = #{compId}
+        <if test="searchText != null and searchText != ''">
+            AND hrMap.gubun = #{searchText}
+        </if>
+    </select>
+
+    <insert id="insertWHMgmtGuideHr" parameterType="kr.co.igns.system.base.model.HrVO">
+
+        <selectKey keyProperty="docSeq" resultType="kr.co.igns.system.base.model.HrVO" order="BEFORE">
+            <![CDATA[
+            SELECT
+                 LPAD((COALESCE(MAX(SUBSTRING(doc_seq, 1, 5)::INTEGER), 0) + 1)::TEXT, 5, '0') AS docSeq
+             FROM esg.tb_worker_health_guide_hr
+            WHERE write_year = #{writeYear}
+              AND doc_type = #{docType}
+              AND doc_no = #{docNo}
+         ]]>
+        </selectKey>
+
+        INSERT INTO esg.tb_worker_health_guide_hr (
+            write_year,
+            doc_no,
+            doc_type,
+            doc_seq,
+            comp_id,
+            gubun,
+            hr_id,
+            created_at,
+            created_by
+        )
+        VALUES (
+            #{writeYear},
+            #{docNo},
+            #{docType},
+            #{docSeq},
+            #{compId},
+            #{gubun},
+            #{hrId},
+            now(),
+            #{createdBy}
+        )
+
+    </insert>
+
+    <delete id="deleteWHMgmtGuideHr" parameterType="kr.co.igns.system.base.model.HrVO">
+
+       DELETE FROM esg.tb_worker_health_guide_hr
+        WHERE 1 = 1
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND comp_id = #{compId}
+          AND doc_seq = #{docSeq}
+
+    </delete>
+
+    <select id='getWHMgmtGuideDetail' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType="kr.co.igns.business.impl.model.WHMgmtGuideVO">
+        SELECT twhg.*,
+               hr.hr_nm,
+               twhgc.health_opinion,
+               twhgc.aftercare_opinion,
+               twhgc.work_aptitude_yn,
+               twhgc.corrective_action,
+               twhgc.use_yn as counsel_use_yn,
+               twhgr.counsel_start || ' ~ ' || twhgr.counsel_end AS counsel_time,
+               twhgr.counsel_start,
+               twhgr.counsel_end,
+               twhgr.counsel_location,
+               twhgr.counsel_reason,
+               twhgr.counsel_content,
+               twhgr.counsel_result,
+               twhgr.use_yn as request_use_yn
+          FROM esg.tb_worker_health_guide twhg
+     LEFT JOIN esg.tb_hr_info hr on hr.hr_id = twhg.hr_id
+     LEFT JOIN esg.tb_worker_health_guide_counsel twhgc
+            ON twhgc.write_year = twhg.write_year
+           AND twhgc.doc_no = twhg.doc_no
+           AND twhgc.doc_type = twhg.doc_type
+     LEFT JOIN esg.tb_worker_health_guide_request twhgr
+            ON twhgr.write_year = twhg.write_year
+           AND twhgr.doc_no = twhg.doc_no
+           AND twhgr.doc_type = twhg.doc_type
+         WHERE 1 = 1
+           AND twhg.comp_id = #{compId}
+           AND twhg.write_year = #{writeYear}
+           AND twhg.doc_no = #{docNo}
+           AND twhg.doc_type = #{docType}
+
+    </select>
+
+    <insert id="insertWHMgmtGuide" parameterType="kr.co.igns.business.impl.model.WHMgmtGuideVO">
+
+        <selectKey keyProperty="docNo" resultType="kr.co.igns.business.impl.model.WHMgmtGuideVO" order="BEFORE">
+            <![CDATA[
+            SELECT
+                LPAD((COALESCE(MAX(SUBSTRING(doc_no, 1, 5)::INTEGER), 0) + 1)::TEXT, 5, '0') AS docNo
+             FROM esg.tb_worker_health_guide
+            WHERE write_year = #{writeYear}
+              AND doc_type = #{docType}
+         ]]>
+        </selectKey>
+
+        INSERT INTO esg.tb_worker_health_guide (
+            write_year,
+            doc_no,
+            doc_type,
+            comp_id,
+            hr_id,
+            orgn_nm,
+            sex,
+            age,
+            service_years,
+            counsel_dt,
+            use_yn,
+            created_at,
+            created_by
+        )
+        VALUES (
+                   #{writeYear},
+                   #{docNo},
+                   #{docType},
+                   #{compId},
+                   #{hrId},
+                   #{orgnNm},
+                   #{sex},
+                   #{age},
+                   #{serviceYears},
+                   #{counselDt},
+                   #{useYn},
+                   now(),
+                   #{createdBy}
+               )
+
+    </insert>
+
+    <insert id="insertWHMgmtGuideCounsel" parameterType="kr.co.igns.business.impl.model.WHMgmtGuideVO">
+        INSERT INTO esg.tb_worker_health_guide_counsel (
+            write_year,
+            doc_no,
+            doc_type,
+            health_opinion,
+            aftercare_opinion,
+            work_aptitude_yn,
+            corrective_action,
+            use_yn,
+            created_at,
+            created_by
+        )
+        VALUES (
+            #{writeYear},
+            #{docNo},
+            #{docType},
+            #{healthOpinion},
+            #{aftercareOpinion},
+            #{workAptitudeYn},
+            #{correctiveAction},
+            #{useYn},
+            now(),
+            #{createdBy}
+        )
+
+    </insert>
+
+    <insert id="insertWHMgmtGuideRequest" parameterType="kr.co.igns.business.impl.model.WHMgmtGuideVO">
+
+        INSERT INTO esg.tb_worker_health_guide_request (
+            write_year,
+            doc_no,
+            doc_type,
+            counsel_start,
+            counsel_end,
+            counsel_location,
+            counsel_reason,
+            counsel_content,
+            counsel_result,
+            use_yn,
+            created_at,
+            created_by
+        )
+        VALUES (
+            #{writeYear},
+            #{docNo},
+            #{docType},
+            #{counselStart},
+            #{counselEnd},
+            #{counselLocation},
+            #{counselReason},
+            #{counselContent},
+            #{counselResult},
+            #{useYn},
+            now(),
+            #{createdBy}
+        )
+
+    </insert>
+
+    <select id='getNonExistCntHrToday' parameterType='kr.co.igns.business.impl.model.WHMgmtGuideVO' resultType="kr.co.igns.business.impl.model.WHMgmtGuideVO">
+        select t1.hr_id
+            , t1.hr_nm
+            , t1.sex_div as sex
+            , esg.fn_gethrinfocalc(t1.hr_id, 'AGE_HR') as age
+            , esg.fn_gethrinfocalc(t1.hr_id, 'SERVICE_YEAR') as service_years
+        from esg.tb_hr_info t1
+        left join esg.tb_worker_health_guide t2
+        	on t1.hr_id = t2.hr_id
+        	and t2.counsel_dt = replace(#{counselDt}, '.', '')
+        where t1.orgn_id = #{orgnId}
+        	and t1.use_yn = 'Y'
+        	and t2.counsel_dt is null
+    </select>
+
+    <select id='getOrgnHrList' parameterType='kr.co.igns.business.impl.model.WHMgmtGuideVO' resultType="kr.co.igns.business.impl.model.WHMgmtGuideVO">
+        select t1.hr_id
+      	  , t1.hr_nm
+        from esg.tb_hr_info t1
+        where t1.orgn_id = #{orgnId}
+      	  and t1.use_yn = 'Y'
+        order by ord_seq asc
+    </select>
+
+    <update id="updateWHMgmtGuide" parameterType="kr.co.igns.business.impl.model.WHMgmtGuideVO">
+
+        UPDATE esg.tb_worker_health_guide
+        SET
+            orgn_nm = #{orgnNm},
+            sex = #{sex},
+            age = #{age},
+            service_years = #{serviceYears},
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+
+    </update>
+
+    <update id="updateWHMgmtGuideCounsel" parameterType="kr.co.igns.business.impl.model.WHMgmtGuideVO">
+
+        UPDATE esg.tb_worker_health_guide_counsel
+        SET
+            health_opinion = #{healthOpinion},
+            aftercare_opinion = #{aftercareOpinion},
+            work_aptitude_yn = #{workAptitudeYn},
+            corrective_action = #{correctiveAction},
+            use_yn = #{counselUseYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE 1 = 1
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+
+    </update>
+
+    <update id="updateWHMgmtGuideRequest" parameterType="kr.co.igns.business.impl.model.WHMgmtGuideVO">
+
+        UPDATE esg.tb_worker_health_guide_request
+        SET
+            counsel_start = #{counselStart},
+            counsel_end = #{counselEnd},
+            counsel_location = #{counselLocation},
+            counsel_reason = #{counselReason},
+            counsel_content = #{counselContent},
+            counsel_result = #{counselResult},
+            use_yn = #{requestUseYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE 1 = 1
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+
+    </update>
+
+    <delete id="deleteWHMgmtGuide" parameterType="kr.co.igns.business.impl.model.WHMgmtGuideVO">
+
+        UPDATE esg.tb_worker_health_guide
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+         WHERE comp_id = #{compId}
+           AND write_year = #{writeYear}
+           AND doc_no = #{docNo}
+           AND doc_type = #{docType}
+
+    </delete>
+
+    <delete id="deleteWHMgmtGuideCounsel" parameterType="kr.co.igns.business.impl.model.WHMgmtGuideVO">
+
+        UPDATE esg.tb_worker_health_guide_counsel
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE 1 = 1
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+
+    </delete>
+
+    <delete id="deleteWHMgmtGuideRequest" parameterType="kr.co.igns.business.impl.model.WHMgmtGuideVO">
+
+        UPDATE esg.tb_worker_health_guide_request
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE 1 = 1
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+
+    </delete>
+
+
+    <select id='getWHMgmtGuideById' parameterType='kr.co.igns.business.impl.model.WHMgmtGuideVO' resultType='kr.co.igns.business.impl.model.WHMgmtGuideVO'>
+
+        SELECT *
+        FROM esg.tb_worker_health_guide
+        WHERE comp_id = #{compId}
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+
+    </select>
+
+    <select id='getWHMgmtGuideCounselById' parameterType='kr.co.igns.business.impl.model.WHMgmtGuideVO' resultType='kr.co.igns.business.impl.model.WHMgmtGuideVO'>
+
+        SELECT *
+        FROM esg.tb_worker_health_guide_counsel
+        WHERE 1 = 1
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+
+    </select>
+
+    <select id='getWHMgmtGuideRequestById' parameterType='kr.co.igns.business.impl.model.WHMgmtGuideVO' resultType='kr.co.igns.business.impl.model.WHMgmtGuideVO'>
+
+        SELECT *
+        FROM esg.tb_worker_health_guide_request
+        WHERE 1 = 1
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+
+    </select>
+
+</mapper>

@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.support.dao.postgres.SafetyAndHealthInfoRegisterDAO">
+    <select id='getShInfoRegisterList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.support.model.SafetyAndHealthInfoRegisterVO'>
+        SELECT tshir.*
+        FROM esg.tb_safety_health_info_register tshir
+        WHERE tshir.comp_id = #{compId}
+            AND tshir.write_year = #{writeYear}
+        <if test="docNo != null and !docNo.equals('')">
+            AND tshir.doc_type = #{docType}
+            AND tshir.doc_no = #{docNo}
+        </if>
+        order by substring(tshir.receipt_dt, 1, 6) DESC, tshir.use_yn DESC, tshir.receipt_dt DESC
+    </select>
+
+    <select id='getMyShInfoRegisterList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.support.model.SafetyAndHealthInfoRegisterVO'>
+        SELECT tshir.*
+        FROM esg.tb_safety_health_info_register tshir
+        WHERE tshir.comp_id = #{compId}
+        AND tshir.write_year = #{writeYear}
+        AND (tshir.hr_id = #{hrId} OR tshir.action_orgn_id = #{orgnId})
+        <if test="docNo != null and !docNo.equals('')">
+            AND tshir.doc_type = #{docType}
+            AND tshir.doc_no = #{docNo}
+        </if>
+        order by substring(tshir.receipt_dt, 1, 6) DESC, tshir.use_yn DESC, tshir.receipt_dt DESC
+    </select>
+
+    <insert id="insertShInfoRegister" parameterType="kr.co.igns.business.support.model.SafetyAndHealthInfoRegisterVO">
+    <selectKey keyProperty="docNo" resultType="kr.co.igns.business.support.model.SafetyAndHealthInfoRegisterVO" order="BEFORE">
+				SELECT
+					LPAD((COALESCE(MAX(doc_no::INTEGER), 0) + 1)::TEXT, 5, '0') AS docNo
+			    FROM esg.tb_safety_health_info_register
+				WHERE write_year = #{writeYear}
+					AND doc_type = #{docType}
+	</selectKey>
+        INSERT INTO esg.tb_safety_health_info_register (
+            write_year,
+            doc_type,
+            doc_no,
+            comp_id,
+            hr_id,
+            hr_nm,
+            orgn_id,
+            orgn_nm,
+            jbrp_id,
+            jbrp_nm,
+            use_yn,
+            key_content,
+            action_content,
+            receipt_dt,
+            action_dt,
+            reply_dt,
+            remark,
+            action_orgn_id,
+            action_orgn_nm,
+            created_at,
+            created_by
+        )
+        VALUES (
+            #{writeYear},
+            #{docType},
+            #{docNo},
+            #{compId},
+            #{hrId},
+            #{hrNm},
+            #{orgnId},
+            #{orgnNm},
+            #{jbrpId},
+            #{jbrpNm},
+            #{useYn},
+            #{keyContent},
+            #{actionContent},
+            #{receiptDt},
+            #{actionDt},
+            #{replyDt},
+            #{remark},
+            #{actionOrgnId},
+            #{actionOrgnNm},
+            now(),
+            #{createdBy}
+        )
+    </insert>
+    <update id="updateShInfoRegister" parameterType="kr.co.igns.business.support.model.SafetyAndHealthInfoRegisterVO">
+        UPDATE esg.tb_safety_health_info_register
+        SET
+            hr_id = #{hrId},
+            hr_nm = #{hrNm},
+            orgn_id = #{orgnId},
+            orgn_nm = #{orgnNm},
+            jbrp_id = #{jbrpId},
+            jbrp_nm = #{jbrpNm},
+            use_yn = #{useYn},
+            key_content = #{keyContent},
+            action_content = #{actionContent},
+            receipt_dt = #{receiptDt},
+            action_dt = #{actionDt},
+            reply_dt = #{replyDt},
+            remark = #{remark},
+            action_orgn_id = #{actionOrgnId},
+            action_orgn_nm = #{actionOrgnNm},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE write_year = #{writeYear}
+          AND doc_type = #{docType}
+          AND doc_no = #{docNo}
+          AND comp_id = #{compId}
+    </update>
+
+    <update id="deleteShInfoRegister" parameterType="kr.co.igns.business.support.model.SafetyAndHealthInfoRegisterVO">
+        UPDATE esg.tb_safety_health_info_register
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE write_year = #{writeYear}
+          AND doc_type = #{docType}
+          AND doc_no = #{docNo}
+          AND comp_id = #{compId}
+    </update>
+</mapper>

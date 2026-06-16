@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.mobile.user.dao.postgres.V1UserDAO">
+	<!-- 미서명 항목 조회 -->
+	<select id="getUnsignedSignaturesList" parameterType="kr.co.igns.mobile.user.model.UserSearchVO" resultType="kr.co.igns.mobile.user.model.UnsignedSignaturesVO">
+       <![CDATA[
+			WITH unsigned_signatures AS (
+			    SELECT
+			        SUBSTRING(ai.target_id, 0, 5) AS write_year,
+			        ai.target_type AS doc_type,
+			        SUBSTRING(ai.target_id, 5, 5) AS doc_no
+			    FROM esg.tb_approval_info ai 
+			    WHERE ai.hr_id = #{hrId} -- :hr_id
+			        AND ai.target_type IN ('TRR', 'RORAT', 'OHC', 'PAC', 'WOOHA', 'TBM') -- :doc_types
+			        AND ai.created_at::DATE BETWEEN TO_DATE(#{startDate}, 'YYYYMMDD') AND TO_DATE(#{endDate}, 'YYYYMMDD')
+			        AND (ai.signature IS NULL OR ai.signature = '')
+			        AND ai.target_id IS NOT NULL 
+			        AND ai.target_id != ''
+			    ORDER BY ai.target_type, ai.created_at
+			), 
+			tbm AS (
+			    SELECT
+			        CONCAT(t.write_year, '-', t.doc_type, '-', t.doc_no) AS id,
+			        t.doc_type,
+			        t.work_nm AS content, -- nullable
+			        CASE WHEN COALESCE(t.tbm_date, '') != '' THEN
+			            TO_TIMESTAMP(t.tbm_date, 'YYYYMMDD')::timestamp
+			            ELSE NULL
+			        END AS started_at, -- nullable
+			        t.created_at -- nullable
+			    FROM unsigned_signatures us 
+			    JOIN esg.tb_toolboxmeeting t 
+			        ON t.write_year = us.write_year
+			            AND t.doc_type = us.doc_type
+			            AND t.doc_no = us.doc_no 
+			            AND t.comp_id = #{compId}
+			            AND t.use_yn ='Y'
+			),
+			commitees AS (
+			    SELECT
+			        CONCAT(c.write_year, '-', c.doc_type, '-', c.doc_no) AS id,
+			        c.doc_type,
+			        c.comm_nm AS content, -- nullable
+			        CASE WHEN COALESCE(c.comm_dt, '') != '' THEN
+			            TO_TIMESTAMP(c.comm_dt, 'YYYYMMDD')::timestamp
+			            ELSE NULL
+			        END AS started_at, -- nullable
+			        c.created_at -- nullable
+			    FROM unsigned_signatures us
+			    JOIN esg.tb_committee c
+			        ON c.write_year = us.write_year 
+			            AND c.doc_type = us.doc_type 
+			            AND c.doc_no = us.doc_no
+			            AND c.comp_id = #{compId} -- :comp_id
+			            AND c.use_yn = 'Y'
+			),
+			trainings AS (
+			    SELECT 
+			        CONCAT(t.write_year, '-', t.doc_type, '-', t.doc_no) AS id,
+			        t.doc_type,
+			        t.title AS content, -- nullable
+			        CASE WHEN COALESCE(t.training_date, '') != '' THEN
+			            CASE WHEN COALESCE(t.training_start, '') != '' THEN
+			                TO_TIMESTAMP(t.training_date || ' ' || SUBSTRING(t.training_start FROM '^\d{2}:\d{2}$'), 'YYYYMMDD HH24:MI')::timestamp
+			                ELSE TO_TIMESTAMP(t.training_date, 'YYYYMMDD')::timestamp 
+			            END
+			            ELSE NULL
+			        END AS started_at, -- nullable
+			        t.created_at -- nullable
+			    FROM unsigned_signatures us
+			    JOIN esg.tb_training_result_report t
+			        ON t.write_year = us.write_year 
+			            AND t.doc_type = us.doc_type 
+			            AND t.doc_no = us.doc_no
+			            AND t.comp_id = #{compId} -- :comp_id
+			            AND t.use_yn = 'Y'
+			    UNION
+			    SELECT 
+			        CONCAT(rt.write_year, '-', rt.doc_type, '-', rt.doc_no) AS id,
+			        rt.doc_type,
+			        rt.asmnt_content AS content, -- nullable
+			        CASE WHEN COALESCE(rt.asmnt_date, '') != '' THEN
+			            CASE WHEN COALESCE(rt.asmnt_start_time, '') != '' THEN
+			                TO_TIMESTAMP(rt.asmnt_date || ' ' || SUBSTRING(rt.asmnt_start_time FROM '^\d{2}:\d{2}$'), 'YYYYMMDD HH24:MI')::timestamp
+			                ELSE TO_TIMESTAMP(rt.asmnt_date, 'YYYYMMDD')::timestamp 
+			            END
+			            ELSE NULL
+			        END AS started_at, -- nullable
+			        rt.created_at -- nullable
+			    FROM unsigned_signatures us
+			    JOIN esg.tb_result_of_risk_assessment_training rt
+			        ON rt.write_year = us.write_year 
+			            AND rt.doc_type = us.doc_type 
+			            AND rt.doc_no = us.doc_no
+			            AND rt.comp_id = #{compId} -- :comp_id
+			            AND rt.use_yn = 'Y'
+			), 
+			worker_opinions AS (
+			    SELECT 
+			        CONCAT(wo.write_year, '-', wo.doc_type, '-', wo.doc_no) AS id,
+			        wo.doc_type,
+			        wo.worker_opinion AS content, -- nullable
+			        NULL::timestamp AS started_at, -- nullable
+			        wo.created_at -- nullable
+			    FROM unsigned_signatures us
+			    JOIN esg.tb_workers_opinions_on_hazards_info wo
+			        ON wo.write_year = us.write_year 
+			            AND wo.doc_type = us.doc_type 
+			            AND wo.doc_no = us.doc_no
+			            AND wo.comp_id = #{compId} -- :comp_id
+			            AND wo.use_yn = 'Y'
+			)
+			SELECT 
+			    id,
+			    doc_type AS category,
+			    content,
+			    started_at AS startedAt,
+			    created_at AS created_at    
+			FROM (
+			    SELECT * FROM tbm
+			    UNION
+			    SELECT * FROM commitees
+			    UNION
+			    SELECT * FROM trainings
+			    UNION
+			    SELECT * FROM worker_opinions
+			) l ORDER BY l.doc_type, l.created_at
+    	]]>
+	</select>
+</mapper>

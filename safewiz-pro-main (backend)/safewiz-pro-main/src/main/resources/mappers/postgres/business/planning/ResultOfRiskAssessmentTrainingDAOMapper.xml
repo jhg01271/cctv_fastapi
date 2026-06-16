@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.co.igns.business.planning.dao.postgres.ResultOfRiskAssessmentTrainingDAO">
+
+    <select id="getResultOfRiskAssessmentTraining"
+            parameterType="kr.co.igns.system.common.model.SpSearchVO"
+            resultType="kr.co.igns.business.planning.model.ResultOfRiskAssessmentTrainingVO">
+
+        SELECT WRITE_YEAR,
+               DOC_TYPE,
+               DOC_NO,
+               COMP_ID,
+               CASE
+                   WHEN TRIM(ASMNT_DATE) = '' THEN ''
+                   ELSE ASMNT_DATE
+                   END AS ASMNT_DATE,
+               ASMNT_START_TIME,
+               ASMNT_END_TIME,
+               ASMNT_PLACE,
+               ASMNT_CONTENT,
+               CREATED_AT,
+               CREATED_BY,
+               UPDATED_AT,
+               UPDATED_BY,
+               USE_YN
+        FROM ESG.TB_RESULT_OF_RISK_ASSESSMENT_TRAINING
+        WHERE COMP_ID = #{compId}
+          AND SUBSTR(ASMNT_DATE, 0, 5) = #{searchText}
+        ORDER BY SUBSTR(ASMNT_DATE, 0, 7) DESC, USE_YN DESC, ASMNT_DATE DESC, CREATED_AT DESC
+
+    </select>
+
+    <insert id="insertResultOfRiskAssessmentTraining"
+            parameterType="kr.co.igns.business.planning.model.ResultOfRiskAssessmentTrainingVO"
+            useGeneratedKeys="true" keyColumn="doc_no,write_year" keyProperty="docNo,writeYear">
+
+        <selectKey keyProperty="docNo"
+                   resultType="kr.co.igns.business.planning.model.ResultOfRiskAssessmentTrainingVO"
+                   order="BEFORE">
+            SELECT
+                LPAD((COALESCE(MAX(DOC_NO::INTEGER), 0) + 1)::TEXT, 5, '0') AS DOC_NO
+            FROM ESG.TB_RESULT_OF_RISK_ASSESSMENT_TRAINING
+            WHERE
+                write_year = #{writeYear}
+        </selectKey>
+
+        INSERT INTO ESG.TB_RESULT_OF_RISK_ASSESSMENT_TRAINING
+        (
+            WRITE_YEAR,
+            DOC_TYPE,
+            DOC_NO,
+            COMP_ID,
+            ASMNT_DATE,
+            ASMNT_START_TIME,
+            ASMNT_END_TIME,
+            ASMNT_PLACE,
+            ASMNT_CONTENT,
+            CREATED_AT,
+            CREATED_BY
+        )
+        VALUES
+        (
+            #{writeYear},
+            #{docType},
+            #{docNo},
+            #{compId},
+            #{asmntDate},
+            #{asmntStartTime},
+            #{asmntEndTime},
+            #{asmntPlace},
+            #{asmntContent},
+            NOW(),
+            #{createdBy}
+        )
+
+    </insert>
+
+    <select id="getResultOfRiskAssessmentTrainingDetail"
+            resultType="kr.co.igns.business.planning.model.ResultOfRiskAssessmentTrainingVO"
+            parameterType="kr.co.igns.system.common.model.SpSearchVO">
+
+        SELECT WRITE_YEAR,
+               DOC_TYPE,
+               DOC_NO,
+               COMP_ID,
+               ASMNT_DATE,
+               ASMNT_START_TIME,
+               ASMNT_END_TIME,
+               ASMNT_PLACE,
+               ASMNT_CONTENT,
+               CREATED_AT,
+               CREATED_BY,
+               UPDATED_AT,
+               UPDATED_BY,
+               USE_YN
+        FROM ESG.TB_RESULT_OF_RISK_ASSESSMENT_TRAINING
+        WHERE WRITE_YEAR = #{writeYear}
+          AND DOC_TYPE = #{docType}
+          AND DOC_NO = #{docNo}
+
+    </select>
+
+    <update id="updateResultOfRiskAssessmentTraining"
+            parameterType="kr.co.igns.business.planning.model.ResultOfRiskAssessmentTrainingVO">
+
+        UPDATE
+            ESG.TB_RESULT_OF_RISK_ASSESSMENT_TRAINING
+        SET ASMNT_DATE       = #{asmntDate},
+            ASMNT_START_TIME = #{asmntStartTime},
+            ASMNT_END_TIME   = #{asmntEndTime},
+            ASMNT_PLACE      = #{asmntPlace},
+            ASMNT_CONTENT    = #{asmntContent},
+            USE_YN           = #{useYn},
+            UPDATED_AT       = NOW(),
+            UPDATED_BY       = #{updatedBy}
+        WHERE WRITE_YEAR = #{writeYear}
+          AND DOC_TYPE = #{docType}
+          AND DOC_NO = #{docNo}
+
+    </update>
+
+    <delete id="deleteResultOfRiskAssessmentTraining"
+            parameterType="kr.co.igns.business.planning.model.ResultOfRiskAssessmentTrainingVO">
+
+        UPDATE
+            ESG.tb_result_of_risk_assessment_training
+        SET USE_YN     = 'N',
+            UPDATED_AT = NOW(),
+            UPDATED_BY = #{updatedBy}
+        WHERE WRITE_YEAR = #{writeYear}
+          AND DOC_TYPE = #{docType}
+          AND DOC_NO = #{docNo}
+
+    </delete>
+
+    <select id="getResultOfRiskAssessmentTrainingFileList"
+            parameterType="kr.co.igns.system.common.model.SpSearchVO"
+            resultType="kr.co.igns.system.common.model.FileVO">
+
+        SELECT FILE_ID,
+               FILE_NM AS FILE_NAME,
+               FILE_SIZE,
+               FILE_TYPE AS DOC_TYPE,
+               "extension"
+        FROM ESG.TB_SYS_FILE
+        WHERE TARGET_ID = CONCAT(#{writeYear}, #{docNo})
+          AND TARGET_TYPE = #{docType}
+
+    </select>
+
+    <select id="getResultOfRiskAssessmentTrainingAttendees"
+            parameterType="kr.co.igns.system.common.model.SpSearchVO"
+            resultType="kr.co.igns.business.participation.model.SignatureDto">
+
+        SELECT TAI.TARGET_TYPE,
+               TAI.TARGET_ID,
+               TAI.HR_ID,
+               TAI.HR_NM,
+               TAI.ORGN_NM,
+               TAI.JBRP_NM,
+               TAI.SIGNATURE,
+               TAI.PARAM,
+               TAI.CREATED_AT,
+               TAI.CREATED_BY,
+               SF.FILE_ID AS LOGO_ID
+        FROM ESG.TB_APPROVAL_INFO TAI
+                 LEFT JOIN ESG.TB_SYS_FILE SF ON SF.TARGET_ID = TAI.HR_ID AND SF.TARGET_TYPE = 'hrImg'
+        WHERE TAI.TARGET_ID = CONCAT(#{writeYear}, #{docNo})
+          AND TAI.TARGET_TYPE = #{docType}
+
+    </select>
+
+    <!-- 일괄 출력용 -->
+	<select id='getAllReport' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.common.model.SpSearchVO'>
+		select t1.write_year
+		 	, t1.doc_type
+			, t1.doc_no
+		    , t1.comp_id
+		from esg.tb_result_of_risk_assessment_training t1
+		where t1.write_year = #{writeYear}
+			and t1.comp_id  = #{compId}
+			and t1.use_yn = 'Y'
+    </select>
+
+</mapper>

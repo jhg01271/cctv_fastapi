@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.system.user.dao.postgres.TokenDAO">
+	<sql id="filter">
+		<if test="delYn != null and delYn != ''">
+			<![CDATA[			AND tut.del_yn = #{delYn}		]]>
+		</if>
+	</sql>
+	
+	<sql id='selectCol'>
+		tut.uid,
+		tut.refresh_token,
+		tut.expiration_period,
+		tut.del_yn
+	</sql>
+	
+	<insert id="insert" parameterType="kr.co.igns.system.user.model.TokenVO">
+
+		-- 무한 누적되는 문제 해결을 위해 임시적으로 삭제 쿼리 추가
+		delete from esg.tb_user_token t1
+		 where t1.uid = #{uid};		
+				
+		INSERT INTO
+		esg.tb_user_token (
+		uid,
+		refresh_token,
+		expiration_period,
+        ip
+		) VALUES (
+		#{uid},
+		#{refreshToken},
+		#{expirationPeriod},
+		#{ip}
+		);
+		
+	</insert>
+	
+	<delete id="delete" parameterType="String">
+
+		DELETE FROM esg.tb_user_token
+		WHERE uid = #{uid}
+		AND refresh_token = #{refreshToken}
+
+	</delete>
+
+	<update id="updateDelYn" parameterType="String">
+
+		UPDATE esg.tb_user_token
+		SET del_yn = 'Y'
+		WHERE uid = #{uid}
+		AND refresh_token = #{refreshToken}
+
+	</update>
+
+	<select id='search' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.user.model.TokenVO'>
+
+		SELECT
+		<include refid='kr.co.igns.system.user.dao.postgres.TokenDAO.selectCol' />
+		FROM esg.tb_user_token tut
+		WHERE tut.uid = #{uid}
+		<!-- 필터가 있다면 추가 -->
+		<include refid='kr.co.igns.system.user.dao.postgres.TokenDAO.filter' />
+		<!--  정렬순서 -->
+		ORDER BY ${sortColumn} ${sortAsc}
+		LIMIT #{listSize, jdbcType=NUMERIC} OFFSET #{listStart, jdbcType=NUMERIC}
+
+	</select>
+	
+	<select id='findOne' parameterType='String' resultType='kr.co.igns.system.user.model.TokenVO'>
+
+		SELECT
+		<include refid='kr.co.igns.system.user.dao.postgres.TokenDAO.selectCol' />
+		FROM esg.tb_user_token tut
+		WHERE uid = #{uid}
+
+	</select>
+
+
+
+	<select id='findByRefreshToken' parameterType='String' resultType='kr.co.igns.system.user.model.TokenVO'>
+
+		SELECT
+		<include refid='kr.co.igns.system.user.dao.postgres.TokenDAO.selectCol' />
+		FROM esg.tb_user_token tut
+		WHERE refresh_token = #{refreshToken}
+
+	</select>
+
+    <!-- 사용자 refresh 토큰 관련 -->
+    <select id='getUserToken' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.user.model.TokenVO'>
+        SELECT t1. uid
+             , t1.refresh_token as token
+             , t1.del_yn
+             , t1.expiration_period
+             , t1.ip
+             , t2.user_id
+        FROM esg.tb_user_token t1
+        LEFT JOIN esg.tb_user_info t2
+            ON t1.uid = t2.uuid
+        order by t1.expiration_period desc, t1.del_yn desc
+    </select>
+
+    <update id="updateUserTokenDelYn" parameterType="kr.co.igns.system.user.model.TokenVO">
+
+        UPDATE esg.tb_user_token
+        SET del_yn = 'Y'
+        WHERE uid = #{uid}
+
+    </update>
+
+    <!-- API 토큰 관련 -->
+    <select id='getApiToken' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.user.model.TokenVO'>
+        SELECT t1. uid
+             , t1.api_token as token
+             , t1.api_token_nm as token_nm
+             , t1.del_yn
+             , t1.expiration_period
+             , t1.created_at
+             , t2.user_id
+        FROM esg.tb_user_token_api t1
+        LEFT JOIN esg.tb_user_info t2
+            ON t1.uid = t2.uuid
+        order by t1.api_seq desc, t1.del_yn desc
+    </select>
+
+    <insert id="insertApiToken" parameterType="kr.co.igns.system.user.model.TokenVO">
+
+        delete from esg.tb_user_token_api t1
+        where t1.uid = #{uid};
+
+        INSERT INTO
+            esg.tb_user_token_api (
+            uid,
+            created_at,
+            created_by,
+            api_token,
+            api_token_nm,
+            del_yn,
+            expiration_period
+        ) VALUES (
+                     #{uid},
+                     now(),
+                     #{createdBy},
+                     #{token},
+                     #{tokenNm},
+                     #{delYn},
+                     #{expirationPeriod}
+                 );
+
+    </insert>
+
+    <update id="updateApiDelYn" parameterType="kr.co.igns.system.user.model.TokenVO">
+
+        UPDATE esg.tb_user_token_api
+        SET del_yn = 'Y'
+        WHERE uid = #{uid}
+
+    </update>
+
+    <select id='countByToken' parameterType='String' resultType='Integer'>
+
+        SELECT count(t1.*)
+        FROM esg.tb_user_token_api t1
+        WHERE t1.api_token = #{apiToken}
+          AND t1.del_yn = 'N'
+
+    </select>
+
+</mapper>

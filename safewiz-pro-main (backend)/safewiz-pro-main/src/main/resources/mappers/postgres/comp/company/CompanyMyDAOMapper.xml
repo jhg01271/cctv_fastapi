@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.comp.company.dao.postgres.CompanyMyDAO">
+	<!-- 2024-07-10 필터 수정 - 신택훈 -->
+	<!-- 검색항목에 사업장 ID, 사업장, 대표자, 담당자 -->
+	<sql id="filter">
+		<!-- AND cu.user_id = #{createdBy} -->
+		<!-- AND ci.del_yn = 'N' -->
+	</sql>
+
+	<sql id='selectCol'>
+		ci.comp_id,
+		ci.comp_nm,
+		ci.comp_rmk,
+		ci.rgst_no,
+		ci.corp_no,
+		ci.rpst_nm,
+		ci.zip_cd,
+		ci.addrs1,
+		ci.chrg_prsn,
+		ci.tel_no,
+		ci.biz_nm,
+		ci.prd_amt,
+		ci.up_comp_id,
+		ci.del_yn,
+	</sql>
+
+
+	<select id='searchCount' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='int'>
+
+		SELECT
+		count(1)
+		FROM fems.tb_comp_user cu
+		LEFT JOIN fems.tb_comp_info ci
+		ON ci.comp_id = cu.comp_id
+		where 1=1
+		AND cu.user_id = #{createdBy}
+		AND ci.del_yn = 'N'
+
+
+		<include refid='kr.co.igns.business.comp.company.dao.postgres.CompanyMyDAO.filter' />
+
+	</select>
+
+	<select id='search' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.comp.company.model.CompVO'>
+
+		SELECT
+		<include refid='kr.co.igns.business.comp.company.dao.postgres.CompanyMyDAO.selectCol' />
+		ci.created_at,
+		ci.updated_at,
+		'U' cmd
+		FROM fems.tb_comp_user cu
+		LEFT JOIN fems.tb_comp_info ci
+		ON ci.comp_id = cu.comp_id
+		WHERE 1=1
+		AND cu.user_id = #{createdBy}
+		AND ci.del_yn = 'N'
+		<include refid='kr.co.igns.business.comp.company.dao.postgres.CompanyMyDAO.filter' />
+		<!-- 정렬순서 -->
+		order by ci.comp_id
+
+	</select>
+
+</mapper>

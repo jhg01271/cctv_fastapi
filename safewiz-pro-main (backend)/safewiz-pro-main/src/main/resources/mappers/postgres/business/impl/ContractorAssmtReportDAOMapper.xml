@@ -1,0 +1,480 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.impl.dao.postgres.ContractorAssmtReportDAO">
+
+
+    <select id='getEvaluationType' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.ContractorChecklistVO'>
+        SELECT t1.*, sum(t2.weight::integer) as weight
+        FROM esg.tb_contractor_sh_checklist t1
+        LEFT JOIN esg.tb_contractor_sh_checklist_detail t2
+            ON t1.comp_id = t2.comp_id
+            AND t1.eval_type_id = t2.eval_type_id
+            AND t1.use_yn = 'Y'
+            AND t2.use_yn = 'Y'
+        WHERE t1.comp_id = #{compId}
+        group by t1.comp_id, t1.eval_type_id
+        order by t1.use_yn DESC, t1.ord_seq ASC
+    </select>
+
+    <select id='getEvaluationTypeDetail' parameterType='kr.co.igns.business.impl.model.ContractorChecklistVO' resultType='kr.co.igns.business.impl.model.ContractorChecklistDetailVO'>
+        SELECT tdt.*
+        FROM esg.tb_contractor_sh_checklist_detail tdt
+        WHERE tdt.eval_type_id = #{searchText}
+            AND comp_id = #{compId}
+        order by tdt.use_yn DESC, tdt.ord_seq ASC
+    </select>
+
+    <select id='getEvaluationTypeDataset' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.ContractorChecklistVO'>
+        SELECT tdt.*
+        FROM dataset.tb_dataset_contractor_sh_checklist tdt
+        WHERE tdt.use_yn = 'Y'
+        order by tdt.use_yn DESC, tdt.ord_seq ASC
+
+    </select>
+
+    <select id='getEvaluationDetailDataset' parameterType='kr.co.igns.business.impl.model.ContractorChecklistVO' resultType='kr.co.igns.business.impl.model.ContractorChecklistDetailVO'>
+        SELECT tdt.*
+        FROM dataset.tb_dataset_contractor_sh_checklist_detail tdt
+        WHERE tdt.eval_type_id = #{evalTypeId}
+        AND use_yn = 'Y'
+        order by tdt.use_yn DESC, tdt.ord_seq ASC
+    </select>
+
+    <select id='getEvaluation' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.ContractorChecklistVO'>
+        SELECT tdt.*
+        FROM esg.tb_contractor_assmt_report_master tdt
+        WHERE tdt.write_year = #{writeYear}
+            and tdt.doc_type = #{docType}
+            and tdt.doc_no = #{docNo}
+        order by tdt.use_yn DESC, tdt.ord_seq ASC
+    </select>
+
+    <select id='getEvaluationDetail' parameterType='kr.co.igns.business.impl.model.ContractorChecklistVO' resultType='kr.co.igns.business.impl.model.ContractorChecklistDetailVO'>
+        SELECT tdt.*
+        FROM esg.tb_contractor_assmt_report_detail tdt
+        WHERE tdt.write_year = #{writeYear}
+            AND tdt.doc_type = #{docType}
+            AND tdt.doc_no = #{docNo}
+            AND tdt.eval_type_id = #{evalTypeId}
+        order by tdt.use_yn DESC, tdt.ord_seq ASC
+    </select>
+
+    <insert id="insertEvaluationType" parameterType="kr.co.igns.business.impl.model.ContractorChecklistVO">
+    <selectKey keyProperty="evalTypeId" resultType="kr.co.igns.business.impl.model.ContractorChecklistVO" order="BEFORE">
+        select
+            case when #{evalTypeId} is null or #{evalTypeId} = ''
+            then to_char(now(), 'yyyymmdd') || lpad((coalesce(max(substring(eval_type_id from 9 for 4))::int, 0) + 1)::text, 4, '0')
+            else #{evalTypeId}::varchar
+            end as evalTypeId
+        from esg.tb_contractor_sh_checklist
+        where eval_type_id like to_char(now(), 'YYYYMMDD') || '%'
+            and comp_id = #{compId}
+	</selectKey>
+        INSERT INTO esg.tb_contractor_sh_checklist (
+            eval_type_id,
+            comp_id,
+            eval_type_nm,
+            use_yn,
+            ord_seq,
+            created_at,
+            created_by
+        ) VALUES(
+            #{evalTypeId},
+            #{compId},
+            #{evalTypeNm},
+            #{useYn},
+            #{ordSeq},
+            now(),
+            #{createdBy}
+        )
+    </insert>
+
+    <update id="updateEvaluationType" parameterType="kr.co.igns.business.impl.model.ContractorChecklistVO">
+        UPDATE esg.tb_contractor_sh_checklist SET
+            eval_type_nm = #{evalTypeNm},
+            use_yn = #{useYn},
+            ord_seq = #{ordSeq},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+            AND eval_type_id= #{evalTypeId};
+    </update>
+
+    <insert id="insertEvaluationTypeDetail" parameterType="kr.co.igns.business.impl.model.ContractorChecklistDetailVO">
+    <selectKey keyProperty="evalDetailId" resultType="kr.co.igns.business.impl.model.ContractorChecklistDetailVO" order="BEFORE">
+        select
+            case when #{evalDetailId} is null or #{evalDetailId} = ''
+            then to_char(now(), 'yyyymmdd') || lpad((coalesce(max(substring(eval_detail_id from 9 for 4))::int, 0) + 1)::text, 4, '0')
+            else #{evalDetailId}::varchar
+            end as evalDetailId
+        from esg.tb_contractor_sh_checklist_detail
+        where eval_detail_id like to_char(now(), 'YYYYMMDD') || '%'
+            and comp_id = #{compId}
+            and eval_detail_id = #{evalDetailId}
+	</selectKey>
+        INSERT INTO esg.tb_contractor_sh_checklist_detail (
+            eval_type_id,
+            eval_detail_id,
+            eval_detail_nm,
+            weight,
+            use_yn,
+            ord_seq,
+            div_a,
+            div_b,
+            div_c,
+            div_d,
+            div_e,
+            created_at,
+            created_by,
+            comp_id
+        ) VALUES(
+            #{evalTypeId},
+            #{evalDetailId},
+            #{evalDetailNm},
+            #{weight},
+            #{useYn},
+            #{ordSeq},
+            #{divA},
+            #{divB},
+            #{divC},
+            #{divD},
+            #{divE},
+            now(),
+            #{createdBy},
+            #{compId}
+        )
+    </insert>
+    <update id="updateEvaluationTypeDetail" parameterType="kr.co.igns.business.impl.model.ContractorChecklistVO">
+        UPDATE esg.tb_contractor_sh_checklist_detail SET
+            eval_detail_nm = #{evalDetailNm},
+            weight=#{weight},
+            use_yn = #{useYn},
+            ord_seq = #{ordSeq},
+            div_a=#{divA},
+            div_b=#{divB},
+            div_c=#{divC},
+            div_d=#{divD},
+            div_e=#{divE},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE eval_type_id = #{evalTypeId}
+            AND eval_detail_id = #{evalDetailId}
+            AND comp_id = #{compId}
+    </update>
+
+    <update id="deleteEvaluationType" parameterType="kr.co.igns.business.impl.model.ContractorChecklistVO">
+        UPDATE esg.tb_contractor_sh_checklist SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE eval_type_id = #{evalTypeId}
+          AND comp_id = #{compId}
+    </update>
+
+    <update id="deleteEvaluationTypeDetailAll" parameterType="kr.co.igns.business.impl.model.ContractorChecklistVO">
+        UPDATE esg.tb_contractor_sh_checklist_detail SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE eval_type_id = #{evalTypeId}
+          AND comp_id = #{compId}
+    </update>
+
+    <update id="deleteEvaluationTypeDetail" parameterType="kr.co.igns.business.impl.model.ContractorChecklistDetailVO">
+        UPDATE esg.tb_contractor_sh_checklist_detail SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE eval_type_id = #{evalTypeId}
+          AND eval_detail_id = #{evalDetailId}
+          AND comp_id = #{compId}
+    </update>
+
+    <insert id="insertReport" parameterType="kr.co.igns.business.impl.model.ContractorAssmtReportVO">
+    <selectKey keyProperty="docNo" resultType="kr.co.igns.business.impl.model.ContractorAssmtReportVO" order="BEFORE">
+				SELECT LPAD((COALESCE(MAX(doc_no)::INTEGER, 0) + 1)::TEXT, 5, '0') AS doc_no
+                FROM esg.tb_contractor_assmt_report
+				WHERE write_year = #{writeYear}
+	</selectKey>
+        INSERT INTO esg.tb_contractor_assmt_report (
+            write_year,
+            doc_type,
+            doc_no,
+            comp_id,
+            part_comp_id,
+            assmt_dt,
+            assmt_manager_hr_id,
+            assmt_content,
+            point,
+            remark,
+            superior_content,
+            insufficient_content,
+            use_yn,
+            created_at,
+            created_by
+        ) VALUES(
+            #{writeYear},
+            #{docType},
+            #{docNo},
+            #{compId},
+            #{partCompId},
+            #{assmtDt},
+            #{assmtManagerHrId},
+            #{assmtContent},
+            #{point},
+            #{remark},
+            #{superiorContent},
+            #{insufficientContent},
+            #{useYn},
+            now(),
+            #{createdBy}
+        )
+    </insert>
+    <update id="updateReport" parameterType="kr.co.igns.business.impl.model.ContractorAssmtReportVO">
+        UPDATE esg.tb_contractor_assmt_report SET
+            part_comp_id=#{partCompId},
+            assmt_dt=#{assmtDt},
+            assmt_manager_hr_id=#{assmtManagerHrId},
+            assmt_content=#{assmtContent},
+            point=#{point},
+            remark=#{remark},
+            superior_content=#{superiorContent},
+            insufficient_content=#{insufficientContent},
+            use_yn=#{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+            WHERE write_year = #{writeYear}
+            and doc_type = #{docType}
+            and doc_no = #{docNo}
+    </update>
+    <update id="deleteReport" parameterType="kr.co.igns.business.impl.model.ContractorAssmtReportVO">
+        UPDATE esg.tb_contractor_assmt_report SET
+            use_yn='N'
+            WHERE write_year = #{writeYear}
+            and doc_type = #{docType}
+            and doc_no = #{docNo}
+    </update>
+    <delete id="deleteAssmtHr" parameterType="kr.co.igns.business.impl.model.ContractorAssmtReportVO">
+        DELETE from esg.tb_contractor_assmt_report_hr
+            WHERE write_year = #{writeYear}
+            and doc_type = #{docType}
+            and doc_no = #{docNo}
+    </delete>
+    <insert id="insertAssmtHr" parameterType="kr.co.igns.business.impl.model.ContractorAssmtReportHrVO">
+        INSERT INTO esg.tb_contractor_assmt_report_hr (
+            write_year,
+            doc_type,
+            doc_no,
+            hr_id,
+            hr_nm,
+            created_at,
+            created_by
+        ) VALUES(
+            #{writeYear},
+            #{docType},
+            #{docNo},
+            #{hrId},
+            #{hrNm},
+            now(),
+            #{createdBy}
+        )
+    </insert>
+    <select id='getAssmtHr' parameterType='kr.co.igns.business.impl.model.ContractorAssmtReportVO' resultType='kr.co.igns.business.impl.model.ContractorAssmtReportHrVO'>
+        SELECT carh.*
+        FROM esg.tb_contractor_assmt_report_hr carh
+        WHERE carh.write_year = #{writeYear}
+        and carh.doc_type = #{docType}
+        and carh.doc_no = #{docNo}
+    </select>
+    <delete id="deleteEvaluation" parameterType="kr.co.igns.business.impl.model.ContractorAssmtReportVO">
+        DELETE from esg.tb_contractor_assmt_report_master
+            WHERE write_year = #{writeYear}
+            and doc_type = #{docType}
+            and doc_no = #{docNo}
+    </delete>
+    <delete id="deleteEvaluationDetail" parameterType="kr.co.igns.business.impl.model.ContractorChecklistVO">
+        DELETE from esg.tb_contractor_assmt_report_detail
+            WHERE write_year = #{writeYear}
+              and doc_type = #{docType}
+              and doc_no = #{docNo}
+              and eval_type_id = #{evalTypeId}
+    </delete>
+    <insert id="insertEvaluation" parameterType="kr.co.igns.business.impl.model.ContractorChecklistVO">
+        INSERT INTO esg.tb_contractor_assmt_report_master (
+            write_year,
+            doc_type,
+            doc_no,
+            eval_type_id,
+            eval_type_nm,
+            use_yn,
+            ord_seq,
+            created_at,
+            created_by
+        ) VALUES(
+            #{writeYear},
+            #{docType},
+            #{docNo},
+            #{evalTypeId},
+            #{evalTypeNm},
+            #{useYn},
+            #{ordSeq},
+            now(),
+            #{createdBy}
+        )
+    </insert>
+
+    <update id="updateEvaluation" parameterType="kr.co.igns.business.impl.model.ContractorChecklistVO">
+        UPDATE esg.tb_contractor_assmt_report_master SET
+            eval_type_nm = #{evalTypeNm},
+            use_yn = #{useYn},
+            ord_seq = #{ordSeq},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE write_year = #{writeYear}
+            AND doc_type = #{docType}
+            AND doc_no = #{docNo}
+            AND eval_type_id= #{evalTypeId};
+    </update>
+
+    <insert id="insertEvaluationDetail" parameterType="kr.co.igns.business.impl.model.ContractorChecklistDetailVO">
+        INSERT INTO esg.tb_contractor_assmt_report_detail (
+            eval_type_id,
+            eval_detail_id,
+            eval_detail_nm,
+            write_year,
+            doc_type,
+            doc_no,
+            weight,
+            use_yn,
+            ord_seq,
+            div_a,
+            div_b,
+            div_c,
+            div_d,
+            div_e,
+            point,
+            created_at,
+            created_by
+        ) VALUES(
+            #{evalTypeId},
+            #{evalDetailId},
+            #{evalDetailNm},
+            #{writeYear},
+            #{docType},
+            #{docNo},
+            #{weight},
+            #{useYn},
+            #{ordSeq},
+            #{divA},
+            #{divB},
+            #{divC},
+            #{divD},
+            #{divE},
+            #{point},
+            now(),
+            #{createdBy}
+        )
+    </insert>
+    <update id="updateEvaluationDetail" parameterType="kr.co.igns.business.impl.model.ContractorChecklistDetailVO">
+        UPDATE esg.tb_contractor_assmt_report_detail SET
+            eval_detail_nm = #{evalDetailNm},
+            weight=#{weight},
+            use_yn = #{useYn},
+            ord_seq = #{ordSeq},
+            div_a=#{divA},
+            div_b=#{divB},
+            div_c=#{divC},
+            div_d=#{divD},
+            div_e=#{divE},
+            point=#{point},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+            WHERE write_year = #{writeYear}
+              AND doc_type = #{docType}
+              AND doc_no = #{docNo}
+              AND eval_type_id = #{evalTypeId}
+              AND eval_detail_id = #{evalDetailId}
+    </update>
+
+    <select id='getAssmtReport' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.ContractorAssmtReportVO'>
+        with a as (
+        SELECT
+        car.write_year,
+        car.doc_type,
+        car.doc_no,
+        car.assmt_dt,
+        car.assmt_manager_hr_id,
+        car.assmt_content,
+        car.point,
+        car.remark,
+        car.superior_content,
+        car.insufficient_content,
+        car.created_at,
+        car.created_by,
+        car.updated_at,
+        car.updated_by,
+        tpci.part_comp_id,
+        thi.hr_nm AS assmt_manager_hr_nm,
+        car.use_yn as assmt_use_yn,
+        tpci.use_yn,
+        tpci.part_comp_nm ||
+        CASE
+        WHEN tpci.use_yn = 'N' THEN ' - (미사용)'
+        ELSE ''
+        END AS part_comp_nm,
+        RANK() OVER ( PARTITION BY tpci.part_comp_id ORDER BY car.use_yn desc, car.assmt_dt desc NULLS LAST ) AS rnk
+        FROM esg.tb_contractor_assmt_report car
+        FULL OUTER JOIN esg.tb_partner_comp_info tpci
+        ON car.part_comp_id = tpci.part_comp_id
+        LEFT JOIN esg.tb_hr_info thi
+        ON car.assmt_manager_hr_id = thi.hr_id
+        WHERE tpci.comp_id = #{compId}
+        <![CDATA[ AND tpci.reg_dt <= #{writeYear} || '1231' ]]>
+        and (('N' = #{useYn}) OR ( 'Y' = #{useYn} AND tpci.use_yn = #{useYn}))
+        )
+        select a.*
+             , case
+               when b.hr_id is not null and b.signature is not null and c.hr_id is null and c.signature is null then 'I'
+               when b.hr_id is not null and b.signature is not null and c.hr_id is not null and c.signature is null then 'I'
+               when b.hr_id is not null and b.signature is not null and c.hr_id is not null and c.signature is not null then 'Y'
+               when b.hr_id is not null and b.signature is null and c.hr_id is null and c.signature is null then 'C'
+               when b.hr_id is not null and b.signature is null and c.hr_id is not null and c.signature is not null then 'I'
+               when b.hr_id is null and b.signature is null and c.hr_id is not null and c.signature is null then 'C'
+               when b.hr_id is null and b.signature is null and c.hr_id is not null and c.signature is not null then 'Y'
+               when b.hr_id is null and b.signature is null and c.hr_id is null and c.signature is null then 'C'
+               end as approvalStatus
+        from a
+        left join esg.tb_approval_info b on b.target_type = 'CSHAR' and b.target_id = a.write_year || a.doc_no and b.param = 'writer'
+        left join esg.tb_approval_info c on c.target_type = 'CSHAR' and c.target_id = a.write_year || a.doc_no and c.param = 'reviewer'
+        where rnk = 1
+        order by a.doc_no IS NULL, a.assmt_use_yn DESC, a.use_yn DESC, a.created_at desc
+    </select>
+    <select id='getAssmtReportDetail' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.ContractorAssmtReportVO'>
+        SELECT car.*,tpci.part_comp_nm, thi.hr_nm as assmt_manager_hr_nm
+          FROM esg.tb_contractor_assmt_report car
+     LEFT JOIN esg.tb_partner_comp_info tpci
+            ON car.part_comp_id = tpci.part_comp_id
+     LEFT JOIN esg.tb_hr_info thi
+            ON car.assmt_manager_hr_id = thi.hr_id
+         WHERE write_year = #{writeYear}
+           AND doc_type = #{docType}
+           AND tpci.part_comp_id = #{partCompId}
+           AND car.assmt_dt between #{writeYear} || '0101' AND #{writeYear} || '1231'
+      ORDER BY car.use_yn desc, car.assmt_dt desc
+    </select>
+
+    <select id='getAssmetReportDetailToDocNo' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.ContractorAssmtReportVO'>
+        SELECT car.*,tpci.part_comp_nm, thi.hr_nm as assmt_manager_hr_nm
+          FROM esg.tb_contractor_assmt_report car
+     LEFT JOIN esg.tb_partner_comp_info tpci
+            ON car.part_comp_id = tpci.part_comp_id
+     LEFT JOIN esg.tb_hr_info thi
+            ON car.assmt_manager_hr_id = thi.hr_id
+         WHERE write_year = #{writeYear}
+           AND doc_type = #{docType}
+           AND tpci.part_comp_id = #{partCompId}
+           AND car.doc_no = #{docNo}
+      ORDER BY car.use_yn desc, car.assmt_dt desc
+    </select>
+</mapper>

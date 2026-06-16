@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.system.setting.dao.postgres.CompDAO">
+    <sql id="filter">
+        <if test='searchWords != "" and searchWords != null and searchWords.size > 0'>
+            AND
+            <foreach collection='searchWords' item='searchWord' index='idx' separator='OR' open='(' close=')'>
+                tci.comp_nm LIKE CONCAT('%',#{searchWord},'%')
+            </foreach>
+        </if>
+    </sql>
+
+ 	<!-- 2025.12.01 BHJ 정렬 순서 : 사용 다음 미사용 순서, comp_id 내림차순 (등록 최신순) -->
+    <select id='getCompList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.setting.model.CompVO'>
+        SELECT *
+        FROM esg.tb_company_info tci
+        WHERE 1=1
+        <include refid='kr.co.igns.system.setting.dao.postgres.CompDAO.filter' />
+        ORDER BY tci.use_yn desc, tci.comp_id desc 
+        LIMIT #{listSize, jdbcType=NUMERIC} OFFSET #{listStart, jdbcType=NUMERIC}
+    </select>
+
+	<!-- 2025.12.01 BHJ 정렬 순서 : comp_id 오름차순 (등록순) -->
+    <select id='getCompListByClnt' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.setting.model.CompVO'>
+        SELECT tci2.*
+          FROM esg.tb_client_info tci
+     LEFT JOIN esg.tb_comp_client_map tccm on tci.clnt_id = tccm.clnt_id
+     LEFT JOIN esg.tb_company_info tci2 on tccm.comp_id = tci2.comp_id
+         WHERE 1=1
+           AND tci.clnt_id = #{clntId}
+           AND tci.use_yn = 'Y'
+           AND tci2.use_yn = 'Y'
+      ORDER BY tci2.ord_seq asc, tci2.comp_id asc;
+    </select>
+
+
+    <!-- 2025.12.01 BHJ 정렬 순서 : 소속사업장 다음 관리사업장 , 사업장 정렬 순서 오름차순, 사업장명 오름차순 -->
+    <select id='getCompListByUserId' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.setting.model.CompVO'>
+        SELECT b.comp_id, c.comp_nm
+          FROM esg.tb_user_info a
+     LEFT JOIN esg.tb_hr_info_comp_map b on a.user_id = b.user_id
+     LEFT JOIN esg.tb_company_info c on b.comp_id = c.comp_id
+         WHERE a.user_id = #{userId}
+           AND b.use_yn = 'Y'
+         ORDER BY orgn_comp_yn desc, c.ord_seq asc, comp_nm asc;    
+    </select>
+    
+    <!-- 2025.12.01 BHJ 정렬 순서 : comp_id 오름차순 (등록순) -->
+    <select id='getCompListByMaster' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.setting.model.CompVO'>       
+        SELECT *
+        	FROM esg.tb_company_info tci
+        WHERE 1=1
+        	AND tci.use_yn = 'Y'
+        ORDER BY tci.comp_id asc;
+    </select>
+    
+    <!-- 2025.03.21 BHJ MASTER를 제외한 user는  tb_hr_info_comp_map에 해당 user의 사업장이 저장되어 있음 -->
+    <!-- 2025.12.01 BHJ 정렬 순서 : 소속사업장 다음 관리사업장 , 사업장 정렬 순서 오름차순, 사업장명 오름차순 -->
+    <select id='getCompListByHr' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.setting.model.CompVO'>       
+         SELECT a.*, b.orgn_comp_yn
+         FROM esg.tb_company_info a
+    LEFT JOIN esg.tb_hr_info_comp_map b on a.comp_id = b.comp_id
+    LEFT JOIN esg.tb_user_info c on b.user_id = c.user_id
+         WHERE a.use_yn = 'Y'
+         AND c.user_id =  #{userId}
+         ORDER BY orgn_comp_yn desc, a.ord_seq asc, comp_nm asc;
+    </select>
+
+    <select id='searchCount' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='int'>
+
+        SELECT
+        count(1)
+        FROM esg.tb_company_info tci
+        WHERE 1=1
+        <include refid='kr.co.igns.system.setting.dao.postgres.CompDAO.filter' />
+
+    </select>
+
+    <select id='getCompDetail' parameterType='String' resultType='kr.co.igns.system.setting.model.CompVO'>
+        SELECT *,  sf.file_id as file_id
+          FROM esg.tb_company_info tci
+     LEFT JOIN esg.tb_sys_file sf on sf.target_id = #{compId} and sf.target_type='compLogo'
+         WHERE 1=1
+           AND tci.comp_id = #{compId}
+    </select>
+
+    <select id='getCompClntDetail' parameterType='String' resultType='kr.co.igns.system.common.model.SpSearchVO'>
+        SELECT tci2.clnt_id as id,
+               tci2.clnt_nm as nm
+          FROM esg.tb_company_info tci
+     LEFT JOIN esg.tb_comp_client_map tccm on tci.comp_id = tccm.comp_id
+     LEFT JOIN esg.tb_client_info tci2 on tccm.clnt_id = tci2.clnt_id
+         WHERE 1=1
+           AND tci.comp_id = #{compId}
+    </select>
+
+    <insert id="insertComp" parameterType="kr.co.igns.system.setting.model.CompVO">
+        <selectKey keyProperty="compId" resultType="kr.co.igns.system.setting.model.CompVO" order="BEFORE">
+    	     select to_char(now(), 'yyyymmdd') ||
+				   lpad(
+					   (coalesce(max(substring(comp_id from 9 for 4))::int, 0) + 1)::text,
+					   4,
+					   '0'
+				   ) as comp_id
+			from esg.tb_company_info
+			where comp_id like to_char(now(), 'YYYYMMDD') || '%';
+    	</selectKey>
+        INSERT INTO esg.tb_company_info (
+            comp_id,
+            comp_nm,
+            rgst_no,
+            rpst_nm,
+            email,
+            tel_no,
+            biz_cd,
+            biz_nm,
+            const_class_cd,
+            const_class_nm,
+            zip_cd,
+            addrs1,
+            addrs2,
+            ord_seq,
+            created_at,
+            created_by,
+            use_yn,
+            max_hr_count
+        )
+        VALUES (
+                   #{compId},
+                   #{compNm},
+                   #{rgstNo},
+                   #{rpstNm},
+                   #{email},
+                   #{telNo},
+                   #{bizCd},
+                   #{bizNm},
+                   #{constClassCd},
+                   #{constClassNm},
+                   #{zipCd},
+                   #{addrs1},
+                   #{addrs2},
+                   #{ordSeq},
+                   now(),
+                   #{createdBy},
+                   'Y',
+                   #{maxHrCount}
+               )
+
+    </insert>
+
+    <update id="updateComp" parameterType="kr.co.igns.system.setting.model.CompVO">
+
+        UPDATE esg.tb_company_info
+        SET
+            comp_nm = #{compNm},
+            rgst_no = #{rgstNo},
+            rpst_nm = #{rpstNm},
+            email = #{email},
+            tel_no = #{telNo},
+            biz_cd = #{bizCd},
+            biz_nm = #{bizNm},
+            const_class_cd = #{constClassCd},
+            const_class_nm = #{constClassNm},
+            zip_cd = #{zipCd},
+            addrs1 = #{addrs1},
+            addrs2 = #{addrs2},
+            use_yn = #{useYn},
+            ord_seq = #{ordSeq},
+            updated_at = now(),
+            updated_by = #{updatedBy},
+            max_hr_count = #{maxHrCount}
+        WHERE 1 = 1
+          AND comp_id = #{compId}
+
+    </update>
+
+    <delete id="deleteComp" parameterType="kr.co.igns.system.setting.model.CompVO">
+
+        UPDATE esg.tb_company_info
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE 1 = 1
+          AND comp_id = #{compId}
+
+    </delete>
+    <select id='getCompById' parameterType="kr.co.igns.system.setting.model.CompVO" resultType='kr.co.igns.system.setting.model.CompVO'>
+
+        SELECT *
+        FROM esg.tb_company_info tci
+        WHERE 1=1
+          AND 1 = 1
+          AND tci.comp_id = #{compId}
+
+    </select>
+    
+</mapper>

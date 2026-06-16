@@ -1,0 +1,298 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.support.dao.postgres.QualificationCertificationAssessmentDAO">
+
+    <select id='getQualificationManagement' parameterType="kr.co.igns.system.common.model.SpSearchVO" resultType='kr.co.igns.business.support.model.EducationTrainingVO'>
+        SELECT
+            'qualificationCertificationAssessment' AS title
+            ,'/QualificationCertificationAssessment' AS route
+            ,'qualificationCertificationAssessmentDesc' AS description
+            , case when qualificationCertificationAssessment.exist then 'Y'
+            	else 'N'
+            	end as activeYn
+        FROM
+        (
+            SELECT EXISTS (
+                SELECT 1
+                FROM esg.tb_qualification_certification tqc
+                WHERE tqc.comp_id  = #{compId}
+                    AND tqc.write_year = #{writeYear}
+            ) as exist
+        ) AS qualificationCertificationAssessment
+        UNION ALL
+        SELECT
+            'safetyDutiesDesigDocument' AS title
+            ,'/SafetyDutiesDesigDocument' AS route
+            ,'safetyDutiesDesigDocumentDesc' AS description
+            , case when safetyDutiesDesigDocument.exist then 'Y'
+            	else 'N'
+            	end as activeYn
+        FROM
+        (
+            SELECT EXISTS (
+                SELECT 1
+                FROM esg.tb_safety_duties_doc tsdd
+                WHERE tsdd.comp_id  = #{compId}
+                    AND tsdd.write_year = #{writeYear}
+            ) as exist
+        ) AS safetyDutiesDesigDocument
+        UNION ALL
+        SELECT
+            'sAndHQualificationCertRegister' AS title
+            ,'/SAndHQualificationCertRegister' AS route
+            ,'sAndHQualificationCertRegisterDesc' AS description
+            , case when sAndHQualificationCertRegister.exist then 'Y'
+            	else 'N'
+            	end as activeYn
+        FROM
+        (
+            SELECT EXISTS (
+                SELECT 1
+                FROM esg.tb_qualification_cert_reg tqcr
+                WHERE tqcr.comp_id  = #{compId}
+                    AND tqcr.write_year = #{writeYear}
+            ) as exist
+        ) AS sAndHQualificationCertRegister
+    </select>
+
+    <insert id='insertDocDetail' parameterType='kr.co.igns.business.support.model.QualificationCertificationDocVo'>
+    <selectKey keyProperty="docSeq" resultType="kr.co.igns.business.support.model.QualificationCertificationDocVo" order="BEFORE">
+            <![CDATA[
+            SELECT
+                LPAD((COALESCE(MAX(SUBSTRING(doc_seq, 1, 5)::INTEGER), 0) + 1)::TEXT, 5, '0') AS docSeq
+                FROM esg.tb_qualification_certification_doc
+         ]]>
+        </selectKey>
+        INSERT INTO esg.tb_qualification_certification_doc (
+            doc_seq,
+            comp_id,
+            target_column,
+            ord_seq,
+            content,
+            point,
+            use_yn,
+            created_at,
+            created_by
+        )
+        VALUES (
+            #{docSeq},
+            #{compId},
+            #{targetColumn},
+            #{ordSeq},
+            #{content},
+            #{point},
+            #{useYn},
+            now(),
+            #{createdBy}
+        )
+    </insert>
+    <update id='updateDocDetail' parameterType='kr.co.igns.business.support.model.QualificationCertificationDocVo'>
+        UPDATE esg.tb_qualification_certification_doc
+        SET
+            ord_seq = #{ordSeq},
+            content = #{content},
+            point = #{point},
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE 
+            doc_seq = #{docSeq}
+    </update>
+
+    <insert id="insert" parameterType="kr.co.igns.business.support.model.QualificationCertificationAssessmentVO">
+        <selectKey keyProperty="docNo" resultType="kr.co.igns.business.support.model.QualificationCertificationAssessmentVO" order="BEFORE">
+				select LPAD((coalesce(MAX(SUBSTRING(doc_no, 1, 5)::INTEGER), 0) + 1)::text, 5, '0') as docNo
+                from esg.tb_qualification_certification
+                where write_year = #{writeYear}
+                    and doc_type = #{docType}
+	    </selectKey>
+        INSERT INTO esg.tb_qualification_certification (
+            write_year,
+            doc_no,
+            doc_type,
+            comp_id,
+            write_date,
+            writer_id,
+            hr_id,
+            hr_type,
+            pass_yn,
+            column1,
+            column2,
+            column3,
+            column4,
+            column5,
+            column_etc1,
+            column_etc2,
+            remark,
+            created_at,
+            created_by
+        )
+        VALUES (
+            #{writeYear},
+            #{docNo},
+            #{docType},
+            #{compId},
+            #{writeDate},
+            #{writerId},
+            #{hrId},
+            #{hrType},
+            #{passYn},
+            #{column1},
+            #{column2},
+            #{column3},
+            #{column4},
+            #{column5},
+            #{columnEtc1},
+            #{columnEtc2},
+            #{remark},
+            now(),
+            #{createdBy}
+        )
+
+    </insert>
+    <update id="update" parameterType="kr.co.igns.business.support.model.QualificationCertificationAssessmentVO">
+        UPDATE esg.tb_qualification_certification
+        SET
+            hr_id=#{hrId},
+            hr_type=#{hrType},
+            pass_yn=#{passYn},
+            column1=#{column1},
+            column2=#{column2},
+            column3=#{column3},
+            column4=#{column4},
+            column5=#{column5},
+            column_etc1=#{columnEtc1},
+            column_etc2=#{columnEtc2},
+            remark=#{remark},
+            use_yn=#{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE 
+            write_year = #{writeYear} AND
+            doc_no = #{docNo} AND
+            doc_type= #{docType}
+
+    </update>
+
+    <delete id="delete" parameterType="kr.co.igns.business.support.model.QualificationCertificationAssessmentVO">
+        UPDATE esg.tb_qualification_certification
+        SET
+            use_yn='N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE 
+            write_year = #{writeYear} AND
+            doc_no = #{docNo} AND
+            doc_type= #{docType}
+    </delete>
+
+    <select id='searchList' resultType='kr.co.igns.business.support.model.QualificationCertificationAssessmentVO' parameterType='kr.co.igns.system.common.model.SpSearchVO'>
+        select tqc.* ,thi.*,sf.file_id as logoId, thiw.hr_nm as writer_nm
+             , esg.fn_getapprovalstatus('QCA',  tqc.write_year || tqc.doc_no) as approvalStatus
+         from esg.tb_qualification_certification tqc 
+        LEFT JOIN esg.tb_hr_info thi on tqc.hr_id = thi.hr_id
+        left join esg.tb_hr_info thiw on thiw.hr_id = tqc.writer_id
+        LEFT JOIN esg.tb_sys_file sf
+        ON sf.target_id = thi.hr_id
+        AND sf.target_type = 'hrImg'
+        WHERE tqc.comp_id = #{compId}
+            and tqc.write_year = #{writeYear}
+        order by tqc.use_yn desc, tqc.doc_no desc
+    </select>
+    <select id='search' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.support.model.QualificationCertificationAssessmentVO'>
+        select tqc.*,thi.hr_nm,
+        thi.working_at,
+        jbrp.jbrp_nm,
+        toi.orgn_nm as orgn_nm,
+        thiw.hr_nm as writer_nm,
+        toiw.orgn_nm as writer_orgn
+        from esg.tb_qualification_certification tqc
+        left join esg.tb_hr_info thi on thi.hr_id = tqc.hr_id
+        left join esg.tb_hr_info thiw on thiw.hr_id = tqc.writer_id
+        left join esg.tb_hr_info_jbrp jbrp
+            on jbrp.jbrp_id = thi.jbrp and jbrp.comp_id = #{compId}
+        left join esg.tb_orgn_info toi on toi.orgn_id = thi.orgn_id
+        left join esg.tb_orgn_info toiw on toiw.orgn_id = thiw.orgn_id
+        WHERE tqc.comp_id = #{compId} AND
+        tqc.write_year = #{writeYear} AND
+        tqc.doc_no = #{docNo} AND
+        tqc.doc_type= #{docType}
+    </select>
+
+    <select id='getEvaluationList' resultType='kr.co.igns.business.support.model.QualificationCertificationDocVo' parameterType='kr.co.igns.system.common.model.SpSearchVO'>
+        SELECT *
+          FROM dataset.tb_dataset_qualification_certification_evaluation_item
+      ORDER BY ord_seq
+	</select>
+    <select id='getAllEvaluationDetailList' resultType='kr.co.igns.business.support.model.QualificationCertificationDocVo' parameterType='kr.co.igns.system.common.model.SpSearchVO'>
+        SELECT a.*, b.item_type
+          FROM esg.tb_qualification_certification_evaluation_criteria a
+     LEFT JOIN dataset.tb_dataset_qualification_certification_evaluation_item b ON a.item_id = b.item_id
+         WHERE a.comp_id = #{compId}
+    </select>
+
+    <select id='getEvaluationDetailList' resultType='kr.co.igns.business.support.model.QualificationCertificationDocVo' parameterType='kr.co.igns.system.common.model.SpSearchVO'>
+        SELECT a.*, b.item_type
+          FROM esg.tb_qualification_certification_evaluation_criteria a
+     LEFT JOIN dataset.tb_dataset_qualification_certification_evaluation_item b ON a.item_id = b.item_id
+         WHERE a.comp_id = #{compId}
+           AND a.item_id = #{searchText}
+    </select>
+
+    <select id='getEvaluationDataSetList' resultType='kr.co.igns.business.support.model.QualificationCertificationDocVo' parameterType='kr.co.igns.system.common.model.SpSearchVO'>
+        SELECT *
+        FROM dataset.tb_dataset_qualification_certification_evaluation_criteria
+        WHERE item_id = #{searchText}
+     ORDER BY ord_seq
+    </select>
+
+    <insert id="insertEvaluationList" parameterType="kr.co.igns.business.support.model.QualificationCertificationDocVo">
+        <selectKey keyProperty="criteriaId" resultType="kr.co.igns.business.support.model.QualificationCertificationDocVo" order="BEFORE">
+            <![CDATA[
+                SELECT CASE WHEN #{criteriaId} is not null and #{criteriaId} != '' then #{criteriaId}
+                            ELSE TO_CHAR(CURRENT_DATE, 'YYYYMMDD') || LPAD((COALESCE(MAX(SUBSTRING(criteria_id, 9, 4)::INTEGER), 0) + 1)::text, 4, '0')
+                             END AS criteria_id
+                  FROM esg.tb_qualification_certification_evaluation_criteria
+                 WHERE comp_id = #{compId}
+                   AND criteria_id like to_char(now(), 'yyyymmdd') || '%'
+            ]]>
+        </selectKey>
+        INSERT INTO esg.tb_qualification_certification_evaluation_criteria (
+            comp_id,
+            item_id,
+            criteria_id,
+            criteria_nm,
+            point,
+            ord_seq,
+            use_yn,
+            created_at,
+            created_by
+        )
+        VALUES (
+            #{compId},
+            #{itemId},
+            #{criteriaId},
+            #{criteriaNm},
+            #{point},
+            #{ordSeq},
+            #{useYn},
+            now(),
+            #{createdBy}
+        )
+    </insert>
+
+    <update id="updateEvaluationList" parameterType="kr.co.igns.business.support.model.QualificationCertificationDocVo">
+        UPDATE esg.tb_qualification_certification_evaluation_criteria
+        SET criteria_nm = #{criteriaNm},
+            point = #{point},
+            ord_seq = #{ordSeq},
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+          AND item_id = #{itemId}
+          AND criteria_id = #{criteriaId}
+    </update>
+
+</mapper>

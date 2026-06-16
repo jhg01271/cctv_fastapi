@@ -1,0 +1,479 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.support.dao.postgres.JobCompetencyAssessmentDAO">
+
+    <select id='getCardJobManageList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.support.model.JobCompetencyAssessmentDetailVO'>
+        SELECT job_id,
+               job_category,
+               job_nm,
+               remark,
+               ord_seq
+          FROM esg.tb_job_competency_assessment_jobmgmt
+         WHERE comp_id = #{compId}
+           AND use_yn = 'Y'
+         UNION ALL
+        SELECT a.orgn_role_id as job_id,
+               CASE WHEN a.orgn_role_type = 'safety' THEN '안전보건'
+                    WHEN a.orgn_role_type = 'risk' THEN '위험성평가'
+                  END AS job_category,
+               CASE WHEN a.orgn_role_type = 'safety' THEN c.orgn_role_nm
+                    WHEN a.orgn_role_type = 'risk' THEN d.orgn_role_nm
+                  END AS job_nm,
+               a.content as remark,
+               0 as ord_seq
+          FROM esg.tb_safety_duties_doc a
+     LEFT JOIN esg.tb_safety_duties_doc_user b ON a.write_year = b.write_year AND a.doc_type = b.doc_type AND a.doc_no = b.doc_no
+     LEFT JOIN esg.tb_safety_health_org_chart_orgn_role c ON a.orgn_role_type = 'safety' AND a.orgn_role_id = c.orgn_role_id
+     LEFT JOIN esg.tb_risk_assessment_organ_chart_orgn_role d ON a.orgn_role_type = 'risk' AND a.orgn_role_id = d.orgn_role_id
+         WHERE b.hr_id = #{hrId}
+           AND a.comp_id = #{compId}
+           AND (c.comp_id is null or (c.comp_id is not null and c.comp_id = #{compId}))
+           AND (d.comp_id is null or (d.comp_id is not null and d.comp_id = #{compId}))
+           AND b.doc_no = (SELECT MAX(b.doc_no)
+                             FROM esg.tb_safety_duties_doc a
+                        LEFT JOIN esg.tb_safety_duties_doc_user b ON a.write_year = b.write_year AND a.doc_type = b.doc_type AND a.doc_no = b.doc_no
+                            WHERE a.comp_id = #{compId}
+                              AND b.hr_id = #{hrId}
+                              AND a.use_yn = 'Y'
+                           )
+      ORDER BY ord_seq
+    </select>
+
+    <select id='getJobManageList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.support.model.JobMgmtVO'>
+        SELECT *
+          FROM esg.tb_job_competency_assessment_jobmgmt
+         WHERE comp_id = #{compId}
+      ORDER BY ord_seq
+    </select>
+
+    <select id='getEsgSetJobManageList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.support.model.JobMgmtVO'>
+        select ROW_NUMBER() over (order by orgn_role_type desc, ord_seq) as ord_seq,
+               comp_id,
+               job_category,
+               job_nm,
+               orgn_role_type,
+               orgn_role_id,
+               use_yn,
+               remark,
+               created_at,
+               created_by,
+               updated_at,
+               updated_by
+          FROM (
+        SELECT comp_id, orgn_role_id, orgn_role_nm as job_nm, '안전보건' as job_category, 'safety' as orgn_role_type, ord_seq, use_yn, remark, created_at, created_by, updated_at, updated_by
+          FROM esg.tb_safety_health_org_chart_orgn_role
+         WHERE comp_id = #{compId}
+           AND use_yn = 'Y'
+     UNION ALL
+        SELECT comp_id, orgn_role_id, orgn_role_nm as job_nm, '위험성평가' as job_category, 'risk' as orgn_role_type, ord_seq, use_yn, remark, created_at, created_by, updated_at, updated_by
+          FROM esg.tb_risk_assessment_organ_chart_orgn_role
+         WHERE comp_id = #{compId}
+           AND use_yn = 'Y'
+          ) AS test
+      ORDER BY orgn_role_type desc, ord_seq
+    </select>
+
+    <select id='getDataSetJobManageList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.support.model.JobMgmtVO'>
+        SELECT ROW_NUMBER() over (order by orgn_role_type desc, ord_seq) as ord_seq,
+               job_category,
+               job_nm,
+               orgn_role_type,
+               orgn_role_id,
+               use_yn,
+               remark
+          FROM (
+        SELECT orgn_role_id, orgn_role_nm as job_nm, '안전보건' as job_category, 'safety' as orgn_role_type, ord_seq, use_yn, remark
+          FROM dataset.tb_dataset_safety_health_org_chart_orgn_role
+         WHERE use_yn = 'Y'
+     UNION ALL
+        SELECT orgn_role_id, orgn_role_nm as job_nm, '위험성평가' as job_category, 'risk' as orgn_role_type, ord_seq, use_yn, remark
+          FROM dataset.tb_dataset_risk_assessment_organ_chart_orgn_role
+         WHERE use_yn = 'Y'
+             ) AS test
+      ORDER BY orgn_role_type desc, ord_seq
+    </select>
+
+    <insert id="insertJobManageList" parameterType="kr.co.igns.business.support.model.JobMgmtVO">
+        <selectKey keyProperty="jobId" resultType="kr.co.igns.business.support.model.JobMgmtVO" order="BEFORE">
+            SELECT CASE WHEN #{jobId} IS NULL or #{jobId} = ''
+                        THEN TO_CHAR(now(), 'yyyymmdd') || lpad((COALESCE(MAX(SUBSTRING(job_id from 9 for 4))::int, 0) + 1)::text , 4, '0')
+                         END as job_id
+              FROM esg.tb_job_competency_assessment_jobmgmt
+             WHERE job_id like to_char(now(), 'yyyymmdd') || '%'
+               AND comp_id = #{compId}
+             LIMIT 1
+        </selectKey>
+        INSERT INTO esg.tb_job_competency_assessment_jobmgmt (
+            comp_id,
+            job_id,
+            job_category,
+            job_nm,
+            remark,
+            ord_seq,
+            use_yn,
+            created_at,
+            created_by
+        )
+        VALUES (
+            #{compId},
+            #{jobId},
+            #{jobCategory},
+            #{jobNm},
+            #{remark},
+            #{ordSeq},
+            #{useYn},
+            NOW(),
+            #{createdBy}
+        )
+    </insert>
+
+    <update id="updateJobManageList" parameterType="kr.co.igns.business.support.model.JobMgmtVO">
+        UPDATE esg.tb_job_competency_assessment_jobmgmt
+           SET job_category = #{jobCategory},
+               job_nm = #{jobNm},
+               remark = #{remark},
+               ord_seq = #{ordSeq},
+               use_yn = #{useYn},
+               updated_at = now(),
+               updated_by = #{updatedBy}
+         WHERE comp_id = #{compId}
+           AND job_id = #{jobId}
+    </update>
+
+    <update id="deleteJobManageList" parameterType="kr.co.igns.business.support.model.JobMgmtVO">
+        UPDATE esg.tb_job_competency_assessment_jobmgmt
+           SET job_category = #{jobCategory},
+               job_nm = #{jobNm},
+               remark = #{remark},
+               ord_seq = #{ordSeq},
+               use_yn = 'N',
+               updated_at = now(),
+               updated_by = #{updatedBy}
+               WHERE comp_id = #{compId}
+           AND job_id = #{jobId}
+    </update>
+
+    <select id='getJobLevelManageList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.support.model.JobLevelVO'>
+        SELECT *
+          FROM esg.tb_job_competency_assessment_joblevel
+         WHERE comp_id = #{compId}
+      ORDER BY ord_seq
+    </select>
+
+    <select id='getDataSetJobLevelManageList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.support.model.JobLevelVO'>
+        SELECT *
+          FROM dataset.tb_dataset_job_competency_assessment_joblevel
+      ORDER BY ord_seq
+    </select>
+
+    <insert id="insertJobLevelManageList" parameterType="kr.co.igns.business.support.model.JobLevelVO">
+        <selectKey keyProperty="jobLevelId" resultType="String" order="BEFORE">
+            SELECT CASE WHEN #{jobLevelId} IS NULL or #{jobLevelId} = ''
+                        THEN TO_CHAR(now(), 'yyyymmdd') || lpad((COALESCE(MAX(SUBSTRING(job_level_id from 9 for 4))::int, 0) + 1)::text , 4, '0')
+                        ELSE #{jobLevelId}
+                         END as job_level_id
+              FROM esg.tb_job_competency_assessment_joblevel
+             WHERE job_level_id like to_char(now(), 'yyyymmdd') || '%'
+               AND comp_id = #{compId}
+             LIMIT 1
+        </selectKey>
+        INSERT INTO  esg.tb_job_competency_assessment_joblevel(
+            comp_id,
+            job_level_id,
+            job_level_nm,
+            remark,
+            ord_seq,
+            use_yn,
+            created_at,
+            created_by
+        ) VALUES (
+            #{compId},
+            #{jobLevelId},
+            #{jobLevelNm},
+            #{remark},
+            #{ordSeq},
+            #{useYn},
+            NOW(),
+            #{createdBy}
+        )
+    </insert>
+
+    <update id="updateJobLevelManageList" parameterType="kr.co.igns.business.support.model.JobLevelVO">
+        UPDATE esg.tb_job_competency_assessment_joblevel
+           SET job_level_nm = #{jobLevelNm},
+               remark = #{remark},
+               ord_seq = #{ordSeq},
+               use_yn = #{useYn}
+         WHERE comp_id = #{compId}
+           AND job_level_id = #{jobLevelId}
+    </update>
+
+    <delete id="deleteJobLevelManageList" parameterType="kr.co.igns.business.support.model.JobLevelVO">
+        UPDATE esg.tb_job_competency_assessment_joblevel
+           SET job_level_nm = #{jobLevelNm},
+               remark = #{remark},
+               ord_seq = #{ordSeq},
+               use_yn = 'N',
+               updated_at = now(),
+               updated_by = #{updatedBy}
+         WHERE comp_id = #{compId}
+           AND job_level_id = #{jobLevelId}
+    </delete>
+
+    <select id='getJobCompAssessList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.support.model.JobCompetencyAssessmentVO'>
+        SELECT
+            tjca.*
+            , sf.file_id as logoId
+            , case when tair.signature is not null then 'Y'
+            	when taiw.signature is not null then 'N'
+            	else 'C'
+            	end as approvalStatus
+        FROM esg.tb_job_competency_assessment tjca
+        LEFT JOIN esg.tb_orgn_info toi
+        	ON toi.orgn_id = tjca.orgn_id
+        	AND toi.comp_id = tjca.comp_id
+        LEFT JOIN esg.tb_approval_info taiw
+        	ON taiw.target_type = 'JCA'
+        	AND taiw.target_id = tjca.write_year || tjca.doc_no
+        	AND taiw.param = 'writer'
+        LEFT JOIN esg.tb_approval_info tair
+        	ON tair.target_type = 'JCA'
+        	AND tair.target_id = tjca.write_year || tjca.doc_no
+        	AND tair.param = 'reviewer'
+        LEFT JOIN esg.tb_sys_file sf
+            ON sf.target_id = tjca.hr_id
+            AND sf.target_type = 'hrImg'
+        WHERE tjca.comp_id = #{compId}
+            AND tjca.write_year = #{writeYear}
+        <if test="docNo != null and !docNo.equals('')">
+            AND tjca.doc_type = #{docType}
+            AND tjca.doc_no = #{docNo}
+        </if>
+        ORDER BY tjca.use_yn DESC, tjca.doc_no asc
+    </select>
+
+    <select id='getPreJobCompAssessList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.support.model.JobCompetencyAssessmentVO'>
+        SELECT
+            tjca.*
+            , sf.file_id as logoId
+            , case when taia.signature is not null then 'Y'
+            	when taiR.signature is not null then 'I'
+            	when taiw.signature is not null then 'W'
+            	else 'C'
+            	end as approvalStatus
+        FROM esg.tb_job_competency_assessment tjca
+        LEFT JOIN esg.tb_orgn_info toi
+        	ON toi.orgn_id = tjca.orgn_id
+        	AND toi.comp_id = tjca.comp_id
+        LEFT JOIN esg.tb_approval_info taiw
+        	ON taiw.target_type = 'JCA'
+        	AND taiw.target_id = tjca.write_year || tjca.doc_no
+        	AND taiw.param = 'writer'
+        LEFT JOIN esg.tb_approval_info tair
+        	ON tair.target_type = 'JCA'
+        	AND tair.target_id = tjca.write_year || tjca.doc_no
+        	AND tair.param = 'reviewer'
+        LEFT JOIN esg.tb_approval_info taia
+        	ON taia.target_type = 'JCA'
+        	AND taia.target_id = tjca.write_year || tjca.doc_no
+        	AND taia.param = 'approver'
+        LEFT JOIN esg.tb_sys_file sf
+            ON sf.target_id = tjca.hr_id
+            AND sf.target_type = 'hrImg'
+        WHERE tjca.comp_id = #{compId}
+            AND tjca.doc_type = 'JCA'
+            AND (
+                    (
+                        tjca.write_year = (#{writeYear}::integer -1)::varchar
+                        AND tjca.use_yn = 'Y'
+                    )
+                OR tjca.write_year = #{writeYear}
+            )
+        ORDER BY toi.ord_seq ASC, tjca.use_yn DESC, tjca.write_year DESC
+    </select>
+
+    <select id='getJobCompAssessDetail' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.support.model.JobCompetencyAssessmentDetailVO'>
+        SELECT *
+          FROM esg.tb_job_competency_assessment_detail
+         WHERE comp_id = #{compId}
+           AND write_year = #{writeYear}
+           AND doc_type = #{docType}
+           AND doc_no = #{docNo}
+      ORDER BY use_yn DESC
+    </select>
+
+    <insert id="insertJobCompAssess" parameterType="kr.co.igns.business.support.model.JobCompetencyAssessmentVO">
+    <selectKey keyProperty="docNo" resultType="kr.co.igns.business.support.model.JobCompetencyAssessmentVO" order="BEFORE">
+				SELECT
+					LPAD((COALESCE(MAX(doc_no::INTEGER), 0) + 1)::TEXT, 5, '0') AS docNo
+			    FROM esg.tb_job_competency_assessment
+				WHERE write_year = #{writeYear}
+					AND doc_type = #{docType}
+	</selectKey>
+        INSERT INTO esg.tb_job_competency_assessment (
+            write_year,
+            doc_type,
+            doc_no,
+            comp_id,
+            hr_id,
+            hr_nm,
+            orgn_id,
+            orgn_nm,
+            jbrp_id,
+            jbrp_nm,
+            use_yn,
+            created_at,
+            created_by
+        )
+        VALUES (
+            #{writeYear},
+            #{docType},
+            #{docNo},
+            #{compId},
+            #{hrId},
+            #{hrNm},
+            #{orgnId},
+            #{orgnNm},
+            #{jbrpId},
+            #{jbrpNm},
+            #{useYn},
+            now(),
+            #{createdBy}
+        )
+    </insert>
+
+     <update id="updateJobCompAssess" parameterType="kr.co.igns.business.support.model.JobCompetencyAssessmentVO">
+        UPDATE esg.tb_job_competency_assessment
+        SET
+            hr_id = #{hrId},
+            hr_nm = #{hrNm},
+            orgn_id = #{orgnId},
+            orgn_nm = #{orgnNm},
+            jbrp_id = #{jbrpId},
+            jbrp_nm = #{jbrpNm},
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE write_year = #{writeYear}
+          AND doc_type = #{docType}
+          AND doc_no = #{docNo}
+          AND comp_id = #{compId}
+    </update>
+
+    <insert id="insertJobCompAssessDetail" parameterType="kr.co.igns.business.support.model.JobCompetencyAssessmentDetailVO">
+    <selectKey keyProperty="docSeq" resultType="kr.co.igns.business.support.model.JobCompetencyAssessmentDetailVO" order="BEFORE">
+				SELECT
+					LPAD((COALESCE(MAX(doc_seq::INTEGER), 0) + 1)::TEXT, 5, '0') AS docSeq
+			    FROM esg.tb_job_competency_assessment_detail
+				WHERE write_year = #{writeYear}
+					AND doc_type = #{docType}
+					AND doc_no = #{docNo}
+	</selectKey>
+        INSERT INTO esg.tb_job_competency_assessment_detail (
+            write_year,
+            doc_type,
+            doc_no,
+            doc_seq,
+            comp_id,
+            job_category,
+            job_id,
+            job_nm,
+            demand_level_id,
+            demand_level_nm,
+            current_level_id,
+            current_level_nm,
+            training_course,
+            training_course_nm,
+            training_institute,
+            training_institute_nm,
+            training_content,
+            use_yn,
+            created_at,
+            created_by
+        )
+        VALUES (
+            #{writeYear},
+            #{docType},
+            #{docNo},
+            #{docSeq},
+            #{compId},
+            #{jobCategory},
+            #{jobId},
+            #{jobNm},
+            #{demandLevelId},
+            #{demandLevelNm},
+            #{currentLevelId},
+            #{currentLevelNm},
+            #{trainingCourse},
+            #{trainingCourseNm},
+            #{trainingInstitute},
+            #{trainingInstituteNm},
+            #{trainingContent},
+            #{useYn},
+            now(),
+            #{createdBy}
+        )
+    </insert>
+
+     <update id="updateJobCompAssessDetail" parameterType="kr.co.igns.business.support.model.JobCompetencyAssessmentVO">
+        UPDATE esg.tb_job_competency_assessment_detail
+        SET job_category = #{jobCategory},
+            job_id = #{jobId},
+            job_nm = #{jobNm},
+            demand_level_id = #{demandLevelId},
+            demand_level_nm = #{demandLevelNm},
+            current_level_id = #{currentLevelId},
+            current_level_nm = #{currentLevelNm},
+            training_course = #{trainingCourse},
+            training_course_nm = #{trainingCourseNm},
+            training_institute = #{trainingInstitute},
+            training_institute_nm = #{trainingInstituteNm},
+            training_content = #{trainingContent},
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE write_year = #{writeYear}
+          AND doc_type = #{docType}
+          AND doc_no = #{docNo}
+          AND doc_seq = #{docSeq}
+          AND comp_id = #{compId}
+    </update>
+
+    <update id="deleteJobCompAssess" parameterType="kr.co.igns.business.support.model.JobCompetencyAssessmentVO">
+        UPDATE esg.tb_job_competency_assessment
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE write_year = #{writeYear}
+          AND doc_type = #{docType}
+          AND doc_no = #{docNo}
+          AND comp_id = #{compId}
+    </update>
+
+    <update id="deleteJobCompAssessDetail" parameterType="kr.co.igns.business.support.model.JobCompetencyAssessmentDetailVO">
+        UPDATE esg.tb_job_competency_assessment_detail
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE write_year = #{writeYear}
+          AND doc_type = #{docType}
+          AND doc_no = #{docNo}
+          AND doc_seq = #{docSeq}
+          AND comp_id = #{compId}
+    </update>
+ 
+    <!--일괄출력-->
+    <select id='getAllReport' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='String'>
+        select t1.doc_no
+        from esg.tb_job_competency_assessment t1
+        left join esg.tb_orgn_info t2
+			on t1.orgn_id = t2.orgn_id
+			and t1.comp_id = t2.comp_id
+        where t1.write_year = #{writeYear}
+            and t1.use_yn = 'Y'
+        order by t2.ord_seq asc
+    </select>
+</mapper>

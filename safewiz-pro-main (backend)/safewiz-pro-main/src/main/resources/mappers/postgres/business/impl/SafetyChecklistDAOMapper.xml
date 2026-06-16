@@ -1,0 +1,501 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.impl.dao.postgres.SafetyChecklistDAO">
+    <select id='hasSafetyChecklist' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='int'>
+        SELECT COUNT(1)
+        FROM esg.tb_safety_checklist tsc
+        WHERE 1 = 1
+        AND tsc.comp_id = #{compId}
+        AND tsc.std_eq_id = #{searchText}
+    </select>
+
+    <select id='getSafetyChecklist' parameterType='kr.co.igns.system.common.model.SpSearchVO'
+            resultType='kr.co.igns.business.impl.model.SafetyChecklistVO'>
+        SELECT tsc.*,
+        tdt.std_eq_nm,
+        COUNT(DISTINCT CASE WHEN tsci.write_year IS NOT NULL THEN CONCAT(tsci.write_year, tsci.doc_no, tsci.doc_type,
+        tsci.doc_seq) END) AS item_cnt,
+        COUNT(DISTINCT CASE WHEN tscd.write_year IS NOT NULL THEN CONCAT(tscd.doc_no, tscd.doc_type , tscd.doc_seq) END)
+        AS list_cnt
+        FROM esg.tb_safety_checklist tsc
+        LEFT JOIN esg.tb_dataset_typeofequipment tdt ON tdt.std_eq_id = tsc.std_eq_id AND tdt.comp_id = tsc.comp_id
+        LEFT JOIN esg.tb_safety_checklist_item tsci
+        ON tsci.write_year = tsc.write_year
+        AND tsci.doc_no = tsc.doc_no
+        AND tsci.doc_type = tsc.doc_type
+        LEFT JOIN esg.tb_safety_checklist_detail tscd
+        ON tscd.write_year = tsc.write_year
+        AND tscd.doc_no = tsc.doc_no
+        AND tscd.doc_type = tsc.doc_type
+        WHERE 1 = 1
+        AND tsc.comp_id = #{compId}
+        GROUP BY tsc.write_year, tsc.doc_type, tsc.doc_no, tsc.comp_id, tsc.std_eq_id, tsc.title,
+        tsc.use_yn,tsc.created_at,tsc.created_by,tsc.updated_at,tsc.updated_by, tdt.std_eq_nm
+        ORDER BY tsc.use_yn DESC,tsc.ord_seq ASC,  tsc.doc_no DESC
+    </select>
+
+
+    <select id='getSafetyChecklistDetail' parameterType='kr.co.igns.system.common.model.SpSearchVO'
+            resultType="kr.co.igns.business.impl.model.SafetyChecklistVO">
+        SELECT tsc.*,
+        tdt.std_eq_nm
+        FROM esg.tb_safety_checklist tsc
+        LEFT JOIN esg.tb_dataset_typeofequipment tdt ON tdt.std_eq_id = tsc.std_eq_id AND tdt.comp_id = tsc.comp_id
+        WHERE 1 = 1
+        AND tsc.comp_id = #{compId}
+        <if test="docNo != null and !docNo.equals('')">
+        AND tsc.write_year = #{writeYear}
+        AND tsc.doc_no = #{docNo}
+        AND tsc.doc_type = #{docType}
+        </if>
+        <if test="searchText != null and !searchText.equals('')">
+        AND tsc.std_eq_id = #{searchText}
+        </if>
+
+    </select>
+
+    <select id='getSafetyChecklistItem' parameterType='kr.co.igns.system.common.model.SpSearchVO'
+            resultType="kr.co.igns.business.impl.model.SafetyChecklistItemVO">
+        SELECT tsci.*
+        FROM esg.tb_safety_checklist_item tsci
+        WHERE 1 = 1
+        AND tsci.write_year = #{writeYear}
+        AND tsci.doc_no = #{docNo}
+        AND tsci.doc_type = #{docType}
+        ORDER BY tsci.use_yn desc, tsci.ord_seq
+
+    </select>
+
+    <select id='getSafetyChecklistDetailList' parameterType='kr.co.igns.system.common.model.SpSearchVO'
+            resultType="kr.co.igns.business.impl.model.SafetyChecklistDetailVO">
+        SELECT tscd.*,
+        tsc.check_item,
+        tsc.use_yn as item_use_yn,
+        tsc.ord_seq as item_ord_seq
+        FROM esg.tb_safety_checklist_detail tscd
+        left join esg.tb_safety_checklist_item tsc
+        on tsc.write_year = tscd.write_year
+        and tsc.doc_type = tscd.doc_type
+        and tsc.doc_no = tscd.doc_no
+        and tsc.doc_seq = tscd.check_item_seq
+        WHERE 1 = 1
+        AND tscd.write_year = #{writeYear}
+        AND tscd.doc_no = #{docNo}
+        AND tscd.doc_type = #{docType}
+        ORDER BY tsc.use_yn desc, tscd.use_yn desc, tsc.ord_seq, tsc.check_item, tscd.ord_seq
+
+    </select>
+
+    <select id='getSafetyChecklistHistoryList' parameterType='kr.co.igns.system.common.model.SpSearchVO'
+            resultType="kr.co.igns.business.impl.model.SafetyChecklistHistoryVO">
+        select t1.created_at
+            , t2.minor_nm as inspectionCycleNm
+            , t3.hr_nm
+        from esg.tb_safety_checklist_history t1
+        left join esg.tb_common_d t2
+            on t2.major_cd = 'C0046'
+            and t1.inspection_cycle = t2.minor_cd
+        left join esg.tb_hr_info t3
+            on t1.created_by = t3.user_id
+        where t1.std_eq_id = #{searchText}
+            and t1.write_year = #{writeYear}
+            and t1.comp_id = #{compId}
+        order by t1.created_at desc
+
+    </select>
+
+    <insert id="insertSafetyChecklist" parameterType="kr.co.igns.business.impl.model.SafetyChecklistVO">
+
+        <selectKey keyProperty="docNo" resultType="kr.co.igns.business.impl.model.SafetyChecklistVO" order="BEFORE">
+            <![CDATA[
+            SELECT
+                LPAD((COALESCE(MAX(SUBSTRING(doc_no, 1, 5)::INTEGER), 0) + 1)::TEXT, 5, '0') AS docNo
+             FROM esg.tb_safety_checklist
+            WHERE write_year = #{writeYear}
+              AND doc_type = #{docType}
+         ]]>
+        </selectKey>
+
+        INSERT INTO esg.tb_safety_checklist (
+        write_year,
+        doc_no,
+        doc_type,
+        comp_id,
+        std_eq_id,
+        title,
+        inspection_cycle,
+        use_yn,
+        created_at,
+        created_by,
+        ord_seq
+        )
+        VALUES (
+        #{writeYear},
+        #{docNo},
+        #{docType},
+        #{compId},
+        #{stdEqId},
+        #{title},
+        #{inspectionCycle},
+        #{useYn},
+        now(),
+        #{createdBy},
+        #{ordSeq}
+        )
+
+    </insert>
+
+    <insert id="insertSafetyChecklistItem" parameterType="kr.co.igns.business.impl.model.SafetyChecklistItemVO">
+        <selectKey keyProperty="docSeq" resultType="kr.co.igns.business.impl.model.SafetyChecklistItemVO"
+                   order="BEFORE">
+            <![CDATA[
+            SELECT
+                LPAD((COALESCE(MAX(SUBSTRING(doc_seq, 1, 5)::INTEGER), 0) + 1)::TEXT, 5, '0') AS docSeq
+              FROM esg.tb_safety_checklist_item
+             WHERE write_year = #{writeYear}
+               AND doc_type = #{docType}
+               AND doc_no = #{docNo}
+         ]]>
+        </selectKey>
+
+        INSERT INTO esg.tb_safety_checklist_item (
+        write_year,
+        doc_type,
+        doc_no,
+        doc_seq,
+        check_item,
+        ord_seq,
+        use_yn,
+        created_at,
+        created_by
+        )
+        VALUES (
+        #{writeYear},
+        #{docType},
+        #{docNo},
+        #{docSeq},
+        #{checkItem},
+        #{ordSeq},
+        #{useYn},
+        now(),
+        #{createdBy}
+        )
+
+    </insert>
+
+    <insert id="insertSafetyChecklistDetail" parameterType="kr.co.igns.business.impl.model.SafetyChecklistVO">
+
+        <selectKey keyProperty="docSeq" resultType="kr.co.igns.business.impl.model.SafetyChecklistVO" order="BEFORE">
+            <![CDATA[
+            SELECT
+                LPAD((COALESCE(MAX(SUBSTRING(doc_seq, 1, 5)::INTEGER), 0) + 1)::TEXT, 5, '0') AS docSeq
+              FROM esg.tb_safety_checklist_detail
+             WHERE write_year = #{writeYear}
+               AND doc_type = #{docType}
+               AND doc_no = #{docNo}
+         ]]>
+        </selectKey>
+
+        INSERT INTO esg.tb_safety_checklist_detail (
+        write_year,
+        doc_no,
+        doc_type,
+        doc_seq,
+        check_item_seq,
+        check_list,
+        ord_seq,
+        use_yn,
+        created_at,
+        created_by
+        )
+        VALUES (
+        #{writeYear},
+        #{docNo},
+        #{docType},
+        #{docSeq},
+        #{checkItemSeq},
+        #{checkList},
+        #{ordSeq},
+        #{useYn},
+        now(),
+        #{createdBy}
+        )
+
+    </insert>
+
+    <update id="updateSafetyChecklist" parameterType="kr.co.igns.business.impl.model.SafetyChecklistVO">
+
+        UPDATE esg.tb_safety_checklist
+        SET
+        std_eq_id = #{stdEqId},
+        title = #{title},
+        use_yn = #{useYn},
+        inspection_cycle = #{inspectionCycle},
+        updated_at = now(),
+        updated_by = #{updatedBy},
+        ord_seq = #{ordSeq}
+        WHERE comp_id = #{compId}
+        AND write_year = #{writeYear}
+        AND doc_no = #{docNo}
+        AND doc_type = #{docType}
+
+    </update>
+
+    <update id="updateSafetyChecklistItem" parameterType="kr.co.igns.business.impl.model.SafetyChecklistItemVO">
+
+        UPDATE esg.tb_safety_checklist_item
+        SET
+        check_item = #{checkItem},
+        ord_seq = #{ordSeq},
+        use_yn = #{useYn},
+        updated_at = now(),
+        updated_by = #{updatedBy}
+        WHERE 1 = 1
+        AND write_year = #{writeYear}
+        AND doc_no = #{docNo}
+        AND doc_type = #{docType}
+        AND doc_seq = #{docSeq}
+
+    </update>
+
+    <update id="updateSafetyChecklistDetail" parameterType="kr.co.igns.business.impl.model.SafetyChecklistDetailVO">
+
+        UPDATE esg.tb_safety_checklist_detail
+        SET
+        check_item_seq = #{checkItemSeq},
+        check_list = #{checkList},
+        ord_seq = #{ordSeq},
+        use_yn = #{useYn},
+        updated_at = now(),
+        updated_by = #{updatedBy}
+        WHERE 1 = 1
+        AND write_year = #{writeYear}
+        AND doc_no = #{docNo}
+        AND doc_type = #{docType}
+        AND doc_seq = #{docSeq}
+
+    </update>
+
+    <insert id="insertSafetyCheckListHistory" parameterType="kr.co.igns.business.impl.model.SafetyChecklistVO">
+        <selectKey keyProperty="histSeq" resultType="kr.co.igns.business.impl.model.SafetyChecklistVO" order="BEFORE">
+            select coalesce(max(hist_seq) + 1 ,1) as hist_seq
+            from esg.tb_safety_checklist_history
+        </selectKey>
+            insert into esg.tb_safety_checklist_history (
+                write_year,
+                hist_seq,
+                std_eq_id,
+                inspection_cycle,
+                created_at,
+                created_by,
+                comp_id
+            )
+            select
+                #{writeYear}
+                , #{histSeq}
+                , #{stdEqId}
+                , #{inspectionCycle}
+                , now()
+                , #{createdBy}
+                , #{compId}
+            where #{inspectionCycle} is not null
+                and #{inspectionCycle} != ''
+                and not exists (
+                    select 1
+                    from (
+                        select inspection_cycle
+                        from esg.tb_safety_checklist_history
+                        where write_year = #{writeYear}
+                            and std_eq_id = #{stdEqId}
+                            and comp_id = #{compId}
+                        order by created_at DESC
+                        limit 1
+                    ) latest
+                where latest.inspection_cycle = #{inspectionCycle}
+            )
+    </insert>
+
+    <delete id="deleteSafetyChecklist" parameterType="kr.co.igns.business.impl.model.SafetyChecklistVO">
+
+        UPDATE esg.tb_safety_checklist
+        SET
+        use_yn = 'N',
+        updated_at = now(),
+        updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+        AND write_year = #{writeYear}
+        AND doc_no = #{docNo}
+        AND doc_type = #{docType}
+
+    </delete>
+
+    <delete id="deleteSafetyChecklistItem" parameterType="kr.co.igns.business.impl.model.SafetyChecklistItemVO">
+
+        UPDATE esg.tb_safety_checklist_item
+        SET
+        use_yn = 'N',
+        updated_at = now(),
+        updated_by = #{updatedBy}
+        WHERE 1 = 1
+        AND write_year = #{writeYear}
+        AND doc_no = #{docNo}
+        AND doc_type = #{docType}
+        AND doc_seq = #{docSeq}
+
+    </delete>
+
+    <delete id="deleteSafetyChecklistDetail" parameterType="kr.co.igns.business.impl.model.SafetyChecklistDetailVO">
+
+        UPDATE esg.tb_safety_checklist_detail
+        SET
+        use_yn = 'N',
+        updated_at = now(),
+        updated_by = #{updatedBy}
+        WHERE 1 = 1
+        AND write_year = #{writeYear}
+        AND doc_no = #{docNo}
+        AND doc_type = #{docType}
+        AND doc_seq = #{docSeq}
+
+    </delete>
+
+
+    <select id='getSafetyChecklistById' parameterType='kr.co.igns.business.impl.model.SafetyChecklistVO'
+            resultType='kr.co.igns.business.impl.model.SafetyChecklistVO'>
+
+        SELECT *
+        FROM esg.tb_safety_checklist
+        WHERE comp_id = #{compId}
+        AND write_year = #{writeYear}
+        AND doc_no = #{docNo}
+        AND doc_type = #{docType}
+
+    </select>
+
+    <select id='getSafetyChecklistItemById' parameterType='kr.co.igns.business.impl.model.SafetyChecklistItemVO'
+            resultType='kr.co.igns.business.impl.model.SafetyChecklistItemVO'>
+
+        SELECT *
+        FROM esg.tb_safety_checklist_item
+        WHERE 1 = 1
+        AND write_year = #{writeYear}
+        AND doc_no = #{docNo}
+        AND doc_type = #{docType}
+        AND doc_seq = #{docSeq}
+
+    </select>
+
+    <select id='getSafetyChecklistDetailById' parameterType='kr.co.igns.business.impl.model.SafetyChecklistDetailVO'
+            resultType='kr.co.igns.business.impl.model.SafetyChecklistDetailVO'>
+
+        SELECT *
+        FROM esg.tb_safety_checklist_detail
+        WHERE 1 = 1
+        AND write_year = #{writeYear}
+        AND doc_no = #{docNo}
+        AND doc_type = #{docType}
+        AND doc_seq = #{docSeq}
+
+    </select>
+
+    <resultMap id="SafetyChecklistHrMap" type="kr.co.igns.business.impl.model.SafetyChecklistHrVO">
+        <!-- 설비 -->
+        <id property="equipmentId" column="equipment_id"/>
+        <result property="equipmentNm" column="equipment_nm"/>
+
+        <!-- 담당자 매핑 -->
+        <collection property="hrList" ofType="kr.co.igns.system.base.model.HrVO">
+            <id property="id" column="id"/>
+            <result property="nm" column="nm"/>
+            <result property="userId" column="user_id"/>
+            <result property="clntId" column="clnt_id"/>
+        </collection>
+    </resultMap>
+
+    <select id='getSafetyCheckInspector' parameterType='kr.co.igns.system.common.model.SpSearchVO'
+            resultMap='SafetyChecklistHrMap'>
+
+        SELECT tei.equipment_id,
+        tei.equipment_nm,
+        tsch.hr_id as id,
+        thi.hr_nm as nm,
+        tei.std_eq_id,
+        thi.user_id,
+        tui.clnt_id
+        FROM esg.tb_equipment_info tei
+        LEFT JOIN esg.tb_safety_checklist_hr tsch
+        ON tsch.equipment_id = tei.equipment_id
+        LEFT JOIN esg.tb_hr_info thi
+        ON thi.hr_id = tsch.hr_id
+        LEFT JOIN esg.tb_user_info tui
+        ON thi.user_id = tui.user_id
+        WHERE 1 = 1
+        AND tei.std_eq_id = #{searchText}
+        AND tei.use_yn = 'Y'
+        AND tei.comp_id = #{compId}
+        ORDER BY thi.ord_seq
+
+    </select>
+
+    <select id='getEqInspector' parameterType='kr.co.igns.system.common.model.SpSearchVO'
+            resultMap='SafetyChecklistHrMap'>
+
+        SELECT tei.equipment_id,
+        tei.equipment_nm,
+        thimH.hr_id as id,
+        hrH.hr_nm as nm
+        FROM esg.tb_equipment_info tei
+        LEFT JOIN esg.tb_hr_incharge_map thimH ON thimH.target_id = tei.equipment_id AND thimH.target_type = 'equipment'
+        AND thimH.gubun = 'HEAD'
+        LEFT JOIN esg.tb_hr_info hrH ON hrH.hr_id = thimH.hr_id
+        WHERE 1 = 1
+        AND tei.std_eq_id = #{searchText}
+        AND tei.use_yn = 'Y'
+        AND tei.comp_id = #{compId}
+        ORDER BY hrH.ord_seq
+
+    </select>
+
+    <select id='getSafetyCheckInspectorByEq' parameterType='kr.co.igns.business.impl.model.SafetyChecklistHrVO'
+            resultType='kr.co.igns.system.base.model.HrVO'>
+
+        SELECT tsch.equipment_id as extra1,
+        tsch.hr_id as id
+        FROM esg.tb_safety_checklist_hr tsch
+        WHERE 1 = 1
+        AND tsch.equipment_id = #{equipmentId}
+
+    </select>
+
+    <insert id="insertSafetyCheckInspector" parameterType="kr.co.igns.system.base.model.HrVO">
+
+        INSERT INTO esg.tb_safety_checklist_hr (
+        equipment_id,
+        hr_id,
+        created_at,
+        created_by
+        )
+        SELECT
+        #{extra1},
+        #{id},
+        NOW(),
+        #{createdBy}
+        WHERE NOT EXISTS (
+        SELECT 1
+        FROM esg.tb_safety_checklist_hr
+        WHERE equipment_id = #{extra1}
+        AND hr_id = #{id}
+        );
+
+    </insert>
+
+    <delete id="deleteSafetyCheckInspector" parameterType="kr.co.igns.system.base.model.HrVO">
+
+        DELETE FROM esg.tb_safety_checklist_hr
+        WHERE equipment_id = #{extra1}
+        AND hr_id = #{id}
+
+    </delete>
+
+</mapper>

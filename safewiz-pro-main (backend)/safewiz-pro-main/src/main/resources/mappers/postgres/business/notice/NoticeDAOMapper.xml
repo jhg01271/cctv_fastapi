@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.notice.dao.postgres.NoticeDAO">
+
+    <resultMap id="NoticeDetailMap" type="kr.co.igns.business.notice.model.NoticeDetailVO">
+        <!-- 일반 필드 정의 -->
+        <id property="clntId" column="clnt_id"/>
+        <result property="writeDt" column="write_dt"/>
+        <result property="docNo" column="doc_no"/>
+        <result property="subject" column="subject"/>
+        <result property="content" column="content"/>
+        <result property="noticeType" column="notice_type"/>
+        <result property="hrId" column="hr_id"/>
+        <result property="hrNm" column="hr_nm"/>
+        <result property="jobTitle" column="jbrp_nm"/>
+        <result property="orgName" column="orgn_nm"/>
+        <result property="profileImageId" column="logo_id"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="updatedBy" column="updated_by"/>
+        <result property="dispStDate" column="disp_st_date"/>
+        <result property="dispEdDate" column="disp_ed_date"/>
+
+        <!-- 여러 파일 ID 리스트로 매핑 -->
+        <collection property="files" ofType="kr.co.igns.system.common.model.FileVO">
+            <result property="fileId" column="file_id"/>
+            <result property="fileName" column="file_nm"/>
+            <result property="fileExt" column="extension"/>
+            <result property="fileType" column="file_type"/>
+            <result property="fileSize" column="file_size"/>
+            <result property="extension" column="extension"/>
+        </collection>
+    </resultMap>
+
+    <!-- 공지사항 가져오기 -->
+    <select id="getNotice" parameterType="kr.co.igns.business.notice.model.NoticeVO"
+            resultType="kr.co.igns.business.notice.model.NoticeDetailVO">
+        select
+            tn.clnt_id,
+            tn.write_dt,
+            tn.doc_no,
+            tn.subject,
+            tn.content,
+            tn.hr_id,
+            thi.hr_nm,
+            tn.disp_st_date,
+            tn.disp_ed_date,
+            tn.created_at,
+            tn.updated_at
+        from esg.tb_notice tn
+                 left join esg.tb_hr_info thi on thi.hr_id = tn.hr_id
+        where tn.clnt_id = #{clntId}
+          and to_char(NOW(), 'yyyymmdd') between disp_st_date and disp_ed_date
+            <if test="subject != null and subject != ''">
+          and tn.subject like CONCAT('%', #{subject}, '%')  -- 제목 검색 조건 추가
+            </if>
+        group by tn.write_dt, tn.doc_no, tn.hr_id, tn.clnt_id, tn.subject, thi.hr_nm, tn.created_at, tn.updated_at, tn.notice_type
+        order by notice_type = 'IMP001' desc, tn.updated_at desc
+</select>
+
+    <!-- 공지사항 상세 가져오기-->
+    <select id="getNoticeDetail" parameterType="kr.co.igns.business.notice.model.NoticeVO"
+            resultMap="NoticeDetailMap">
+	    <![CDATA[
+        SELECT tn.clnt_id,
+               tn.write_dt,
+               tn.doc_no,
+               tn.subject,
+               tn.content,
+               tn.notice_type,
+               tn.hr_id,
+               thi.hr_nm,
+               jbrp.jbrp_nm,
+               toi.orgn_nm,
+               sf2.file_id as logo_id,
+               tn.disp_st_date,
+               tn.disp_ed_date,
+               tn.created_at,
+               tn.created_by,
+               tn.updated_at,
+               tn.updated_by,
+               sf.file_id,
+               sf.file_nm,  -- 파일 이름 가져오기
+               sf."extension",
+               sf.file_type,
+               sf.file_size,  -- 파일 크기 가져오기
+               tn.disp_st_date,
+               tn.disp_ed_date
+        FROM esg.tb_notice tn
+                 LEFT JOIN esg.tb_hr_info thi ON thi.hr_id = tn.hr_id
+                 LEFT JOIN esg.tb_sys_file sf ON sf.target_id = tn.write_dt || tn.doc_no AND sf.target_type = 'notice'
+                 LEFT JOIN esg.tb_sys_file sf2 ON sf.target_id = thi.hr_id AND sf.target_type='hrImg'
+                 LEFT JOIN esg.tb_orgn_info toi ON thi.orgn_id = toi.orgn_id
+                 left join esg.tb_hr_info_jbrp jbrp
+                    on jbrp.jbrp_id = thi.jbrp and jbrp.comp_id = #{compId}
+        WHERE 1 = 1
+          and tn.clnt_id = #{clntId}
+          and tn.write_dt = #{writeDt}
+          and tn.doc_no = #{docNo}
+          AND TO_CHAR(NOW(), 'yyyymmdd') BETWEEN disp_st_date AND disp_ed_date
+        GROUP BY tn.clnt_id, tn.write_dt, tn.doc_no, tn.subject, tn.content, tn.notice_type, thi.hr_nm,
+                 jbrp_nm, toi.orgn_nm, logo_id, sf.file_nm,
+                 tn.created_at, tn.created_by, tn.updated_at, tn.updated_by, tn.disp_st_date, tn.disp_ed_date, sf.file_id
+        ORDER BY notice_type = 'IMP001' DESC, tn.updated_at DESC;
+        ]]>
+	</select>
+<!--    /*,ARRAY_AGG(sf.file_id)                                       AS file_ids*/-->
+<!--    /* LEFT JOIN esg.tb_sys_file sf-->
+<!--    ON sf.target_id = #{clntId} and sf.target_type = 'partnerLocation' AND sf.comp_id = #{compId}*/-->
+
+    <insert id="insertNotice"
+            parameterType="kr.co.igns.business.notice.model.NoticeDetailVO">
+        <selectKey keyProperty="keyDocNo" resultType="string" order="BEFORE">
+            <![CDATA[
+				select lpad((coalesce(max(substring(doc_no, 1, 5)::integer), 0) + 1)::text, 5, '0') as keyDocNo
+			    from esg.tb_notice
+				where write_dt = to_char(current_date, 'yyyymmdd')
+			]]>
+        </selectKey>
+        <![CDATA[
+			insert into esg.tb_notice(
+				clnt_id,
+				write_dt,
+				doc_no,
+				subject,
+				content,
+				hr_id,
+				notice_type,
+				disp_st_date,
+				disp_ed_date,
+				created_at,
+				created_by
+			)
+			values(
+				#{clntId},
+				to_char(current_date, 'yyyymmdd'),
+				#{keyDocNo},
+				#{subject},
+				#{content},
+				(select hr_id from esg.tb_hr_info where user_id = #{createdBy}),
+			    #{noticeType},
+				#{dispStDate},
+			    #{dispEdDate},
+			    now(),
+				#{createdBy}
+			)
+		]]>
+    </insert>
+
+    <update id="updateNotice" parameterType="kr.co.igns.business.notice.model.NoticeDetailVO">
+    <![CDATA[
+        UPDATE esg.tb_notice
+        SET subject = #{subject},
+            content = #{content},
+            hr_id = (select hr_id from esg.tb_hr_info where user_id = #{updatedBy}),
+            disp_st_date = #{dispStDate},
+            disp_ed_date = #{dispEdDate},
+            notice_type = #{noticeType},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE clnt_id = #{clntId}
+          AND write_dt = #{writeDt}
+          AND doc_no = #{docNo}
+        ]]>
+</update>
+
+
+    <delete id="deleteNotice" parameterType="kr.co.igns.business.notice.model.NoticeDetailVO" >
+        delete
+        from esg.tb_notice
+        where clnt_id = #{clntId}
+          and write_dt = #{writeDt}
+          and doc_no = #{docNo}
+    </delete>
+
+
+    <insert id="insertNoticeAlarmHistory" parameterType="kr.co.igns.business.notice.model.NoticeAlarmVO">
+        <selectKey keyProperty="alarmSeq" resultType="kr.co.igns.business.notice.model.NoticeAlarmVO" order="BEFORE">
+            <![CDATA[
+            SELECT
+                   COALESCE(MAX(alarm_seq), 0) + 1 AS alarmSeq
+              FROM esg.tb_notice_alarm_his
+             WHERE clnt_id = #{clntId}
+               AND user_id = #{userId}
+		       AND alarm_dt = #{alarmDt} --날짜지날때마다 seq초기화 되야함
+         ]]>
+        </selectKey>
+
+        <![CDATA[
+        INSERT INTO esg.tb_notice_alarm_his (
+            user_id,
+            alarm_dt,
+            alarm_seq,
+            fcm_title,
+            fcm_body,
+            fcm_data,
+            menu_id,
+            clnt_id,
+            write_dt,
+            doc_no,
+            read_yn,
+            created_at,
+            created_by
+        ) VALUES (
+             #{userId},
+             #{alarmDt},
+             #{alarmSeq},
+             #{fcmTitle},
+             #{fcmBody},
+             #{fcmData},
+             #{menuId},
+             #{clntId},
+             #{writeDt},
+             #{docNo},
+             'N',
+             NOW(),          -- created_at
+             #{createdBy}
+         );
+		]]>
+    </insert>
+
+</mapper>

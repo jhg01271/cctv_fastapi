@@ -1,0 +1,645 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.planning.dao.postgres.ToolBoxMeetingDAO">
+
+    <select
+    	id='searchData'
+    	parameterType='kr.co.igns.business.planning.model.ToolBoxMeetingVO'
+    	resultType='kr.co.igns.business.planning.model.ToolBoxMeetingVO'
+    >
+        select a.write_year
+		     , a.doc_type
+		     , a.doc_no
+		     , a.tbm_date
+		     , substring(a.tbm_date, 5, 2) as tbm_month
+		     , a.work_nm
+		     , a.work_place
+			 , a.work_desc
+		     , (select hr_nm
+		          from esg.tb_approval_info
+		         where target_type = a.doc_type
+		           and target_id = a.write_year||a.doc_no
+		           and type = 'leader') as leader
+		     , (select count(*)
+		          from esg.tb_approval_info
+		         where target_type = a.doc_type
+		           and target_id = a.write_year||a.doc_no
+		           and type = 'attend') as attend
+		     , a.use_yn
+		  from esg.tb_toolboxmeeting a
+		 where 1 = 1
+		   and a.comp_id  = #{compId}
+		   and substring(a.write_year, 1, 4) = #{writeYear}
+		order by substring(a.tbm_date, 1, 4) desc, case when a.use_yn = 'Y' then 0 else 1 end, a.tbm_date desc, a.doc_no asc
+    </select>
+    
+    <select
+    	id='searchDataDetail'
+    	parameterType='kr.co.igns.business.planning.model.ToolBoxMeetingVO'
+    	resultType='kr.co.igns.business.planning.model.ToolBoxMeetingVO'
+    >
+        select a.write_year
+		     , a.doc_type
+		     , a.doc_no
+		     , a.tbm_date
+		     , substring(a.tbm_time_stt, 1, 2)||':'||substring(a.tbm_time_stt, 3, 2)
+		       ||' ~ '||
+		       substring(a.tbm_time_end, 1, 2)||':'||substring(a.tbm_time_end, 3, 2) as tbm_time
+		     , a.tbm_time_stt
+		     , a.tbm_time_end
+		     , a.same_date_yn
+		     , a.created_at
+		     , a.use_yn
+		     , a.work_nm
+		     , a.work_desc
+		     , a.work_place
+		     , a.risk_yn
+		     , a.check_result
+		     , a.work_end_meeting
+		  from esg.tb_toolboxmeeting a
+		 where write_year = #{writeYear}
+		   and doc_type = #{docType}
+		   and doc_no = #{docNo}
+    </select>
+    
+    <insert
+    	id="insertMain"
+    	parameterType="kr.co.igns.business.planning.model.ToolBoxMeetingVO"
+    >
+    	<selectKey keyProperty="docNo" resultType="string" order="BEFORE">
+    		select case when max(doc_no) is null then '00001'
+    		            else lpad(cast(max(doc_no)::bigint + 1 as text), 5, '0')
+    		       end doc_no
+    		  from esg.tb_toolboxmeeting
+    		 where write_year = #{writeYear}
+    		   and doc_type = #{docType}
+    	</selectKey>
+    	
+    	insert into esg.tb_toolboxmeeting (
+    		  write_year
+    		, doc_type
+    		, doc_no
+    		, comp_id
+    		, tbm_date
+    		, tbm_time_stt
+    		, tbm_time_end
+    		, same_date_yn
+    		, work_nm
+    		, work_desc
+    		, work_place
+    		, risk_yn
+    		, check_result
+    		, work_end_meeting
+    		, use_yn
+    		, created_at
+    		, created_by
+    	) values (
+    		  #{writeYear}
+    		, #{docType}
+    		, #{docNo}
+    		, #{compId}
+    		, #{tbmDate}
+    		, replace(#{tbmTimeStt}, ':', '')
+    		, replace(#{tbmTimeEnd}, ':', '')
+    		, #{sameDateYn}
+    		, #{workNm}
+    		, #{workDesc}
+    		, #{workPlace}
+    		, #{riskYn}
+    		, #{checkResult}
+    		, #{workEndMeeting}
+    		, #{useYn}
+    		, now()
+    		, #{userId}
+    	)
+    </insert>
+    
+    <update
+    	id="updateMain"
+    	parameterType="kr.co.igns.business.planning.model.ToolBoxMeetingVO"
+    >
+    	update esg.tb_toolboxmeeting
+    	   set tbm_date = #{tbmDate}
+    		 , tbm_time_stt = replace(#{tbmTimeStt}, ':', '')
+    		 , tbm_time_end = replace(#{tbmTimeEnd}, ':', '')
+    		 , same_date_yn = #{sameDateYn}
+    		 , work_nm = #{workNm}
+    		 , work_desc = #{workDesc}
+    		 , work_place = #{workPlace}
+    		 , risk_yn = #{riskYn}
+    		 , check_result = #{checkResult}
+    		 , work_end_meeting = #{workEndMeeting}
+    		 , use_yn = #{useYn}
+    	     , updated_at = now()
+    	     , updated_by = #{userId}
+    	 where write_year = #{writeYear}
+		   and doc_type = #{docType}
+		   and doc_no = #{docNo}
+    </update>
+    
+    <update
+    	id="deleteMain"
+    	parameterType="kr.co.igns.business.planning.model.ToolBoxMeetingVO"
+    >
+    	update esg.tb_toolboxmeeting
+    	   set use_yn = 'N'
+    	     , updated_at = now()
+    	     , updated_by = #{userId}
+    	 where write_year = #{writeYear}
+		   and doc_type = #{docType}
+		   and doc_no = #{docNo}
+    </update>
+    
+    <select
+    	id='searchPotenialRisk'
+    	parameterType='kr.co.igns.business.planning.model.ToolBoxMeetingVO'
+    	resultType='kr.co.igns.business.planning.model.ToolBoxMeetingVO'
+    >
+        select a.write_year
+             , a.doc_type
+             , a.doc_no
+             , a.doc_seq
+             , a.risk
+             , a.measures
+          from esg.tb_toolboxmeeting_potentialrisk a
+         where a.write_year = #{writeYear}
+           and a.doc_type = #{docType}
+           and a.doc_no = #{docNo}
+        order by a.write_year, a.doc_type, a.doc_no, a.doc_seq
+    </select>
+    
+    <insert
+    	id="insertPotentialRisk"
+    	parameterType="kr.co.igns.business.planning.model.ToolBoxMeetingVO"
+    >
+    	<selectKey keyProperty="docSeq" resultType="string" order="BEFORE">
+    		select case when max(doc_seq) is null then '00001'
+    		            else lpad(cast(max(doc_seq)::bigint + 1 as text), 5, '0')
+    		       end doc_seq
+    		  from esg.tb_toolboxmeeting_potentialrisk
+    		 where write_year = #{writeYear}
+    		   and doc_type = #{docType}
+    		   and doc_no = #{docNo}
+    	</selectKey>
+    	
+    	insert into esg.tb_toolboxmeeting_potentialrisk (
+    		  write_year
+    		, doc_type
+    		, doc_no
+    		, doc_seq
+    		, risk
+    		, measures
+    		, created_at
+    		, created_by
+    	) values (
+    		  #{writeYear}
+    		, #{docType}
+    		, #{docNo}
+    		, #{docSeq}
+    		, #{risk}
+    		, #{measures}
+    		, now()
+    		, #{userId}
+    	)
+    </insert>
+    
+    <update
+    	id="updatePotentialRisk"
+    	parameterType="kr.co.igns.business.planning.model.ToolBoxMeetingVO"
+    >
+    	update esg.tb_toolboxmeeting_potentialrisk
+    	   set risk = #{risk}
+    	     , measures = #{measures}
+    	     , updated_at = now()
+    	     , updated_by = #{userId}
+    	 where write_year = #{writeYear}
+    	   and doc_type = #{docType}
+    	   and doc_no = #{docNo}
+    	   and doc_seq = #{docSeq}
+    </update>
+    
+    <delete
+    	id="deletePotentialRisk"
+    	parameterType="kr.co.igns.business.planning.model.ToolBoxMeetingVO"
+    >
+    	delete
+    	  from esg.tb_toolboxmeeting_potentialrisk
+    	 where write_year = #{writeYear}
+    	   and doc_type = #{docType}
+    	   and doc_no = #{docNo}
+    	   and doc_seq = #{docSeq}
+    </delete>
+    
+    <select
+    	id='searchKeyRisk'
+    	parameterType='kr.co.igns.business.planning.model.ToolBoxMeetingVO'
+    	resultType='kr.co.igns.business.planning.model.ToolBoxMeetingVO'
+    >
+        select a.write_year
+             , a.doc_type
+             , a.doc_no
+             , a.doc_seq
+             , a.potential_risk_seq
+             , a.measures
+          from esg.tb_toolboxmeeting_keyrisk a
+         where a.write_year = #{writeYear}
+           and a.doc_type = #{docType}
+           and a.doc_no = #{docNo}
+        order by a.write_year, a.doc_type, a.doc_no, a.doc_seq
+    </select>
+    
+    <insert
+    	id="insertKeyRisk"
+    	parameterType="kr.co.igns.business.planning.model.ToolBoxMeetingVO"
+    >
+    	<selectKey keyProperty="docSeq" resultType="string" order="BEFORE">
+    		select case when max(doc_seq) is null then '00001'
+    		            else lpad(cast(max(doc_seq)::bigint + 1 as text), 5, '0')
+    		       end doc_seq
+    		  from esg.tb_toolboxmeeting_keyrisk
+    		 where write_year = #{writeYear}
+    		   and doc_type = #{docType}
+    		   and doc_no = #{docNo}
+    	</selectKey>
+    	
+    	insert into esg.tb_toolboxmeeting_keyrisk (
+    		  write_year
+    		, doc_type
+    		, doc_no
+    		, doc_seq
+    		, potential_risk_seq
+    		, measures
+    		, created_at
+    		, created_by
+    	) values (
+    		  #{writeYear}
+    		, #{docType}
+    		, #{docNo}
+    		, #{docSeq}
+    		, #{potentialRiskSeq}
+    		, #{measures}
+    		, now()
+    		, #{userId}
+    	)
+    </insert>
+    
+    <update
+    	id="updateKeyRisk"
+    	parameterType="kr.co.igns.business.planning.model.ToolBoxMeetingVO"
+    >
+    	update esg.tb_toolboxmeeting_keyrisk
+    	   set potential_risk_seq = #{potentialRiskSeq}
+    	     , measures = #{measures}
+    	     , updated_at = now()
+    	     , updated_by = #{userId}
+    	 where write_year = #{writeYear}
+    	   and doc_type = #{docType}
+    	   and doc_no = #{docNo}
+    	   and doc_seq = #{docSeq}
+    </update>
+    
+    <delete
+    	id="deleteKeyRisk"
+    	parameterType="kr.co.igns.business.planning.model.ToolBoxMeetingVO"
+    >
+    	delete
+    	  from esg.tb_toolboxmeeting_keyrisk
+    	 where write_year = #{writeYear}
+    	   and doc_type = #{docType}
+    	   and doc_no = #{docNo}
+    	   and doc_seq = #{docSeq}
+    </delete>
+    
+    <delete
+    	id="deleteKeyRiskPotential"
+    	parameterType="kr.co.igns.business.planning.model.ToolBoxMeetingVO"
+    >
+    	delete
+    	  from esg.tb_toolboxmeeting_keyrisk
+    	 where write_year = #{writeYear}
+    	   and doc_type = #{docType}
+    	   and doc_no = #{docNo}
+    	   and potential_risk_seq = #{potentialRiskSeq}
+    </delete>
+    
+    <select
+    	id='searchSafeCheck'
+    	parameterType='kr.co.igns.business.planning.model.ToolBoxMeetingVO'
+    	resultType='kr.co.igns.business.planning.model.ToolBoxMeetingVO'
+    >
+        select a.write_year
+             , a.doc_type
+             , a.doc_no
+             , a.doc_seq
+             , a.potential_risk_seq
+             , (case when nullif(a.potential_risk_seq, '') is not null then b.risk
+                     else a.risk
+                end) as risk
+             , a.action_yn
+             , a.action
+          from esg.tb_toolboxmeeting_safecheck a
+               left join esg.tb_toolboxmeeting_potentialrisk b
+                      on b.write_year = a.write_year
+                      and b.doc_type = a.doc_type
+                      and b.doc_no = a.doc_no
+                      and b.doc_seq = a.potential_risk_seq
+         where a.write_year = #{writeYear}
+           and a.doc_type = #{docType}
+           and a.doc_no = #{docNo}
+        order by a.write_year, a.doc_type, a.doc_no, a.doc_seq
+    </select>
+    
+    <insert
+    	id="insertSafeCheck"
+    	parameterType="kr.co.igns.business.planning.model.ToolBoxMeetingVO"
+    >
+    	<selectKey keyProperty="docSeq" resultType="string" order="BEFORE">
+    		select case when max(doc_seq) is null then '00001'
+    		            else lpad(cast(max(doc_seq)::bigint + 1 as text), 5, '0')
+    		       end doc_seq
+    		  from esg.tb_toolboxmeeting_safecheck
+    		 where write_year = #{writeYear}
+    		   and doc_type = #{docType}
+    		   and doc_no = #{docNo}
+    	</selectKey>
+    	
+    	insert into esg.tb_toolboxmeeting_safecheck (
+    		  write_year
+    		, doc_type
+    		, doc_no
+    		, doc_seq
+    		, potential_risk_seq
+    		, risk
+			, action_yn
+			, action
+    		, created_at
+    		, created_by
+    	) values (
+    		  #{writeYear}
+    		, #{docType}
+    		, #{docNo}
+    		, #{docSeq}
+    		, #{potentialRiskSeq}
+    		, #{risk}
+    		, #{actionYn}
+    		, #{action}
+    		, now()
+    		, #{userId}
+    	)
+    </insert>
+    
+    <update
+    	id="updateSafeCheck"
+    	parameterType="kr.co.igns.business.planning.model.ToolBoxMeetingVO"
+    >
+    	update esg.tb_toolboxmeeting_safecheck
+    	   set risk = #{risk}
+    	     , action_yn = #{actionYn}
+    	     , action = #{action}
+    	     , updated_at = now()
+    	     , updated_by = #{userId}
+    	 where write_year = #{writeYear}
+    	   and doc_type = #{docType}
+    	   and doc_no = #{docNo}
+    	   and doc_seq = #{docSeq}
+    </update>
+    
+    <delete
+    	id="deleteSafeCheck"
+    	parameterType="kr.co.igns.business.planning.model.ToolBoxMeetingVO"
+    >
+    	delete
+    	  from esg.tb_toolboxmeeting_safecheck
+    	 where write_year = #{writeYear}
+    	   and doc_type = #{docType}
+    	   and doc_no = #{docNo}
+    	   and doc_seq = #{docSeq}
+    </delete>
+    
+    <delete
+    	id="deleteSafeCheckPotential"
+    	parameterType="kr.co.igns.business.planning.model.ToolBoxMeetingVO"
+    >
+    	delete
+    	  from esg.tb_toolboxmeeting_safecheck
+    	 where write_year = #{writeYear}
+    	   and doc_type = #{docType}
+    	   and doc_no = #{docNo}
+    	   and potential_risk_seq = #{potentialRiskSeq}
+    </delete>
+    
+    <select
+    	id='searchReport'
+    	parameterType='kr.co.igns.system.common.model.SpSearchVO'
+    	resultType='kr.co.igns.business.planning.model.ToolBoxMeetingVO'
+    >
+        select to_char(to_date(a.tbm_date, 'yyyymmdd'), 'yyyy년 mm월 dd일')
+		       ||' '||substring(a.tbm_time_stt, 1, 2)||':'||substring(a.tbm_time_stt, 3, 2)
+		       ||' ~ '||substring(a.tbm_time_end, 1, 2)||':'||substring(a.tbm_time_end, 3, 2) as tbm_date
+		     , a.same_date_yn
+		     , a.work_nm
+		     , a.work_desc
+		     , a.work_place
+		     , a.risk_yn
+		     , a.check_result
+		     , a.work_end_meeting
+		  from esg.tb_toolboxmeeting a
+		 where 1 = 1
+		   and a.write_year = #{writeYear}
+		   and a.doc_type = #{docType}
+		   and a.doc_no = #{docNo}
+    </select>
+    
+    <select
+    	id='searchReportPotentialRisk'
+    	parameterType='kr.co.igns.system.common.model.SpSearchVO'
+    	resultType='kr.co.igns.business.planning.model.ToolBoxMeetingVO'
+    >
+		-- 출력물에 번호를 넣기위해 ROW_NUMBER 추가
+        select ROW_NUMBER() OVER () || '. ' || a.risk AS risk
+		     , ROW_NUMBER() OVER () || '. ' || a.measures AS measures
+		  from esg.tb_toolboxmeeting_potentialrisk a
+		 where 1 = 1
+		   and a.write_year = #{writeYear}
+		   and a.doc_type = #{docType}
+		   and a.doc_no = #{docNo}
+    </select>
+    
+    <select
+    	id='searchReportKeyRisk'
+    	parameterType='kr.co.igns.system.common.model.SpSearchVO'
+    	resultType='kr.co.igns.business.planning.model.ToolBoxMeetingVO'
+    >
+        select b.risk
+		     , a.measures
+		  from esg.tb_toolboxmeeting_keyrisk a
+		       left join esg.tb_toolboxmeeting_potentialrisk b
+		              on b.write_year = a.write_year
+		              and b.doc_type = a.doc_type
+		              and b.doc_no = a.doc_no
+		              and b.doc_seq = a.potential_risk_seq
+		 where 1 = 1
+		   and a.write_year = #{writeYear}
+		   and a.doc_type = #{docType}
+		   and a.doc_no = #{docNo}
+    </select>
+    
+    <select
+    	id='searchReportSafeCheck'
+    	parameterType='kr.co.igns.system.common.model.SpSearchVO'
+    	resultType='kr.co.igns.business.planning.model.ToolBoxMeetingVO'
+    >
+		-- 출력물에 번호를 넣기위해 ROW_NUMBER 추가
+        select ROW_NUMBER() OVER () || '. ' || (case when nullif(a.potential_risk_seq, '') is not null then b.risk
+		             else a.risk
+		        end) as risk
+		     , a.action_yn
+		     , a.action
+		  from esg.tb_toolboxmeeting_safecheck a
+		       left join esg.tb_toolboxmeeting_potentialrisk b
+		              on b.write_year = a.write_year
+		              and b.doc_type = a.doc_type
+		              and b.doc_no = a.doc_no
+		              and b.doc_seq = a.potential_risk_seq
+		 where 1 = 1
+		   and a.write_year = #{writeYear}
+		   and a.doc_type = #{docType}
+		   and a.doc_no = #{docNo}
+    </select>
+    
+    <select
+    	id='searchKeyRiskCount'
+    	parameterType='kr.co.igns.business.planning.model.ToolBoxMeetingVO'
+    	resultType='kr.co.igns.business.planning.model.ToolBoxMeetingVO'
+    >
+        select count(a.*) as cnt
+		  from esg.tb_toolboxmeeting_keyrisk a
+		 where 1 = 1
+		   and a.write_year = #{writeYear}
+		   and a.doc_type = #{docType}
+		   and a.doc_no = #{docNo}
+		   and a.potential_risk_seq = #{potentialRiskSeq}
+    </select>
+
+	<select
+    	id='getAllReport'
+    	parameterType='kr.co.igns.system.common.model.SpSearchVO'
+    	resultType='kr.co.igns.system.common.model.SpSearchVO'
+    >
+		select t1.write_year
+			, t1.doc_type
+			, t1.doc_no
+		from esg.tb_toolboxmeeting t1
+		where t1.write_year = #{writeYear}
+			and t1.comp_id  = #{compId}
+			and t1.use_yn = 'Y'
+			and substring(t1.tbm_date from 5 for 2) = #{searchText}
+    </select>
+
+	<insert id="insertSelectRiskAssessment" parameterType="kr.co.igns.business.planning.model.ToolBoxMeetingVO">
+		insert into esg.tb_toolboxmeeting_risk_assessment
+		(
+			  write_year
+			, doc_type
+			, doc_no
+			, risk_write_year
+			, risk_doc_type
+			, risk_doc_no
+			, process_id
+			, created_at
+			, created_by
+		) values(
+		      #{writeYear}
+		    , #{docType}
+		    , #{docNo}
+		    , #{riskWriteYear}
+		    , #{riskDocType}
+		    , #{riskDocNo}
+		    , #{processId}
+			, NOW()
+			, #{createdBy}
+		)
+	</insert>
+
+	<delete id="deleteSelectRiskAssessment" parameterType="kr.co.igns.business.planning.model.ToolBoxMeetingVO">
+		delete from esg.tb_toolboxmeeting_risk_assessment
+		where write_year = #{writeYear}
+		and doc_type = #{docType}
+		and doc_no = #{docNo}
+	</delete>
+
+	<select id='searchSelectedDatas' parameterType='kr.co.igns.business.planning.model.ToolBoxMeetingVO' resultType='kr.co.igns.business.planning.model.ToolBoxMeetingVO'>
+		SELECT
+				a.*,
+				CONCAT(trap.plan_nm, ' (', toi.orgn_nm, ')') AS riskNm,
+				trap.risk_allowance_standards,
+				trap.cpem_write_year,
+				trap.cpem_doc_no,
+				b.process_nm,
+				c.process_work_rev_no AS rev_no
+		  FROM esg.tb_toolboxmeeting_risk_assessment a
+		  LEFT JOIN esg.tb_risk_assessment_plan trap
+		    ON trap.write_year = a.risk_write_year
+		   AND trap.doc_type = a.risk_doc_type
+		   AND trap.doc_no = a.risk_doc_no
+		  LEFT JOIN esg.tb_orgn_info toi
+		    ON trap.orgn_id = toi.orgn_id
+		  LEFT JOIN esg.tb_classification_process_equip_msds e
+		    ON e.orgn_id = toi.orgn_id
+		   AND e.write_year = trap.cpem_write_year
+		   AND e.doc_no = trap.cpem_doc_no
+		  LEFT JOIN esg.tb_classification_process_equip_msds_analysis b
+		    ON a.process_id = b.process_id
+		   AND e.write_year = b.write_year
+		   AND e.doc_no = b.doc_no
+		   AND e.doc_type = b.doc_type
+		  LEFT JOIN esg.tb_classification_hazards c
+		    ON a.process_id = c.process_id
+		   AND a.write_year = c.write_year
+		   AND c.use_yn = 'Y'
+		WHERE a.write_year = #{writeYear}
+		  AND a.doc_type = #{docType}
+		  AND a.doc_no = #{docNo}
+	</select>
+
+	<select id='searchSetting' parameterType='kr.co.igns.business.planning.model.ToolBoxMeetingSettingVO' resultType='kr.co.igns.business.planning.model.ToolBoxMeetingSettingVO'>
+		SELECT a.setting_key,
+			   a.setting_name,
+			   a.setting_value
+		  FROM esg.tb_toolboxmeeting_setting a
+		 WHERE a.comp_id = #{compId}
+		<if test="settingKey != null and settingKey != ''">
+		   AND a.setting_key = #{settingKey}
+		</if>
+		   AND a.use_yn = 'Y'
+	</select>
+
+	<insert id="insertSetting" parameterType="kr.co.igns.business.planning.model.ToolBoxMeetingSettingVO">
+		insert into esg.tb_toolboxmeeting_setting
+		(
+			  comp_id
+			, setting_key
+			, setting_name
+			, created_at
+			, created_by
+		) values(
+			  #{compId}
+			, #{settingKey}
+			, #{settingName}
+			, NOW()
+			, #{createdBy}
+		)
+	</insert>
+
+	<insert id="updateSetting" parameterType="kr.co.igns.business.planning.model.ToolBoxMeetingSettingVO">
+		update esg.tb_toolboxmeeting_setting
+		   set setting_value = #{settingValue}
+			 , updated_at = now()
+			 , updated_by = #{updatedBy}
+		where comp_id = #{compId}
+		and setting_key = #{settingKey}
+	</insert>
+
+
+</mapper>

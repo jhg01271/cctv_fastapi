@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.comp.company.dao.postgres.CompanyUserDAO">
+	<!--
+		2024-07-10 필터 수정 - 신택훈 
+	-->
+	<!-- 검색항목에 사업장 ID, 사업장, 대표자, 담당자 -->
+	<sql id="filter">
+	    	<![CDATA[			AND ci.del_yn = 'N'		]]>
+	</sql>
+
+	<sql id='selectCol'>
+		ci.comp_nm,
+		ci.comp_rmk,
+		ci.rgst_no,
+		ci.up_comp_id,
+	</sql>
+
+	
+	<select id='searchCount' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='int'>
+
+		SELECT
+		count(1)
+		FROM fems.tb_comp_info ci
+		LEFT JOIN fems.tb_comp_user cu
+		ON ci.comp_id = cu.comp_id
+		AND cu.user_id = #{userId}
+		where 1=1
+		<include refid='kr.co.igns.business.comp.company.dao.postgres.CompanyUserDAO.filter' />
+
+	</select>
+	
+	<select id='search' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.comp.company.model.CompanyUserVO'>
+
+		SELECT
+		<include refid='kr.co.igns.business.comp.company.dao.postgres.CompanyUserDAO.selectCol' />
+		ci.created_at,
+		ci.updated_at,
+		CASE WHEN cu.grp_cd IS NOT NULL AND cu.grp_cd != 0 THEN cg.grp_nm END as grp_nm,
+		CASE WHEN count(cu.*) > 0 THEN 'U' ELSE 'I' END AS cmd
+		FROM fems.tb_comp_info ci
+		LEFT JOIN fems.tb_comp_user cu
+		ON cu.comp_id = ci.comp_id
+		AND cu.user_id = #{userId}
+		LEFT JOIN esg.tb_comp_group cg
+		ON cg.grp_cd = cu.grp_cd
+		WHERE 1=1
+		<include refid='kr.co.igns.business.comp.company.dao.postgres.CompanyUserDAO.filter' />
+		<!--  정렬순서 -->
+		GROUP BY ci.comp_id, cu.grp_cd, cg.grp_nm
+		ORDER BY ci.comp_id
+	
+	</select>
+
+
+
+	<select id='searchByCompIdAndUserId' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.comp.company.model.CompanyUserVO'>
+
+		SELECT
+		<include refid='kr.co.igns.business.comp.company.dao.postgres.CompanyUserDAO.selectCol' />
+		ci.created_at,
+		ci.updated_at,
+		cu.grp_cd,
+		cg.grp_nm,
+		CASE WHEN count(cu.*) > 0 THEN 'U' ELSE 'I' END AS cmd
+		FROM fems.tb_comp_info ci
+		LEFT JOIN fems.tb_comp_user cu
+		ON cu.comp_id = ci.comp_id
+		AND cu.user_id = #{userId}
+		LEFT JOIN esg.tb_comp_group cg
+		ON cg.grp_cd = cu.grp_cd
+		WHERE 1=1
+		<include refid='kr.co.igns.business.comp.company.dao.postgres.CompanyUserDAO.filter' />
+		AND ci.comp_id = #{compId}
+		GROUP BY ci.comp_id, cu.grp_cd, cg.grp_nm
+
+	</select>
+	
+	<insert id= 'insert' parameterType="kr.co.igns.business.comp.company.model.CompanyUserVO" useGeneratedKeys="true" keyProperty="memSeq">
+		INSERT INTO 
+		tb_comp_user (
+		comp_id,
+		grp_cd,
+		user_id,
+		created_at,
+		created_by			
+		) VALUES (
+		#{compId},
+		#{grpCd},
+		#{userId},
+		now(),
+		#{createdBy}
+		)
+			
+	</insert>
+	
+	<update id="update" parameterType="kr.co.igns.business.comp.company.model.CompanyUserVO">
+		
+		UPDATE tb_comp_user
+		SET 
+		comp_id = #{compId},
+		grp_cd = #{grpCd},
+		user_id = #{userId},
+		updated_at = now(),
+		updated_by = #{updatedBy}
+		WHERE mem_seq = #{memSeq}
+	</update>
+	
+	<delete id="delete" parameterType="Long">
+
+		DELETE FROM tb_comp_user
+		WHERE mem_seq = #{memSeq}
+
+	</delete>
+
+
+	<delete id="deleteByUserId" parameterType="String">
+
+		DELETE FROM tb_comp_user
+		WHERE user_id = #{userId}
+
+	</delete>
+	
+	
+</mapper>

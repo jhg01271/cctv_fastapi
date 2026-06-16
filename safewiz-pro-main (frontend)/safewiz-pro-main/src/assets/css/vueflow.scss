@@ -1,0 +1,301 @@
+@import 'https://cdn.jsdelivr.net/npm/@vue-flow/node-resizer@latest/dist/style.css';
+@import '@vue-flow/core/dist/style.css';
+@import '@vue-flow/core/dist/theme-default.css';
+
+.vue-flow {
+  z-index: 0; position: relative; width: 100%; height: 100%; overflow: hidden; direction: ltr;
+
+  &__container {
+    position: absolute; width: 100%; height: 100%; left: 0; top: 0;
+  }
+
+  &__pane {
+    z-index: 1;
+
+    &.draggable {
+      cursor: grab;
+    }
+
+    &.dragging {
+      cursor: grabbing;
+    }
+
+    &.selection {
+      cursor: pointer;
+    }
+  }
+
+  &__transformationpane {
+    z-index: 2; transform-origin: 0 0; pointer-events: none;
+  }
+
+  &__viewport {
+    z-index: 4; overflow: clip;
+  }
+
+  &__selection {
+    z-index: 6;
+  }
+
+  &__edge-labels {
+    position: absolute; width: 100%; height: 100%; pointer-events: none; -webkit-user-select: none; -moz-user-select: none; user-select: none;
+  }
+
+  &__nodesselection-rect:focus,
+  &__nodesselection-rect:focus-visible {
+    outline: none;
+  }
+
+  .vue-flow__edges {
+    pointer-events: none; overflow: visible; color: #3248F6;
+
+    &-path,
+    &-connection-path {
+      stroke: #b1b1b7; stroke-width: 1; fill: none;
+    }
+
+    &.animated path {
+      stroke-dasharray: 5; animation: dashdraw 0.5s linear infinite;
+    }
+
+    &.animated path.vue-flow__edge-interaction {
+      stroke-dasharray: none; animation: none;
+    }
+
+    &.inactive {
+      pointer-events: none;
+    }
+
+    &.selected,
+    &:focus,
+    &:focus-visible {
+      outline: none;
+
+      & .vue-flow__edge-path {
+        stroke: #555;
+      }
+    }
+  }
+
+  &__edge-textwrapper {
+    pointer-events: all;
+  }
+
+  &__edge-textbg {
+    fill: white;
+  }
+
+  &__edge-text {
+    pointer-events: none; -webkit-user-select: none; -moz-user-select: none; user-select: none;
+  }
+
+  &__connection {
+    pointer-events: none;
+
+    &.animated {
+      stroke-dasharray: 5; animation: dashdraw 0.5s linear infinite;
+    }
+  }
+
+  &__connectionline {
+    z-index: 1001;
+  }
+
+  &__nodes {
+    pointer-events: none; transform-origin: 0 0;
+
+    &selection {
+      z-index: 3; transform-origin: left top; pointer-events: none;
+
+      &-rect {
+        position: absolute; pointer-events: all; cursor: grab;
+
+        &.dragging {
+          cursor: grabbing;
+        }
+      }
+    }
+  }
+
+  &__node {
+    position: absolute; border-radius: 4px; -webkit-user-select: none; -moz-user-select: none; user-select: none; pointer-events: all; transform-origin: 0 0; box-sizing: border-box; font-size: 12px; cursor: default; border-width: 1px; border-style: solid; border-color: #3248F6; background-color: rgba(50, 72, 246, 0.05);
+
+    &.vue-flow__node-default,
+    &.vue-flow__node-input,
+    &.vue-flow__node-output {
+      padding: 0; border-radius: 4px;
+
+      &:not(.parent) {
+        padding: 6px; border: 1px solid #E1E6ED; background-color: #fff; font-size: 12px;
+      }
+    }
+
+    &.vue-flow__node-default.selected,
+    &.vue-flow__node-default:focus,
+    &.vue-flow__node-default:focus-visible,
+    &.vue-flow__node-input.selected,
+    &.vue-flow__node-input:focus,
+    &.vue-flow__node-input:focus-visible,
+    &.vue-flow__node-output.selected,
+    &.vue-flow__node-output:focus,
+    &.vue-flow__node-output:focus-visible {
+      border: 1px solid #3248F6; outline: none;
+    }
+
+    &.draggable {
+      cursor: grab; pointer-events: all;
+
+      &.dragging {
+        cursor: grabbing;
+      }
+    }
+
+    &.parent,
+    &:not(.vue-flow__node-default) {
+      > div:not(:empty) {
+        padding: 8px; background-color: #3248F6; color: #fff; text-align: center;
+      }
+    }
+  }
+
+  &__handle,
+  .parent.vue-flow__node-default &__handle {
+    position: absolute; min-width: 6px; min-height: 6px; border: none; pointer-events: none; background-color: #3248F6; outline: 4px solid rgba(50, 72, 246, 0.20);
+
+    &.connectable {
+      pointer-events: all; cursor: crosshair;
+    }
+
+    &-bottom {
+      left: 50%; bottom: 0; transform: translate(-50%, 50%);
+    }
+
+    &-top {
+      left: 50%; top: 0; transform: translate(-50%, -50%);
+    }
+
+    &-left {
+      top: 50%; left: 0; transform: translate(-50%, -50%);
+    }
+
+    &-right {
+      top: 50%; right: 0; transform: translate(50%, -50%);
+    }
+  }
+
+  &__resize-control.handle {
+    width: 6px; height: 6px;
+  }
+
+  &__panel {
+    z-index: 5; position: absolute; margin: 15px;
+
+    &.top {
+      top: 0;
+    }
+
+    &.bottom {
+      bottom: 0;
+    }
+
+    &.left {
+      left: 0;
+    }
+
+    &.right {
+      right: 0;
+    }
+
+    &.center {
+      left: 50%; transform: translateX(-50%);
+    }
+  }
+}
+
+@keyframes dashdraw {
+  from {
+    stroke-dashoffset: 10;
+  }
+}
+
+.dndflow {
+  display: flex; height: 100%;
+
+  aside {
+    height: calc(100% - 4.4rem); padding: 12px; margin: 2.2rem; margin-right: 0; border-radius: 4px; color: #000; font-size: 1.4rem; background-color: #F4F6FE;
+
+    .description {
+      margin-bottom: 10px;
+    }
+
+    .side-panel {
+      width: 160px; height: 100%; overflow-y: auto; word-break: keep-all; user-select: none;
+
+      h3 {
+        height: auto; margin-bottom: 8px; line-height: 1; font-size: 1.6rem; font-weight: 600;
+
+        &:not(:first-child) {
+          margin-top: 2.2rem;
+        }
+      }
+
+      .nodes {
+        display: flex; flex-direction: column; gap: 4px;
+
+        > * {
+          padding: 8px 12px; border-radius: 4px; cursor: grab; background-color: #fff;
+
+          @media(max-width:640px) {
+            width: 48%; text-align: center;
+          }
+
+          @media(max-width:420px) {
+            display: flex; align-items: center; justify-content: center; font-size: 10px;
+          }
+        }
+      }
+
+      .vue-flow__node-default {
+        border: none; box-shadow: none;
+      }
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+  }
+
+  .vue-flow-wrapper {
+    height: 100%; flex-grow: 1;
+  }
+
+  @media (max-width:640px) {
+    flex-direction: column;
+
+    aside {
+      width: calc(100% - 4.4rem); margin-right: 2.2rem; max-height: 30rem;
+
+      .side-panel {
+        width: 100%;
+
+        .nodes {
+          display: flex; flex-flow: row wrap; gap: 5px;
+        }
+      }
+    }
+
+    .vue-flow__panel {
+      display: flex; margin: 0; justify-content: center; align-items: center;
+
+      > svg {
+        width: 50%; height: 15rem;
+      }
+    }
+  }
+}
+
+@media (max-width:640px) {
+  .vue-flow__panel {
+    display: none;
+  }
+}

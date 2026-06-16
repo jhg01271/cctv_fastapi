@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.impl.dao.postgres.FacilityEquipManageDAO">
+
+    <resultMap id="FacilityDetailMap" type="kr.co.igns.business.impl.model.FacilityEquipManageVO">
+        <!-- 일반 필드 정의 -->
+        <id property="facilitisId" column="facilitis_id"/>
+        <result property="compId" column="comp_id"/>
+        <result property="facilitisNm" column="facilitis_nm"/>
+        <result property="ordSeq" column="ord_seq"/>
+        <result property="useYn" column="use_yn"/>
+        <result property="facilitisDesc" column="facilitis_desc"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="updatedBy" column="updated_by"/>
+        <result property="thumbnailId" column="thumbnail_id"/>
+
+        <!-- 여러 파일 ID 리스트로 매핑 -->
+        <collection property="files" ofType="kr.co.igns.system.common.model.FileVO">
+            <result property="fileId" column="file_id"/>
+            <result property="fileName" column="file_nm"/>
+            <result property="fileExt" column="extension"/>
+            <result property="fileType" column="file_type"/>
+            <result property="fileSize" column="file_size"/>
+            <result property="extension" column="extension"/>
+        </collection>
+    </resultMap>
+    
+    <!-- 마스터 조회 -->
+    <select id='getFacilityEquipManage' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.FacilityEquipManageVO'>
+        WITH FILE_DATA AS (
+			SELECT MIN(file_id) thumbnail_id
+				 , target_id
+			  FROM esg.tb_sys_file 
+			 WHERE target_type = 'facilityEquip'
+			   AND file_type = 'IMAGE'
+			 GROUP BY target_id 
+		)
+		
+		SELECT A.facilitis_id
+			 , A.comp_id
+			 , A.facilitis_nm
+			 , A.ord_seq
+			 , A.use_yn
+			 , A.facilitis_desc
+			 , B.thumbnail_id
+			 , A.created_at
+			 , A.created_by
+			 , A.updated_at
+			 , A.updated_by
+		  FROM esg.tb_facility_equipment_info A
+		  LEFT JOIN FILE_DATA B
+		    ON A.facilitis_id = B.target_id
+		 WHERE A.comp_id = #{compId}
+		 ORDER BY A.use_yn desc, CAST(A.ord_seq AS INTEGER)
+    </select>
+
+	<!-- 상세 조회 -->
+	<select id='getFacilityEquipManageDetail' parameterType='kr.co.igns.business.impl.model.FacilityEquipManageDetailVO' 
+		resultMap='FacilityDetailMap'>
+		<![CDATA[
+        SELECT A.facilitis_id
+			 , A.comp_id
+			 , A.facilitis_nm
+			 , A.ord_seq
+			 , A.use_yn
+			 , A.facilitis_desc
+			 , A.created_at
+			 , A.created_by
+			 , A.updated_at
+			 , A.updated_by
+			 , A.thumbnail_id
+			 , B.file_id 
+			 , B.file_nm 
+			 , B."extension" 
+			 , B.file_type 
+			 , B.file_size 
+		  FROM esg.tb_facility_equipment_info A
+		  LEFT JOIN esg.tb_sys_file B 
+		  	ON A.facilitis_id = B.target_id AND B.target_type = 'facilityEquip'
+		 WHERE A.facilitis_id = #{facilitisId}
+		   AND A.comp_id = #{compId}
+		 ]]>
+    </select>
+    
+    <!-- 추가 -->
+    <insert id="insertFacilityEquipManage" 
+    		parameterType="kr.co.igns.business.impl.model.FacilityEquipManageVO"  useGeneratedKeys="true" keyProperty="facilitisId">
+    	INSERT INTO esg.tb_facility_equipment_info
+		(
+			facilitis_id, 
+			comp_id, 
+			facilitis_nm, 
+			ord_seq, 
+			use_yn, 
+			facilitis_desc, 
+			thumbnail_id,
+			created_at, 
+			created_by
+		)
+		VALUES
+		(
+			(select TO_CHAR(now(), 'YYYYMMDD') || COALESCE(LPAD(TRIM(TO_CHAR((SUBSTR(MAX(facilitis_id), 9))::INTEGER + 1, '9999')), 4, '0'), '0001') 
+			   from esg.tb_facility_equipment_info 
+			  where substr(facilitis_id, 1, 8) = to_char(now(), 'YYYYMMDD')),
+			#{compId}, 
+			#{facilitisNm}, 
+			COALESCE(#{ordSeq}, '99'), 
+			#{useYn}, 
+			#{facilitisDesc}, 
+			#{thumbnailId}, 
+			now(), 
+			#{createdBy}
+		)
+    	RETURNING facilitis_id
+    </insert>
+    
+    <!-- 수정 -->
+    <update id="updateFacilityEquipManage" parameterType="kr.co.igns.business.impl.model.FacilityEquipManageVO">
+    	UPDATE esg.tb_facility_equipment_info
+    	   SET facilitis_nm = #{facilitisNm}
+    	     , ord_seq = #{ordSeq}
+    	     , use_yn = #{useYn}
+    	     , facilitis_desc = #{facilitisDesc}
+    	     , updated_at = now()
+    	     , updated_by = #{updatedBy}
+    	 WHERE facilitis_id = #{facilitisId}
+    	   AND comp_id = #{compId}
+    </update>
+    
+    <!-- 삭제(사용여부N) -->
+    <update id="updateFacilityEquipManageUseN" parameterType="kr.co.igns.business.impl.model.FacilityEquipManageVO">
+    	UPDATE esg.tb_facility_equipment_info
+    	   SET use_yn = 'N'
+    	     , updated_at = now()
+    	     , updated_by = #{updatedBy}
+    	 WHERE facilitis_id = #{facilitisId}
+    	   AND comp_id = #{compId}
+    </update>
+    
+    <!-- 삭제 -->
+    <delete id="deleteFacilityEquipManage" parameterType="kr.co.igns.business.impl.model.FacilityEquipManageVO">
+    	DELETE 
+    	  FROM esg.tb_facility_equipment_info
+    	 WHERE facilitis_id = #{facilitisId}
+    	   AND comp_id = #{compId}
+    </delete>
+</mapper>

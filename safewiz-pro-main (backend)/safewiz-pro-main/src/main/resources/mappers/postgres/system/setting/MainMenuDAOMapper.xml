@@ -1,0 +1,464 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.system.setting.dao.postgres.MainMenuDAO">
+
+    <sql id='selectCol'>
+        sm.menu_id,
+        sm.menu_nm,
+        sm.menu_nm_eng,
+        sm.menu_icon,
+        sm.router_nm,
+        sm.router_path,
+        sm.view_path,
+        sm.param,
+        sm.menu_odr,
+        sm.up_menu_id,
+        sm.web_yn,
+        sm.app_yn,
+    </sql>
+
+    <sql id="filter">
+        <if test='isWeb == true'>
+            AND sm.web_yn = 'Y'
+        </if>
+        <if test='isWeb == false'>
+            AND sm.app_yn = 'Y'
+        </if>
+
+        <if test='searchWords != "" and searchWords != null and searchWords.size > 0'>
+            AND
+            <foreach collection='searchWords' item='searchWord' index='idx' separator='OR' open='(' close=')'>
+                sm.menu_nm LIKE CONCAT('%',#{searchWord},'%')
+            </foreach>
+        </if>
+    </sql>
+
+    <select id='searchCount' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='int'>
+
+        SELECT
+        count(1)
+        FROM esg.tb_sys_menu sm
+        WHERE 1=1
+        <include refid='kr.co.igns.system.setting.dao.postgres.MainMenuDAO.filter' />
+
+    </select>
+
+    <select id='searchAdmin' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.setting.model.MainMenuVO'>
+
+        SELECT
+        <include refid='kr.co.igns.system.setting.dao.postgres.MainMenuDAO.selectCol' />
+        sm.created_at,
+        sm.updated_at,
+        'U' cmd
+        FROM esg.tb_sys_menu sm
+        WHERE 1=1
+        <include refid='kr.co.igns.system.setting.dao.postgres.MainMenuDAO.filter' />
+        ORDER BY sm.menu_odr
+
+    </select>
+    <select id='searchAdminOrderByName' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.setting.model.MainMenuVO'>
+
+        SELECT
+        <include refid='kr.co.igns.system.setting.dao.postgres.MainMenuDAO.selectCol' />
+        sm.created_at,
+        sm.updated_at,
+        'U' cmd
+        FROM esg.tb_sys_menu sm
+        WHERE 1=1
+        <include refid='kr.co.igns.system.setting.dao.postgres.MainMenuDAO.filter' />
+        ORDER BY sm.menu_nm
+
+    </select>
+    <select id='findUserGroup' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='String'>
+        SELECT ghm.grp_id
+        FROM esg.tb_group_hr_map ghm
+        INNER JOIN esg.tb_hr_info hi ON ghm.hr_id = hi.hr_id
+        INNER JOIN esg.tb_user_info ui ON ui.user_id = hi.user_id and hi.user_id=#{createdBy}
+    </select>
+
+    
+
+    <select id='search' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.setting.model.MainMenuVO'>
+        SELECT
+            inner_sq.*,
+            (
+                WITH RECURSIVE menu_path AS (
+                    SELECT m.menu_id, m.menu_nm, m.up_menu_id, m.menu_nm::text AS full_path
+                    FROM esg.tb_sys_menu m
+                    WHERE m.menu_id = inner_sq.menu_id
+                    UNION ALL
+                    SELECT parent.menu_id, parent.menu_nm, parent.up_menu_id,
+                           (parent.menu_nm || ' > ' || child.full_path)::text
+                    FROM esg.tb_sys_menu parent
+                    INNER JOIN menu_path child ON parent.menu_id = child.up_menu_id
+                    AND child.up_menu_id IS NOT NULL AND child.up_menu_id != ''
+                )
+                SELECT full_path FROM menu_path
+                WHERE up_menu_id IS NULL OR up_menu_id = ''
+                LIMIT 1
+            ) AS full_path
+        FROM (
+        SELECT * FROM (
+        SELECT DISTINCT
+		sm.menu_id,
+		sm.menu_nm,
+		sm.up_menu_id,
+		sm.router_nm,
+		sm.menu_nm_eng,
+		sm.router_path,
+        sm.view_path,
+		sm.menu_icon,
+        sm.menu_odr,
+        sm.param,
+        CASE WHEN EXISTS (
+            SELECT 1 FROM esg.tb_sys_menu child
+             WHERE child.up_menu_id = sm.menu_id
+        ) THEN true ELSE false END AS has_children,
+        <!-- 사용자별 테이블에 데이터가 없는 경우에도 조회는 가능 -->
+        <choose>
+		<!-- 관리자 및 매니저 (권한별 메뉴 기준으로 권한 조회) -->
+        <when test='role != "USER"'>
+		    COALESCE(thr.sch_ah,'Y') AS sch_ah,
+			'U' AS cmd,
+            MAX(COALESCE(tc.del_ah, 'N')) AS del_ah,
+            MAX(COALESCE(tc.exl_ah, 'N')) AS exl_ah,
+            MAX(COALESCE(tc.sav_ah, 'N')) AS sav_ah
+            FROM esg.tb_sys_menu sm
+        </when>
+		<!-- 일반 사용자 -->
+        <when test='userGroup != "" and userGroup != null and userGroup.size > 0'>
+			<!-- 해당 메뉴가 사용자 접근 권한을 가지고 있는 경우 -->
+            COALESCE(thr.sch_ah,'Y') AS sch_ah,
+			CASE WHEN thr.menu_id IS NOT NULL AND 
+				(thr.del_ah IS DISTINCT FROM MAX(COALESCE(ca.del_ah, NULL))
+				OR thr.exl_ah IS DISTINCT FROM MAX(COALESCE(ca.exl_ah, NULL))
+				OR thr.sav_ah IS DISTINCT FROM MAX(COALESCE(ca.sav_ah, NULL))
+				OR thr.sch_ah='N')
+			THEN 'U'
+			<!-- 해당 메뉴가 그룹 접근 권한을 가지고 있는 경우 -->
+			WHEN count(ca.*) > 0 THEN 'G'
+			<!-- 해당 메뉴에 대한 접근 권한이 없는 경우 -->
+			ELSE 'I' END AS cmd,
+			<!-- 사용자별 CRUD 권한 체크 후 그룹별 CRUD  권한 체크 -->
+			CASE WHEN thr.del_ah IS NOT NULL THEN thr.del_ah
+			WHEN MAX(COALESCE(ca.del_ah, 'N')) = 'Y' THEN 'Y'
+			ELSE 'N' END AS del_ah,
+			CASE WHEN thr.exl_ah IS NOT NULL THEN thr.exl_ah
+			WHEN MAX(COALESCE(ca.exl_ah, 'N')) = 'Y' THEN 'Y'
+			ELSE 'N' END AS exl_ah,
+			CASE WHEN thr.sav_ah IS NOT NULL THEN thr.sav_ah
+			WHEN MAX(COALESCE(ca.sav_ah, 'N')) = 'Y' THEN 'Y'
+			ELSE 'N' END AS sav_ah
+            FROM esg.tb_sys_menu sm
+            LEFT JOIN esg.tb_group_menu ca
+            ON ca.menu_id = sm.menu_id
+            AND ca.comp_id = #{compId}
+			<if test='isWeb == true'>
+				AND ca.param='W'
+			</if>
+			<if test='isWeb == false'>
+				  AND ca.param='A'
+			</if>
+            AND ca.grp_id in
+            <foreach item="id" index="index" collection="userGroup"
+                    open="(" separator="," close=")">
+                #{id}
+            </foreach> 
+        </when > 
+		<!-- 속한 그룹의 정보가 없는 경우 -->
+        <otherwise>
+			<!-- 사용자별 CRUD 권한 체크 후 그룹별 CRUD  권한 체크 -->
+            COALESCE(thr.sch_ah,'N') AS sch_ah,
+            'U' AS cmd,
+			COALESCE(thr.del_ah, 'N') AS del_ah,
+			COALESCE(thr.exl_ah, 'N') AS exl_ah,
+			COALESCE(thr.sav_ah, 'N') AS sav_ah
+			FROM esg.tb_sys_menu sm
+        </otherwise>
+        </choose>
+		INNER JOIN esg.tb_comp_auth tc
+		ON tc.menu_id = sm.menu_id
+		AND tc.grp_cd = #{role}
+		<if test='isWeb == true'>
+            AND tc.param='W'
+        </if>
+        <if test='isWeb == false'>
+            AND tc.param='A'
+        </if>
+		LEFT JOIN esg.tb_hr_menu thr
+		ON thr.comp_id = #{compId} AND
+		thr.hr_id = (select hr_id from esg.tb_hr_info where user_id = #{createdBy})
+        AND
+		sm.menu_id = thr.menu_id
+		WHERE 1 = 1
+		GROUP BY 
+        sm.menu_id,
+        sm.menu_nm,
+        sm.up_menu_id,
+        sm.router_nm,
+        sm.menu_nm_eng,
+        sm.router_path,
+        sm.view_path,
+        sm.menu_icon,
+        sm.menu_odr,
+		thr.menu_id,
+		thr.del_ah,
+		thr.exl_ah,
+		thr.sav_ah,
+		thr.sch_ah,
+        tc.del_ah,
+        tc.exl_ah,
+        tc.sav_ah
+		ORDER BY sm.menu_odr
+        ) as sq
+        where (sq.cmd='U' OR sq.cmd='G') AND sq.sch_ah &lt;&gt;'N'
+        ) AS inner_sq
+	</select>
+
+    <select id='searchMaster' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.setting.model.MainMenuVO'>
+        SELECT * FROM (
+        SELECT DISTINCT
+		sm.menu_id,
+		sm.menu_nm,
+		sm.up_menu_id,
+		sm.router_nm,
+		sm.menu_nm_eng,
+		sm.router_path,
+        sm.view_path,
+		sm.menu_icon,
+        sm.menu_odr,
+        sm.param,
+		<!-- 사용자별 테이블에 데이터가 없는 경우에도 조회는 가능 -->
+        <choose>
+		<!-- 관리자 및 매니저 (권한별 메뉴 기준으로 권한 조회) -->
+        <when test='role != "USER"'>
+		    COALESCE(thr.sch_ah,'Y') AS sch_ah,
+			'U' AS cmd,
+            MAX(COALESCE(tc.del_ah, 'N')) AS del_ah,
+            MAX(COALESCE(tc.exl_ah, 'N')) AS exl_ah,
+            MAX(COALESCE(tc.sav_ah, 'N')) AS sav_ah
+            FROM esg.tb_sys_menu sm
+        </when>
+		<!-- 일반 사용자 -->
+        <when test='userGroup != "" and userGroup != null and userGroup.size > 0'>
+			<!-- 해당 메뉴가 사용자 접근 권한을 가지고 있는 경우 -->
+            COALESCE(thr.sch_ah,'Y') AS sch_ah,
+			CASE WHEN thr.menu_id IS NOT NULL AND
+				(thr.del_ah IS DISTINCT FROM MAX(COALESCE(ca.del_ah, 'N'))
+				OR thr.exl_ah IS DISTINCT FROM MAX(COALESCE(ca.exl_ah, 'N'))
+				OR thr.sav_ah IS DISTINCT FROM MAX(COALESCE(ca.sav_ah, 'N'))
+				OR thr.sch_ah='N')
+			THEN 'U'
+			<!-- 해당 메뉴가 그룹 접근 권한을 가지고 있는 경우 -->
+			WHEN count(ca.*) > 0 THEN 'G'
+			<!-- 해당 메뉴에 대한 접근 권한이 없는 경우 -->
+			ELSE 'I' END AS cmd,
+			<!-- 사용자별 CRUD 권한 체크 후 그룹별 CRUD  권한 체크 -->
+			CASE WHEN thr.del_ah IS NOT NULL THEN thr.del_ah
+			WHEN MAX(COALESCE(ca.del_ah, 'N')) = 'Y' THEN 'Y'
+			ELSE 'N' END AS del_ah,
+			CASE WHEN thr.exl_ah IS NOT NULL THEN thr.exl_ah
+			WHEN MAX(COALESCE(ca.exl_ah, 'N')) = 'Y' THEN 'Y'
+			ELSE 'N' END AS exl_ah,
+			CASE WHEN thr.sav_ah IS NOT NULL THEN thr.sav_ah
+			WHEN MAX(COALESCE(ca.sav_ah, 'N')) = 'Y' THEN 'Y'
+			ELSE 'N' END AS sav_ah
+            FROM esg.tb_sys_menu sm
+            LEFT JOIN esg.tb_group_menu ca
+            ON ca.menu_id = sm.menu_id
+            AND ca.comp_id = #{compId}
+			<if test='isWeb == true'>
+				AND ca.param='W'
+			</if>
+			<if test='isWeb == false'>
+				  AND ca.param='A'
+			</if>
+            AND ca.grp_id in
+            <foreach item="id" index="index" collection="userGroup"
+                    open="(" separator="," close=")">
+                #{id}
+            </foreach>
+        </when >
+		<!-- 속한 그룹의 정보가 없는 경우 -->
+        <otherwise>
+			<!-- 사용자별 CRUD 권한 체크 후 그룹별 CRUD  권한 체크 -->
+            COALESCE(thr.sch_ah,'N') AS sch_ah,
+            'U' AS cmd,
+			COALESCE(thr.del_ah, 'N') AS del_ah,
+			COALESCE(thr.exl_ah, 'N') AS exl_ah,
+			COALESCE(thr.sav_ah, 'N') AS sav_ah
+			FROM esg.tb_sys_menu sm
+        </otherwise>
+        </choose>
+		INNER JOIN esg.tb_comp_auth tc
+		ON tc.menu_id = sm.menu_id
+		AND tc.grp_cd = #{role}
+		<if test='isWeb == true'>
+            AND tc.param='W'
+        </if>
+        <if test='isWeb == false'>
+            AND tc.param='A'
+        </if>
+		LEFT JOIN esg.tb_hr_menu thr
+		ON thr.comp_id = #{compId} AND
+		thr.hr_id = (select hr_id from esg.tb_hr_info where user_id = #{createdBy})
+        AND
+		sm.menu_id = thr.menu_id
+		WHERE 1 = 1
+		GROUP BY
+        sm.menu_id,
+        sm.menu_nm,
+        sm.up_menu_id,
+        sm.router_nm,
+        sm.menu_nm_eng,
+        sm.router_path,
+        sm.view_path,
+        sm.menu_icon,
+        sm.menu_odr,
+		thr.menu_id,
+		thr.del_ah,
+		thr.exl_ah,
+		thr.sav_ah,
+		thr.sch_ah,
+        tc.del_ah,
+        tc.exl_ah,
+        tc.sav_ah
+		ORDER BY sm.menu_odr
+        ) as sq
+        where (sq.cmd='U' OR sq.cmd='G') AND sq.sch_ah &lt;&gt;'N'
+	</select>
+
+    <select id='searchFavorites' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.setting.model.MainMenuVO'>
+        SELECT DISTINCT
+            A.MENU_ID
+                      , A.MENU_NM
+                      , A.UP_MENU_ID
+                      , A.ROUTER_NM
+                      , A.MENU_NM_ENG
+                      , A.ROUTER_PATH
+                      , A.VIEW_PATH
+                      , A.MENU_ICON
+                      , A.MENU_ODR
+                      , A.PARAM
+                      , A.COMP_ID
+                      , A.HR_ID
+        FROM ESG.TB_SYS_MENU_FAVORITES A
+        WHERE A.COMP_ID = #{compId}
+          AND A.HR_ID = #{hrId}
+
+        UNION ALL
+
+        SELECT 'F001' as MENU_ID
+             , 'My HSE 업무' as MENU_NM
+             , '' as UP_MENU_ID
+             , '' as ROUTER_NM
+             , '' as MENU_NM_ENG
+             , '' as ROUTER_PATH
+             , '' as VIEW_PATH
+             , '' as MENU_ICON
+             ,  1 as MENU_ODR
+             , '' as PARAM
+             , '' as COMP_ID
+             , '' as HR_ID
+
+            WHERE NOT EXISTS (
+            SELECT 1
+            FROM ESG.TB_SYS_MENU_FAVORITES A
+            WHERE A.COMP_ID = #{compId}
+            AND A.HR_ID = #{hrId}
+            )
+        ORDER BY MENU_ODR;
+    </select>
+
+    <select id='findOne' parameterType='String' resultType='kr.co.igns.system.setting.model.MainMenuVO'>
+
+        SELECT
+        <include refid='kr.co.igns.system.setting.dao.postgres.MainMenuDAO.selectCol' />
+        created_at,
+        updated_at,
+        'U' cmd
+        FROM esg.tb_sys_menu sm
+        WHERE sm.menu_id = #{menuId}
+
+    </select>
+
+    <select id='getAffCompIdByUserId' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='String'>
+        select comp_id
+          from esg.tb_hr_info_comp_map
+         where user_id = #{createdBy}
+           and orgn_comp_yn = 'Y'
+    </select>
+
+    <select id='getAffHrIdByUserId' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='String'>
+        select hr_id
+        from esg.tb_hr_info_comp_map
+        where user_id = #{createdBy}
+          and orgn_comp_yn = 'Y'
+    </select>
+
+    <insert id="insert" parameterType="kr.co.igns.system.setting.model.MainMenuVO">
+
+        INSERT INTO
+        esg.tb_sys_menu (
+        menu_id,
+        menu_nm,
+        menu_nm_eng,
+        menu_icon,
+        router_nm,
+        router_path,
+        view_path,
+        param,
+        menu_odr,
+        up_menu_id,
+        created_at,
+        created_by,
+        web_yn,
+        app_yn
+        ) VALUES (
+        #{menuId},
+        #{menuNm},
+        #{menuNmEng},
+        #{menuIcon},
+        #{routerNm},
+        #{routerPath},
+        #{viewPath},
+        #{param},
+        #{menuOdr},
+        #{upMenuId},
+        now(),
+        #{createdBy},
+        #{webYn},
+        #{appYn}
+        )
+
+    </insert>
+
+    <update id="update" parameterType="kr.co.igns.system.setting.model.MainMenuVO">
+
+        UPDATE esg.tb_sys_menu
+        SET
+        menu_nm = #{menuNm},
+        menu_nm_eng = #{menuNmEng},
+        menu_icon = #{menuIcon},
+        router_nm = #{routerNm},
+        router_path = #{routerPath},
+        view_path = #{viewPath},
+        param = #{param},
+        menu_odr = #{menuOdr},
+        up_menu_id = #{upMenuId},
+        updated_at = now(),
+        updated_by = #{updatedBy},
+        web_yn = #{webYn},
+        app_yn = #{appYn}
+        WHERE menu_id = #{menuId}
+
+    </update>
+
+    <delete id="delete" parameterType="String">
+
+        DELETE FROM esg.tb_sys_menu
+        WHERE menu_id = #{menuId}
+
+    </delete>
+</mapper>

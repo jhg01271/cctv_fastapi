@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.impl.dao.postgres.MgmtOfChangeDAO">
+    <insert id="insertMgmtOfChange"
+            parameterType="kr.co.igns.business.impl.model.MgmtOfChangeVO">
+            <selectKey keyProperty="docNo" resultType="kr.co.igns.business.impl.model.MgmtOfChangeVO" order="BEFORE">
+                <![CDATA[
+                    select lpad((coalesce(max(substring(doc_no, 1, 5)::integer), 0) + 1)::text, 5, '0') as docNo
+                    from esg.tb_mgmt_of_change
+                    WHERE write_year = #{writeYear}
+                    AND doc_type = #{docType}
+                ]]>
+            </selectKey>
+			insert into esg.tb_mgmt_of_change(
+				write_year,
+                doc_no,
+                doc_type,
+                comp_id,
+				div_etc,
+                content,
+                req_orgn_id,
+                req_dt,
+                change_overview,
+                change_dt,
+                change_orgn_id,
+                review_content,
+                review_dt,
+                result,
+                result_content,
+                div,
+                use_yn,
+                created_at,
+                created_by
+			)
+			values(
+				#{writeYear},
+                #{docNo},
+                #{docType},
+                #{compId},
+                #{divEtc},
+                #{content},
+                #{reqOrgnId},
+                #{reqDt},
+                #{changeOverview},
+                #{changeDt},
+                #{changeOrgnId},
+                #{reviewContent},
+                #{reviewDt},
+                #{result},
+                #{resultContent},
+                #{div},
+                #{useYn},
+				now(),
+                #{createdBy}
+			)
+    </insert>
+    <insert id="updateMgmtOfChange"
+            parameterType="kr.co.igns.business.impl.model.MgmtOfChangeVO">
+            UPDATE esg.tb_mgmt_of_change
+            SET
+                div_etc= #{divEtc},
+                content= #{content},
+                req_orgn_id= #{reqOrgnId},
+                req_dt= #{reqDt},
+                change_overview=#{changeOverview},
+                change_dt= #{changeDt},
+                change_orgn_id= #{changeOrgnId},
+                review_content= #{reviewContent},
+                review_dt= #{reviewDt},
+                result= #{result},
+                result_content= #{resultContent},
+                div=#{div},
+                use_yn=#{useYn},
+                updated_at=now(),
+                updated_by=#{updatedBy}
+            where
+                write_year = #{writeYear} AND
+                doc_no = #{docNo} AND
+                doc_type= #{docType}
+    </insert>
+    <insert id="deleteMgmtOfChange"
+            parameterType="kr.co.igns.business.impl.model.MgmtOfChangeVO">
+            UPDATE esg.tb_mgmt_of_change
+            SET
+                use_yn='N'
+            where
+                write_year = #{writeYear} AND
+                doc_no = #{docNo} AND
+                doc_type= #{docType}
+    </insert>
+    <select id="getMgmtOfChange" resultType="kr.co.igns.business.impl.model.MgmtOfChangeVO">
+		SELECT 
+		    moc.*,
+		    toi1.orgn_nm as req_orgn_nm,
+		    toi2.orgn_nm as change_orgn_nm,
+		    tai_review.hr_nm as review_hr_nm,
+		    tai_change.hr_nm as change_hr_nm,
+		    tcd.minor_nm AS result_nm
+		FROM esg.tb_mgmt_of_change moc
+		LEFT JOIN esg.tb_approval_info tai_review
+		    ON tai_review.target_type = 'MOC'
+		    AND tai_review.target_id = moc.write_year || moc.doc_no
+		    AND tai_review.type = 'review'
+		LEFT JOIN esg.tb_approval_info tai_change
+		    ON tai_change.target_type = 'MOC'
+		    AND tai_change.target_id = moc.write_year || moc.doc_no
+		    AND tai_change.type = 'change'
+		LEFT JOIN esg.tb_common_d tcd
+		    ON tcd.major_cd = 'C0035' 
+		    AND tcd.minor_cd = moc.result
+		LEFT JOIN esg.tb_orgn_info toi1 
+		    ON moc.req_orgn_id = toi1.orgn_id
+		LEFT JOIN esg.tb_orgn_info toi2 
+		    ON moc.change_orgn_id = toi2.orgn_id
+		WHERE moc.comp_id = #{compId}
+    </select>
+    <select id="getMgmtOfChangeDetail" parameterType="kr.co.igns.business.impl.model.MgmtOfChangeVO"
+            resultType="kr.co.igns.business.impl.model.MgmtOfChangeVO">
+	    select moc.*,
+	           toi1.orgn_nm as req_orgn_nm,
+	           toi2.orgn_nm as change_orgn_nm,
+	           tai.hr_nm as change_hr_nm
+	    from esg.tb_mgmt_of_change moc
+	    LEFT JOIN esg.tb_orgn_info toi1 on moc.req_orgn_id  = toi1.orgn_id
+	    LEFT JOIN esg.tb_orgn_info toi2 on moc.change_orgn_id  = toi2.orgn_id
+	    LEFT JOIN esg.tb_approval_info tai
+	        ON tai.target_type = 'MOC'
+	        AND tai.target_id = moc.write_year||moc.doc_no
+	        AND tai.type = 'change'
+	    WHERE moc.comp_id = #{compId} 
+	    AND moc.write_year = #{writeYear} 
+	    AND moc.doc_no = #{docNo} 
+	    AND moc.doc_type= #{docType}
+    </select>
+
+
+</mapper>

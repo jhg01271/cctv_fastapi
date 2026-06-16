@@ -1,0 +1,594 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.system.base.dao.postgres.HrDAO">
+    <sql id="filter">
+        <if test='orgnId != "" and orgnId != null'>
+            AND vhi.orgn_id = #{orgnId}
+        </if>
+    </sql>
+    <select id='getHrList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.base.model.HrVO'>
+        SELECT vhi.hr_id,
+        vhi.hr_nm,
+        vhi.sex_div,
+        vhi.birth_dt,
+        vhi.sabun,
+        vhi.orgn_id,
+        toi.orgn_nm,
+        toi.ord_seq as seq,
+        jbrp.ord_seq as jbrpSeq,
+        vhi.jbrp,
+        vhi.part_comp_id,
+        tpci.part_comp_nm,
+        vhi.working_at,
+        vhi.fire_at,
+        vhi.remark,
+        vhi.use_yn,
+        vhi.created_at,
+        vhi.created_by,
+        vhi.updated_at,
+        vhi.updated_by,
+        vhi.user_id,
+        vhi.risk_ass_role,
+        vhi.ord_seq,
+        vhi.zip_cd,
+        vhi.addrs1,
+        vhi.addrs2,
+        vhi.email,
+        vhi.phone,
+        vhi.signature,
+        vhi.auth_group_cd as role,
+        (
+            SELECT STRING_AGG(traocor.orgn_role_nm, ', ' ORDER BY traocor.orgn_role_nm)
+            FROM esg.tb_safety_duties_doc_user tsddu
+            LEFT JOIN esg.tb_safety_duties_doc tsdd
+            ON tsddu.write_year = tsdd.write_year
+            AND tsddu.doc_no = tsdd.doc_no
+            LEFT JOIN esg.tb_risk_assessment_organ_chart_orgn_role traocor
+            ON tsdd.comp_id = traocor.comp_id
+            AND tsdd.orgn_role_id = traocor.orgn_role_id
+            AND traocor.use_yn = 'Y'
+            WHERE vhi.hr_id = tsddu.hr_id
+        ) AS risk_ass_role_nm,
+        jbrp.jbrp_nm,
+        sf.file_id as logo_id,
+        (
+        SELECT comp_id
+        FROM esg.tb_company_info ci
+        WHERE ci.comp_id = (
+        SELECT tcm2.comp_id
+        FROM esg.tb_hr_info_comp_map tcm2
+        WHERE tcm2.hr_id = vhi.hr_id AND tcm2.orgn_comp_yn = 'Y'
+        )
+        ) AS affCompId,
+        (
+        SELECT comp_nm
+        FROM esg.tb_company_info ci
+        WHERE ci.comp_id = (
+        SELECT tcm2.comp_id
+        FROM esg.tb_hr_info_comp_map tcm2
+        WHERE tcm2.hr_id = vhi.hr_id AND tcm2.orgn_comp_yn = 'Y'
+        )
+        ) AS affCompNm
+        FROM esg.v_hr_info vhi
+        left join esg.tb_hr_info_jbrp jbrp
+        on jbrp.jbrp_id = vhi.jbrp AND jbrp.comp_id = #{compId}
+        LEFT JOIN esg.tb_orgn_info toi ON toi.orgn_id = vhi.orgn_id -- 조직
+        LEFT JOIN esg.tb_partner_comp_info tpci ON tpci.part_comp_id = vhi.part_comp_id
+        -- 파일 location
+        LEFT JOIN esg.tb_sys_file sf ON sf.target_id = vhi.hr_id AND sf.target_type='hrImg'
+        inner join esg.tb_hr_info_comp_map tcm ON tcm.comp_id = #{compId} and tcm.hr_id = vhi.hr_id and tcm.orgn_comp_yn = 'Y'
+        WHERE 1=1
+        <include refid='kr.co.igns.system.base.dao.postgres.HrDAO.filter' />
+        ORDER BY vhi.use_yn DESC, toi.ord_seq asc, jbrp.ord_seq asc, vhi.ord_seq asc
+    </select>
+
+    <select id='getHrDetail' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.base.model.HrVO'>
+        SELECT vhi.hr_id,
+               vhi.hr_nm,
+               vhi.sex_div,
+               vhi.birth_dt,
+               vhi.sabun,
+               vhi.orgn_id,
+               toi.orgn_nm,
+               vhi.jbrp,
+               vhi.part_comp_id,
+               tpci.part_comp_nm,
+               vhi.working_at,
+               vhi.fire_at,
+               vhi.remark,
+               vhi.use_yn,
+               vhi.created_at,
+               vhi.created_by,
+               vhi.updated_at,
+               vhi.updated_by,
+               vhi.user_id,
+               vhi.risk_ass_role,
+               vhi.ord_seq,
+               vhi.zip_cd,
+               vhi.addrs1,
+               vhi.addrs2,
+               vhi.email,
+               vhi.phone,
+               vhi.signature,
+               jbrp.jbrp_nm,
+               sf.file_id,
+               tci.max_hr_count,
+               (
+                   SELECT STRING_AGG(traocor.orgn_role_nm, ', ' ORDER BY traocor.orgn_role_nm)
+                   FROM esg.tb_safety_duties_doc_user tsddu
+                            LEFT JOIN esg.tb_safety_duties_doc tsdd
+                                      ON tsddu.write_year = tsdd.write_year
+                                          AND tsddu.doc_no = tsdd.doc_no
+                            LEFT JOIN esg.tb_risk_assessment_organ_chart_orgn_role traocor
+                                      ON tsdd.comp_id = traocor.comp_id
+                                          AND tsdd.orgn_role_id = traocor.orgn_role_id
+                                          AND traocor.use_yn = 'Y'
+                   WHERE vhi.hr_id = tsddu.hr_id
+               ) AS risk_ass_role_nm
+        FROM esg.v_hr_info vhi
+                 LEFT JOIN esg.tb_partner_comp_info tpci ON tpci.part_comp_id = vhi.part_comp_id
+                 LEFT JOIN esg.tb_orgn_info toi ON toi.orgn_id = vhi.orgn_id
+            -- 파일 location
+                 LEFT JOIN esg.tb_sys_file sf on sf.target_id = #{hrId} and sf.target_type='hrImg'
+                -- 직위 nm
+                LEFT JOIN esg.tb_hr_info_jbrp jbrp on jbrp.jbrp_id = vhi.jbrp and jbrp.comp_id =  (SELECT comp_id
+                                                                                                     FROM esg.tb_hr_info_comp_map
+                                                                                                    WHERE hr_id = #{hrId}
+                                                                                                      AND orgn_comp_yn = 'Y')
+                LEFT JOIN esg.tb_company_info tci ON tci.comp_id = (SELECT comp_id
+                                                                      FROM esg.tb_hr_info_comp_map
+                                                                     WHERE hr_id = #{hrId}
+                                                                       AND orgn_comp_yn = 'Y')
+        WHERE 1=1
+        AND vhi.hr_id = #{hrId}
+    </select>
+    <select id='getAffMgrCompIdByHr' parameterType='String' resultType='kr.co.igns.system.base.model.HrVO'>
+        SELECT a.comp_id, b.comp_nm, a.orgn_comp_yn
+        FROM esg.tb_hr_info_comp_map a
+                 left join esg.tb_company_info b on a.comp_id = b.comp_id
+        WHERE 1=1
+          AND a.hr_id = #{hrId}
+          AND a.use_yn = 'Y'
+    </select>
+    
+    <select id='getCompIdByHr' parameterType='String' resultType='kr.co.igns.system.base.model.BaseMapVO'>
+        SELECT thcm.comp_id as id, tci.comp_nm as nm
+        FROM esg.tb_hr_info_comp_map thcm
+        left join esg.tb_company_info tci on tci.comp_id = thcm.comp_id
+        WHERE 1=1
+        AND thcm.hr_id = #{hrId}
+        AND thcm.use_yn = 'Y'
+    </select>
+
+    <select id='checkExceedMaxHrCount' parameterType='kr.co.igns.system.base.model.HrVO' resultType='kr.co.igns.system.base.model.HrVO'>
+        SELECT
+            c.comp_id,
+            COALESCE(#{hrId}, '') AS hrId,
+            c.max_hr_count AS maxHrCount,
+            COALESCE(h.use_yn, 'Y') AS useYn,
+            COUNT(CASE WHEN h_all.use_yn = 'Y' THEN 1 END) AS hrCount
+          FROM esg.tb_company_info c
+          LEFT JOIN esg.tb_hr_info_comp_map m
+            ON m.comp_id = c.comp_id AND m.orgn_comp_yn = 'Y' AND m.hr_id = #{hrId}
+          LEFT JOIN esg.tb_hr_info h
+            ON h.hr_id = m.hr_id
+          LEFT JOIN esg.tb_hr_info_comp_map m_all
+            ON m_all.comp_id = c.comp_id AND m_all.orgn_comp_yn = 'Y'
+          LEFT JOIN esg.tb_hr_info h_all
+            ON h_all.hr_id = m_all.hr_id
+         WHERE c.comp_id = #{compId}
+         GROUP BY c.comp_id, c.max_hr_count, h.use_yn;
+    </select>
+
+    <insert id="insertHr" parameterType="kr.co.igns.system.base.model.HrVO">
+
+        <selectKey keyProperty="hrId" resultType="kr.co.igns.system.base.model.HrVO" order="BEFORE">
+            <![CDATA[
+            WITH current_date_info AS (
+            SELECT
+                TO_CHAR(CURRENT_DATE, 'YYYYMMDD') AS today,
+                COALESCE(MAX(SUBSTRING(hr_id, 9, 4)::INTEGER), 0) AS max_sequence
+            FROM
+                esg.tb_hr_info
+            WHERE
+                SUBSTRING(hr_id, 1, 8) = TO_CHAR(CURRENT_DATE, 'YYYYMMDD')
+            )
+            SELECT
+                today ||
+                CASE
+                    WHEN max_sequence = 0 THEN '0001'
+                ELSE
+                    CASE
+                        WHEN max_sequence < 9999 THEN LPAD((max_sequence + 1)::TEXT, 4, '0')
+                        ELSE '0001'  -- 시퀀스가 9999에 도달하면 재시작
+                    END
+                END AS hrId
+            FROM current_date_info;
+         ]]>
+        </selectKey>
+
+
+        INSERT INTO esg.tb_hr_info (
+            hr_id,
+            hr_nm,
+            sex_div,
+            birth_dt,
+            sabun,
+            orgn_id,
+            jbrp,
+            part_comp_id,
+            working_at,
+            fire_at,
+            remark,
+            user_id,
+            risk_ass_role,
+            created_at,
+            created_by,
+            use_yn,
+            ord_seq,
+            zip_cd,
+            addrs1,
+            addrs2
+        )
+        VALUES (
+                   #{hrId},
+                   #{hrNm},
+                   #{sexDiv},
+                   #{birthDt},
+                   #{sabun},
+                   #{orgnId},
+                   #{jbrp},
+                   #{partCompId},
+                   #{workingAt},
+                   #{fireAt},
+                   #{remark},
+                   #{userId},
+                   #{riskAssRole},
+                   now(),
+                   #{createdBy},
+                   #{useYn},
+                   #{ordSeq},
+                   #{zipCd},
+                   #{addrs1},
+                   #{addrs2}
+               )
+
+    </insert>
+
+    <update id="updateHr" parameterType="kr.co.igns.system.base.model.HrVO">
+
+        UPDATE esg.tb_hr_info
+        SET
+            hr_nm = #{hrNm},
+            sex_div = #{sexDiv},
+            birth_dt = #{birthDt},
+            sabun = #{sabun},
+            orgn_id = #{orgnId},
+            jbrp = #{jbrp},
+            part_comp_id = #{partCompId},
+            working_at = #{workingAt},
+            fire_at = #{fireAt},
+            remark = #{remark},
+            user_id = #{userId},
+            risk_ass_role = #{riskAssRole},
+            use_yn = #{useYn},
+            ord_seq = #{ordSeq},
+            zip_cd = #{zipCd},
+            addrs1 = #{addrs1},
+            addrs2 = #{addrs2},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE hr_id = #{hrId}
+
+    </update>
+
+    <select id='getHrById' parameterType='String' resultType='kr.co.igns.system.base.model.HrVO'>
+
+        SELECT *
+        FROM esg.tb_hr_info
+        WHERE 1=1
+          AND hr_id = #{hrId}
+
+    </select>
+
+    <delete id="deleteHr" parameterType="String">
+
+        UPDATE esg.tb_hr_info
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE hr_id = #{hrId}
+
+    </delete>
+
+    <delete id="deleteHrInfoCompMap" parameterType="String">
+
+        UPDATE esg.tb_hr_info_comp_map
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE hr_id = #{hrId}
+
+    </delete>
+
+    <update id="updateUserHr" parameterType="kr.co.igns.system.base.model.HrVO">
+
+        UPDATE esg.tb_user_info
+        SET
+            user_nm = #{userNm},
+            email = #{email},
+            phone = #{phone},
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE user_id = #{userId}
+
+    </update>
+
+    <delete id="deleteUserHr" parameterType="String">
+
+        UPDATE esg.tb_user_info tui
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        FROM esg.tb_hr_info thi
+        WHERE thi.hr_id = #{hrId}
+          AND tui.user_id = thi.user_id;
+
+    </delete>
+
+    <select id='getOrgHistoryList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.base.model.OrgHistoryVO'>
+        SELECT thoh.*, toi.orgn_nm
+        FROM esg.tb_hr_orgn_hi thoh
+        left join  esg.tb_orgn_info toi on toi.orgn_id = thoh.orgn_id
+        WHERE 1=1
+        AND thoh.hr_id = #{hrId}
+        ORDER BY created_at DESC
+    </select>
+
+    <insert id="addOrgnHistoryHr" parameterType="kr.co.igns.system.base.model.HrVO">
+
+        INSERT INTO esg.tb_hr_orgn_hi (
+            hr_id,
+            orgn_id,
+            st_date,
+            created_at,
+            created_by
+        )
+        VALUES (
+                   #{hrId},
+                   #{orgnId},
+                   #{stDate},
+                   now(),
+                   #{createdBy}
+               )
+
+    </insert>
+
+    <update id="updateOrgnHistoryHr" parameterType="kr.co.igns.system.base.model.HrVO">
+
+        UPDATE esg.tb_hr_orgn_hi
+        SET
+            ed_date = #{edDate},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE hr_id = #{hrId}
+        AND orgn_id = #{oldOrgnId}
+
+    </update>
+
+
+    <select id='getHrMap' parameterType='kr.co.igns.system.base.model.BaseMapVO' resultType='kr.co.igns.system.base.model.BaseMapVO'>
+
+        SELECT
+               hr_id as id,
+               target_type,
+               target_id,
+               gubun,
+               use_yn,
+               created_by,
+               created_at,
+               updated_by,
+               updated_at
+        FROM esg.tb_hr_incharge_map
+        WHERE 1=1
+          AND target_id = #{targetId}
+          AND target_type = #{targetType}
+
+    </select>
+
+    <select id='getHrMapDetail' parameterType='kr.co.igns.system.base.model.BaseMapVO' resultType='kr.co.igns.system.base.model.HrVO'>
+
+        SELECT vhi.*, thim.gubun, sf.file_id as logo_id, toi.orgn_nm, jbrp.jbrp_nm, thim.target_id
+          FROM esg.tb_hr_incharge_map thim
+     LEFT JOIN esg.v_hr_info vhi ON vhi.hr_id = thim.hr_id
+     LEFT JOIN esg.tb_sys_file sf on sf.target_id = thim.hr_id and sf.target_type='hrImg'
+     LEFT JOIN esg.tb_orgn_info toi on toi.orgn_id = vhi.orgn_id
+     left join esg.tb_hr_info_jbrp jbrp
+            on jbrp.jbrp_id = vhi.jbrp and jbrp.comp_id = #{compId}
+         WHERE 1=1
+           AND thim.target_id = #{targetId}
+           AND thim.target_type = #{targetType}
+           AND thim.use_yn = 'Y'
+
+    </select>
+
+    <insert id="addHrMap" parameterType="kr.co.igns.system.base.model.BaseMapVO">
+
+        INSERT INTO esg.tb_hr_incharge_map (
+            target_type,
+            target_id,
+            gubun,
+            hr_id,
+            created_at,
+            created_by,
+            use_yn
+        )
+        VALUES (
+                   #{targetType},
+                   #{targetId},
+                   #{gubun},
+                   #{id},
+                   now(),
+                   #{createdBy},
+                   #{useYn}
+               )
+
+    </insert>
+
+    <update id="updateHrMap" parameterType="kr.co.igns.system.base.model.BaseMapVO">
+
+        UPDATE esg.tb_hr_incharge_map
+        SET
+            hr_id = #{id},
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE target_id = #{targetId}
+          AND target_type = #{targetType}
+          AND gubun = #{gubun}
+
+    </update>
+
+    <update id="updateUseYnHrMap" parameterType="kr.co.igns.system.base.model.BaseMapVO">
+
+        UPDATE esg.tb_hr_incharge_map
+        SET
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE target_id = #{targetId}
+          AND target_type = #{targetType}
+          AND hr_id = #{id}
+
+    </update>
+
+
+    <delete id="deleteHrMap" parameterType="kr.co.igns.system.base.model.BaseMapVO">
+
+        UPDATE esg.tb_hr_incharge_map
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE target_id = #{targetId}
+          AND target_type = #{targetType}
+          AND use_yn = 'Y'
+
+    </delete>
+
+    <delete id="hardDeleteHrMap" parameterType="kr.co.igns.system.base.model.BaseMapVO">
+        delete
+            from
+                esg.tb_hr_incharge_map
+            where
+                target_type = #{targetType}
+                and target_id = #{targetId}
+    </delete>
+
+    <delete id="deleteHrMapByGubun" parameterType="kr.co.igns.system.base.model.BaseMapVO">
+
+        UPDATE esg.tb_hr_incharge_map
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE target_id = #{targetId}
+          AND target_type = #{targetType}
+          AND gubun = #{gubun}
+          AND use_yn = 'Y'
+
+    </delete>
+
+    <!-- 직위 관리 -->
+    <select id='getHrJbrp' parameterType='String' resultType='kr.co.igns.system.base.model.HrJbrpVO'>
+        select t1.*
+        from esg.tb_hr_info_jbrp t1
+        where t1.comp_id = #{compId}
+        order by t1.use_yn desc, t1.ord_seq asc
+    </select>
+    
+    <!-- 직위 관리 - 예시 불러오기  -->
+    <select id='getDatasetHrJbrp' resultType='kr.co.igns.system.base.model.HrJbrpVO'>
+        select t1.*
+            , true as checked
+        from dataset.tb_dataset_hr_info_jbrp t1
+        where t1.use_yn = 'Y'
+        order by t1.ord_seq asc
+    </select>
+	
+    <insert id="insertHrJbrp" parameterType="kr.co.igns.system.base.model.HrJbrpVO">
+        <selectKey keyProperty="jbrpId" resultType="kr.co.igns.system.base.model.HrJbrpVO" order="BEFORE">
+            select
+                case when #{jbrpId} is null or #{jbrpId} = ''
+                    then to_char(now(), 'yyyymmdd') || lpad((coalesce(max(substring(jbrp_id from 9 for 4))::int, 0) + 1)::text, 4, '0')
+                else #{jbrpId}
+                end as jbrpId
+			from esg.tb_hr_info_jbrp
+			where jbrp_id like to_char(now(), 'YYYYMMDD') || '%'
+                and comp_id = #{compId}
+        </selectKey>
+        insert into esg.tb_hr_info_jbrp (
+            comp_id,
+            jbrp_id,
+            jbrp_nm,
+            ord_seq,
+            use_yn,
+            created_at,
+            created_by
+        )
+        values (
+            #{compId},
+            #{jbrpId},
+            #{jbrpNm},
+            #{ordSeq},
+            #{useYn},
+            now(),
+            #{createdBy}
+        )
+    </insert>
+
+    <update id="updateHrJbrp" parameterType="kr.co.igns.system.base.model.HrJbrpVO">
+        update
+            esg.tb_hr_info_jbrp
+        set
+            jbrp_nm = #{jbrpNm},
+            ord_seq = #{ordSeq},
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        where
+            jbrp_id = #{jbrpId} AND comp_id = #{compId}
+    </update>
+
+    <update id="deleteHrJbrp" parameterType="kr.co.igns.system.base.model.HrJbrpVO">
+        update
+            esg.tb_hr_info_jbrp
+        set
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        where
+            jbrp_id = #{jbrpId} AND comp_id = #{compId}
+    </update>
+
+    <select id='getUserInfo' resultType='kr.co.igns.system.setting.model.UserManageVO'>
+        select user_id from esg.v_hr_info where hr_id = #{hrId}
+    </select>
+
+    <update id="resetPassword" parameterType="kr.co.igns.system.setting.model.UserManageVO">
+        update
+            esg.tb_user_info
+        set
+            user_ps = #{userPs},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        where
+            user_id = #{userId}
+    </update>
+
+</mapper>

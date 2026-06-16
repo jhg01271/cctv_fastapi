@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.evaluation.dao.postgres.EvaluationCorrectiveActionRequestDAO">
+	<select id="getCorrectiveActionRequest" parameterType='kr.co.igns.system.common.model.SpSearchVO'  resultType='kr.co.igns.business.evaluation.model.EvaluationCorrectiveActionRequestVO'>
+		SELECT 
+			WRITE_YEAR, 
+			DOC_TYPE, 
+			DOC_NO, 
+			COMP_ID,
+			CAR_TYPE, 
+			TITLE, 
+			CTRL_ORGN_ID,
+			CTRL_ORGN_NM, 
+			ACTION_ORGN_ID, 
+			ACTION_ORGN_NM, 
+			WRITE_DT, 
+			RETURN_DT,
+			ACTION_REQUEST_CONTENT, 
+			ANALYTIC_PREVENT_CONTENT,
+			RESULT_VALIDATION_CONTENT, 
+			RESULT_VALIDATION_YN, 
+			CHECK_DT, 
+			USE_YN,
+			CREATED_AT, 
+			CREATED_BY, 
+			UPDATED_AT, 
+			UPDATED_BY
+		FROM ESG.TB_CORRECTIVE_ACTION_REQUEST
+		WHERE 1=1
+			AND CAR_TYPE='E'
+			<if test="writeYear != null and !writeYear.equals('')">
+			AND WRITE_YEAR = #{writeYear}
+			</if>
+			<if test="compId != null and !compId.equals('')">
+			AND COMP_ID = #{compId}
+			</if>
+		ORDER BY CTRL_ORGN_ID, CASE WHEN USE_YN = 'Y' THEN 1 ELSE 2 END, DOC_NO DESC 
+			
+	</select>
+	
+	<select id='getCorrectiveActionRequestDetail' parameterType='kr.co.igns.system.common.model.SpSearchVO'  resultType='kr.co.igns.business.evaluation.model.EvaluationCorrectiveActionRequestVO'>
+	    SELECT 
+			WRITE_YEAR, 
+			DOC_TYPE, 
+			DOC_NO, 
+			COMP_ID, 
+			CAR_TYPE,
+			TITLE, 
+			CTRL_ORGN_ID,
+			CTRL_ORGN_NM, 
+			ACTION_ORGN_ID, 
+			ACTION_ORGN_NM, 
+			WRITE_DT, 
+			RETURN_DT,
+			ACTION_REQUEST_CONTENT,  
+			ANALYTIC_PREVENT_CONTENT,
+			RESULT_VALIDATION_CONTENT, 
+			RESULT_VALIDATION_YN, 
+			CHECK_DT, 
+			USE_YN,
+			CREATED_AT, 
+			CREATED_BY, 
+			UPDATED_AT, 
+			UPDATED_BY
+		FROM ESG.TB_CORRECTIVE_ACTION_REQUEST TEI
+		WHERE 1=1
+			AND WRITE_YEAR 	= #{writeYear}
+			AND DOC_NO 		= #{docNo}
+			AND CAR_TYPE	= 'E'
+    </select>
+    
+    <insert id="insertCorrectiveActionRequest" parameterType="kr.co.igns.business.evaluation.model.EvaluationCorrectiveActionRequestVO" useGeneratedKeys="true">
+		INSERT INTO esg.tb_corrective_action_request(
+			WRITE_YEAR, 
+			DOC_TYPE,
+			DOC_NO, 
+			COMP_ID, 
+			CAR_TYPE,
+			TITLE, 
+			CTRL_ORGN_ID, 
+			CTRL_ORGN_NM, 
+			ACTION_ORGN_ID,
+			ACTION_ORGN_NM, 
+			WRITE_DT,
+			RETURN_DT, 
+			ACTION_REQUEST_CONTENT,
+			ANALYTIC_PREVENT_CONTENT,
+			RESULT_VALIDATION_CONTENT,
+			RESULT_VALIDATION_YN, 
+			CHECK_DT, 
+			USE_YN, 
+			CREATED_AT, 
+			CREATED_BY,
+			UPDATED_AT, 
+			UPDATED_BY
+			)
+		VALUES(
+			#{writeYear},
+			'CAR',
+			(SELECT LPAD((COUNT(*) +1)::text, 5, '0') FROM ESG.TB_CORRECTIVE_ACTION_REQUEST CAR WHERE CAR.WRITE_YEAR = #{writeYear}),
+			#{compId}, 
+			'E',
+			#{title}, 
+			#{ctrlOrgnId}, 
+			#{ctrlOrgnNm}, 
+			#{actionOrgnId},
+			#{actionOrgnNm},
+			#{writeDt},
+			#{returnDt},
+			#{actionRequestContent},
+			#{analyticPreventContent},
+			#{resultValidationContent},
+			#{resultValidationYn}, 
+			#{checkDt},
+			'Y', 
+			NOW(), 
+			#{createdBy},
+			NOW(), 
+			#{updatedBy}
+			);
+			
+		 <selectKey keyProperty="docNo" resultType="kr.co.igns.business.evaluation.model.EvaluationCorrectiveActionRequestVO" order="AFTER">
+            <![CDATA[
+	            SELECT
+	                MAX(DOC_NO) DOC_NO
+	            FROM ESG.TB_CORRECTIVE_ACTION_REQUEST
+	            WHERE 1=1
+	            	AND WRITE_YEAR = #{writeYear}
+	            	AND DOC_TYPE = 'CAR'
+	            	AND CAR_TYPE = 'E'
+         	]]>
+        </selectKey>
+	</insert>
+	
+	<update id="updateCorrectiveActionRequest" parameterType="kr.co.igns.business.evaluation.model.EvaluationCorrectiveActionRequestVO">
+	    UPDATE ESG.TB_CORRECTIVE_ACTION_REQUEST 
+	    SET
+			COMP_ID						=#{compId},  
+			TITLE						=#{title},  
+			CTRL_ORGN_ID				=#{ctrlOrgnId},  
+			CTRL_ORGN_NM				=#{ctrlOrgnNm},  
+			ACTION_ORGN_ID				=#{actionOrgnId}, 
+			ACTION_ORGN_NM				=#{actionOrgnNm},
+			WRITE_DT					=#{writeDt},
+			RETURN_DT					=#{returnDt},
+			ACTION_REQUEST_CONTENT		=#{actionRequestContent}, 
+			ANALYTIC_PREVENT_CONTENT	=#{analyticPreventContent}, 
+			RESULT_VALIDATION_CONTENT	=#{resultValidationContent}, 
+			RESULT_VALIDATION_YN		=#{resultValidationYn}, 
+			CHECK_DT					=#{checkDt},
+			USE_YN						=#{useYn}, 
+			UPDATED_AT					=NOW(), 
+			UPDATED_BY					=#{updatedBy}
+		WHERE 1=1
+			AND WRITE_YEAR				=#{writeYear}
+			AND DOC_NO					=#{docNo}
+			AND CAR_TYPE				='E'
+    </update>
+    
+    <delete id="deleteCorrectiveActionRequest" parameterType="kr.co.igns.business.evaluation.model.EvaluationCorrectiveActionRequestVO">
+        UPDATE ESG.TB_CORRECTIVE_ACTION_REQUEST
+        SET
+            USE_YN 			='N',
+            UPDATED_AT 		=NOW(),
+            UPDATED_BY 		=#{updatedBy}
+        WHERE 1=1
+        	AND WRITE_YEAR	=#{writeYear}
+			AND DOC_NO		=#{docNo}
+			AND CAR_TYPE	='E'
+    </delete>
+   
+     <!-- 일괄출력용 -->
+	<select id='getAllReport' parameterType='kr.co.igns.system.common.model.SpSearchVO'  resultType='kr.co.igns.system.common.model.SpSearchVO'>
+	    select t1.*
+			, t2.orgn_nm as searchText2
+		from esg.tb_corrective_action_request t1
+		left join esg.tb_orgn_info t2
+			on t1.comp_id = t2.comp_id
+			and t1.ctrl_orgn_id = t2.orgn_id
+		where t1.write_year = #{writeYear}
+			and t1.comp_id = #{compId}
+			and t1.use_yn = 'Y'
+			and t1.car_type = 'E'
+			and t1.ctrl_orgn_id = #{searchText}
+    </select>
+</mapper>
+

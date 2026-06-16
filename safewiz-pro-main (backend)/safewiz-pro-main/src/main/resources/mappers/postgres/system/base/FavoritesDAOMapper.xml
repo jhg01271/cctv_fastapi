@@ -1,0 +1,484 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.system.base.dao.postgres.FavoritesDAO">
+
+    <select id='getFavoritesSide' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.base.model.FavoritesVO'>
+        SELECT DISTINCT
+               A.menu_id
+             , A.fave_id
+             , A.menu_nm
+             , A.up_menu_id
+             , B.router_nm
+             , B.menu_nm_eng
+             , B.router_path
+             , B.view_path
+             , B.menu_icon
+             , A.menu_odr
+             , B.param
+             , A.comp_id
+             , A.hr_id
+             , A.new_yn
+          FROM esg.tb_hr_menu_favorites A
+     LEFT JOIN esg.tb_sys_menu B
+            ON B.menu_id = A.menu_id
+         WHERE A.comp_id = #{compId}
+           AND A.hr_id = #{hrId}
+        ORDER BY MENU_ODR;
+    </select>
+
+    <select id='checkFavoritesMenu' parameterType='kr.co.igns.system.base.model.FavoritesVO' resultType='java.lang.Integer'>
+        SELECT COUNT(*) AS CNT
+          FROM esg.tb_hr_menu_favorites
+         WHERE comp_id = #{compId}
+           AND hr_id = #{hrId}
+    </select>
+
+    <select id='checkFavoritesMenuFolder' parameterType='kr.co.igns.system.base.model.FavoritesVO' resultType='java.lang.Integer'>
+        SELECT COUNT(*) AS CNT
+          FROM esg.tb_hr_menu_favorites
+         WHERE menu_id = #{menuId}
+           AND comp_id = #{compId}
+           AND hr_id = #{hrId}
+    </select>
+
+    <select id='getMenuId' parameterType='kr.co.igns.system.base.model.FavoritesVO' resultType='java.lang.String'>
+        SELECT 'F' || LPAD(
+                            COALESCE(
+                                          CAST(substring(max(menu_id), 2) AS INTEGER) + 1
+                                        , 101 )::TEXT
+                            , 3, '0'
+                      ) as menu_id
+          FROM esg.tb_hr_menu_favorites
+         WHERE menu_id like 'F%'
+           AND comp_id = #{compId}
+           AND hr_id = #{hrId}
+           AND CAST(substring(menu_id, 2) AS INTEGER) >= 100
+    </select>
+
+    <select id='getFaveId' parameterType='kr.co.igns.system.base.model.FavoritesVO' resultType='java.lang.String'>
+        SELECT 'F' || LPAD(
+                COALESCE(
+                CAST(substring(max(menu_id), 2) AS INTEGER) + 1
+                , 101 )::TEXT
+                , 3, '0'
+                ) as menu_id
+        FROM esg.tb_hr_menu_favorites
+        WHERE menu_id like 'F%'
+        AND comp_id = #{compId}
+        AND hr_id = #{hrId}
+        AND CAST(substring(menu_id, 2) AS INTEGER) >= 100
+    </select>
+
+    <select id='getMenuOdr' parameterType='kr.co.igns.system.base.model.FavoritesVO' resultType='java.lang.Integer'>
+        SELECT  coalesce(MAX(menu_odr), 0) + 1
+          FROM esg.tb_hr_menu_favorites
+         WHERE menu_id like 'F%'
+           AND comp_id = #{compId}
+           and hr_id = #{hrId}
+    </select>
+
+
+    <insert id="insertFavoritesMenu" parameterType="kr.co.igns.system.base.model.FavoritesVO">
+        <selectKey keyProperty="faveId" resultType="String" order="BEFORE">
+            <choose>
+                <when test="faveId != null and faveId != ''">
+                    SELECT #{faveId} AS faveId
+                </when>
+                <otherwise>
+                    <![CDATA[
+                    WITH current_date_info AS (
+                        SELECT
+                            TO_CHAR(CURRENT_DATE, 'YYYYMMDD') AS today,
+                            COALESCE(MAX(SUBSTRING(fave_id, 9, 4)::INTEGER), 0) AS max_sequence
+                        FROM esg.tb_hr_menu_favorites
+                        WHERE SUBSTRING(fave_id, 1, 8) = TO_CHAR(CURRENT_DATE, 'YYYYMMDD')
+                    )
+                    SELECT
+                        today ||
+                        CASE
+                            WHEN max_sequence = 0 THEN '0001'
+                            ELSE
+                                CASE
+                                    WHEN max_sequence < 9999 THEN LPAD((max_sequence + 1)::TEXT, 4, '0')
+                                    ELSE '0001'
+                                END
+                        END AS faveId
+                    FROM current_date_info;
+                    ]]>
+                </otherwise>
+            </choose>
+        </selectKey>
+        INSERT INTO esg.tb_hr_menu_favorites (
+            menu_id,
+            menu_nm,
+            menu_odr,
+            up_menu_id,
+            use_yn,
+            comp_id,
+            hr_id,
+            fave_id,
+            new_yn
+        )
+        VALUES (
+            #{menuId},
+            #{menuNm},
+            #{menuOdr},
+            #{upMenuId},
+            #{useYn},
+            #{compId},
+            #{hrId},
+            #{faveId},
+            #{newYn}
+        )
+        ON CONFLICT (menu_id, comp_id, hr_id)
+        DO UPDATE SET
+            menu_nm = COALESCE(EXCLUDED.menu_nm, esg.tb_hr_menu_favorites.menu_nm),
+            menu_odr = EXCLUDED.menu_odr,
+            up_menu_id = COALESCE(EXCLUDED.up_menu_id, esg.tb_hr_menu_favorites.up_menu_id)
+    </insert>
+
+    <update id="updateFavoritesMenu" parameterType="kr.co.igns.system.base.model.FavoritesVO">
+
+        UPDATE esg.tb_hr_menu_favorites
+           SET menu_nm = coalesce(#{menuNm}, menu_nm),
+               menu_odr = #{menuOdr},
+               new_yn = #{newYn},
+               up_menu_id = coalesce(#{upMenuId}, up_menu_id)
+         WHERE comp_id = #{compId}
+           AND hr_id = #{hrId}
+           AND menu_id = #{menuId}
+
+    </update>
+
+    <delete id="deleteFavoritesMenu" parameterType="kr.co.igns.system.base.model.FavoritesVO">
+
+        DELETE from esg.tb_hr_menu_favorites
+         WHERE comp_id = #{compId}
+           AND hr_id = #{currentUserHrId}
+           AND (menu_id = #{menuId} OR up_menu_id = #{menuId})
+
+    </delete>
+
+
+    <select id='getAffCompIdByUserId' parameterType='kr.co.igns.system.base.model.FavoritesVO' resultType='String'>
+        SELECT comp_id
+         FROM esg.tb_hr_info_comp_map
+        WHERE user_id = #{loginId}
+          AND orgn_comp_yn = 'Y'
+    </select>
+
+    <select id='getAffHrIdByUserId' parameterType='kr.co.igns.system.base.model.FavoritesVO' resultType='String'>
+        select hr_id
+        from esg.tb_hr_info_comp_map
+        where user_id = #{loginId}
+          and orgn_comp_yn = 'Y'
+    </select>
+
+    <select id='findUserGroup' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='String'>
+        SELECT ghm.grp_id
+        FROM esg.tb_group_hr_map ghm
+                 INNER JOIN esg.tb_hr_info hi ON ghm.hr_id = hi.hr_id
+                 INNER JOIN esg.tb_user_info ui ON ui.user_id = hi.user_id and hi.user_id=#{createdBy}
+    </select>
+
+    <select id='getExampleSearch' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.base.model.FavoritesVO'>
+        SELECT DISTINCT
+               sm.menu_id
+              , sm.menu_nm
+              , sm.up_menu_id
+              , sm.fave_id
+              , a.router_nm
+              , a.menu_nm_eng
+              , a.router_path
+              , a.view_path
+              , a.menu_icon
+              , sm.menu_odr
+              , null AS sch_ah
+              , null AS cmd
+              , null AS del_ah
+              , null AS exl_ah
+              , null AS sav_ah
+           from dataset.tb_dataset_favorites sm
+      left join esg.tb_sys_menu a
+             on a.menu_id = sm.menu_id
+          where sm.menu_id like 'F%'
+          union all
+         SELECT *
+           FROM (
+                    SELECT DISTINCT
+                    sm.menu_id,
+                    sm.menu_nm,
+                    sm.up_menu_id,
+                    sm.fave_id,
+                    a.router_nm,
+                    a.menu_nm_eng,
+                    a.router_path,
+                    a.view_path,
+                    a.menu_icon,
+                    sm.menu_odr,
+            <!-- 사용자별 테이블에 데이터가 없는 경우에도 조회는 가능 -->
+            <choose>
+                <!-- 관리자 및 매니저 (권한별 메뉴 기준으로 권한 조회) -->
+                <when test='role != "USER"'>
+                    COALESCE(thr.sch_ah,'Y') AS sch_ah,
+                    'U' AS cmd,
+                    MAX(COALESCE(tc.del_ah, 'N')) AS del_ah,
+                    MAX(COALESCE(tc.exl_ah, 'N')) AS exl_ah,
+                    MAX(COALESCE(tc.sav_ah, 'N')) AS sav_ah
+               FROM dataset.tb_dataset_favorites sm
+          LEFT JOIN esg.tb_sys_menu a
+                 ON a.menu_id = sm.menu_id
+                <!--esg.tb_sys_menu sm-->
+               </when>
+               <!-- 일반 사용자 -->
+                <when test='userGroup != "" and userGroup != null and userGroup.size > 0'>
+                    <!-- 해당 메뉴가 사용자 접근 권한을 가지고 있는 경우 -->
+                    COALESCE(thr.sch_ah,'Y') AS sch_ah,
+                    CASE WHEN thr.menu_id IS NOT NULL AND
+                    (thr.del_ah IS DISTINCT FROM MAX(COALESCE(ca.del_ah, NULL))
+                    OR thr.exl_ah IS DISTINCT FROM MAX(COALESCE(ca.exl_ah, NULL))
+                    OR thr.sav_ah IS DISTINCT FROM MAX(COALESCE(ca.sav_ah, NULL))
+                    OR thr.sch_ah='N')
+                    THEN 'U'
+                    <!-- 해당 메뉴가 그룹 접근 권한을 가지고 있는 경우 -->
+                    WHEN count(ca.*) > 0 THEN 'G'
+                    <!-- 해당 메뉴에 대한 접근 권한이 없는 경우 -->
+                    ELSE 'I' END AS cmd,
+                    <!-- 사용자별 CRUD 권한 체크 후 그룹별 CRUD  권한 체크 -->
+                    CASE WHEN thr.del_ah IS NOT NULL THEN thr.del_ah
+                    WHEN MAX(COALESCE(ca.del_ah, 'N')) = 'Y' THEN 'Y'
+                    ELSE 'N' END AS del_ah,
+                    CASE WHEN thr.exl_ah IS NOT NULL THEN thr.exl_ah
+                    WHEN MAX(COALESCE(ca.exl_ah, 'N')) = 'Y' THEN 'Y'
+                    ELSE 'N' END AS exl_ah,
+                    CASE WHEN thr.sav_ah IS NOT NULL THEN thr.sav_ah
+                    WHEN MAX(COALESCE(ca.sav_ah, 'N')) = 'Y' THEN 'Y'
+                    ELSE 'N' END AS sav_ah
+                    FROM dataset.tb_dataset_favorites sm <!--esg.tb_sys_menu sm-->
+               LEFT JOIN esg.tb_sys_menu a
+                      ON a.menu_id = sm.menu_id
+                    LEFT JOIN esg.tb_group_menu ca
+                    ON ca.menu_id = sm.menu_id
+                    AND ca.comp_id = #{compId}
+                    <if test='isWeb == true'>
+                        AND ca.param='W'
+                    </if>
+                    <if test='isWeb == false'>
+                        AND ca.param='A'
+                    </if>
+                    AND ca.grp_id in
+                    <foreach item="id" index="index" collection="userGroup"
+                             open="(" separator="," close=")">
+                        #{id}
+                    </foreach>
+                </when >
+                <!-- 속한 그룹의 정보가 없는 경우 -->
+                <otherwise>
+                    <!-- 사용자별 CRUD 권한 체크 후 그룹별 CRUD  권한 체크 -->
+                    COALESCE(thr.sch_ah,'N') AS sch_ah,
+                    'U' AS cmd,
+                    COALESCE(thr.del_ah, 'N') AS del_ah,
+                    COALESCE(thr.exl_ah, 'N') AS exl_ah,
+                    COALESCE(thr.sav_ah, 'N') AS sav_ah
+                    FROM dataset.tb_dataset_favorites sm <!--esg.tb_sys_menu sm -->
+               LEFT JOIN esg.tb_sys_menu a
+                    ON a.menu_id = sm.menu_id
+                </otherwise>
+            </choose>
+            INNER JOIN esg.tb_comp_auth tc
+            ON tc.menu_id = sm.menu_id
+            AND tc.grp_cd = #{role}
+            <if test='isWeb == true'>
+                AND tc.param='W'
+            </if>
+            <if test='isWeb == false'>
+                AND tc.param='A'
+            </if>
+            LEFT JOIN esg.tb_hr_menu thr
+            ON thr.comp_id = #{compId} AND
+            thr.hr_id = (select hr_id from esg.tb_hr_info where user_id = #{createdBy})
+            AND
+            sm.menu_id = thr.menu_id
+            WHERE 1 = 1
+            GROUP BY
+            sm.menu_id,
+            sm.menu_nm,
+            sm.up_menu_id,
+            sm.fave_id,
+            a.router_nm,
+            a.menu_nm_eng,
+            a.router_path,
+            a.view_path,
+            a.menu_icon,
+            sm.menu_odr,
+            thr.menu_id,
+            thr.del_ah,
+            thr.exl_ah,
+            thr.sav_ah,
+            thr.sch_ah,
+            tc.del_ah,
+            tc.exl_ah,
+            tc.sav_ah
+            ORDER BY sm.menu_odr
+            ) as sq
+        where (sq.cmd='U' OR sq.cmd='G') AND sq.sch_ah &lt;&gt;'N'
+    </select>
+
+    <delete id="deleteFavoritesExample" parameterType='kr.co.igns.system.common.model.SpSearchVO'>
+        DELETE FROM esg.tb_hr_menu_favorites
+        WHERE comp_id = #{compId}
+          AND hr_id = #{hrId}
+    </delete>
+
+    <insert id="insertFavoritesExample" parameterType="kr.co.igns.system.common.model.SpSearchVO">
+
+        insert into esg.tb_hr_menu_favorites (
+            select a.menu_id
+                 , a.menu_nm
+                 , a.menu_odr
+                 , 'Y' as use_yn
+                 , #{compId} as comp_id
+                 , #{hrId} as hr_id
+                 , 'N' as new_yn
+            from (
+                SELECT DISTINCT
+                sm.menu_id,
+                sm.menu_nm,
+                sm.up_menu_id,
+                sm.router_nm,
+                sm.menu_nm_eng,
+                sm.router_path,
+                sm.view_path,
+                sm.menu_icon,
+                sm.menu_odr,
+                null AS sch_ah,
+                null AS cmd,
+                null AS del_ah,
+                null AS exl_ah,
+                null AS sav_ah
+                from dataset.tb_dataset_favorites sm
+           LEFT JOIN esg.tb_sys_menu a
+                  ON a.menu_id = sm.menu_id
+                where menu_id like 'F%'
+                union all
+                SELECT * FROM (
+                SELECT DISTINCT
+                sm.menu_id,
+                sm.menu_nm,
+                sm.up_menu_id,
+                a.router_nm,
+                a.menu_nm_eng,
+                a.router_path,
+                a.view_path,
+                a.menu_icon,
+                sm.menu_odr,
+                <!-- 사용자별 테이블에 데이터가 없는 경우에도 조회는 가능 -->
+                <choose>
+                    <!-- 관리자 및 매니저 (권한별 메뉴 기준으로 권한 조회) -->
+                    <when test='role != "USER"'>
+                        COALESCE(thr.sch_ah,'Y') AS sch_ah,
+                        'U' AS cmd,
+                        MAX(COALESCE(tc.del_ah, 'N')) AS del_ah,
+                        MAX(COALESCE(tc.exl_ah, 'N')) AS exl_ah,
+                        MAX(COALESCE(tc.sav_ah, 'N')) AS sav_ah
+                        FROM dataset.tb_dataset_favorites sm
+                   LEFT JOIN esg.tb_sys_menu a
+                          ON a.menu_id = sm.menu_id
+                        <!--esg.tb_sys_menu sm-->
+                    </when>
+                    <!-- 일반 사용자 -->
+                    <when test='userGroup != "" and userGroup != null and userGroup.size > 0'>
+                        <!-- 해당 메뉴가 사용자 접근 권한을 가지고 있는 경우 -->
+                        COALESCE(thr.sch_ah,'Y') AS sch_ah,
+                        CASE WHEN thr.menu_id IS NOT NULL AND
+                        (thr.del_ah IS DISTINCT FROM MAX(COALESCE(ca.del_ah, NULL))
+                        OR thr.exl_ah IS DISTINCT FROM MAX(COALESCE(ca.exl_ah, NULL))
+                        OR thr.sav_ah IS DISTINCT FROM MAX(COALESCE(ca.sav_ah, NULL))
+                        OR thr.sch_ah='N')
+                        THEN 'U'
+                        <!-- 해당 메뉴가 그룹 접근 권한을 가지고 있는 경우 -->
+                        WHEN count(ca.*) > 0 THEN 'G'
+                        <!-- 해당 메뉴에 대한 접근 권한이 없는 경우 -->
+                        ELSE 'I' END AS cmd,
+                        <!-- 사용자별 CRUD 권한 체크 후 그룹별 CRUD  권한 체크 -->
+                        CASE WHEN thr.del_ah IS NOT NULL THEN thr.del_ah
+                        WHEN MAX(COALESCE(ca.del_ah, 'N')) = 'Y' THEN 'Y'
+                        ELSE 'N' END AS del_ah,
+                        CASE WHEN thr.exl_ah IS NOT NULL THEN thr.exl_ah
+                        WHEN MAX(COALESCE(ca.exl_ah, 'N')) = 'Y' THEN 'Y'
+                        ELSE 'N' END AS exl_ah,
+                        CASE WHEN thr.sav_ah IS NOT NULL THEN thr.sav_ah
+                        WHEN MAX(COALESCE(ca.sav_ah, 'N')) = 'Y' THEN 'Y'
+                        ELSE 'N' END AS sav_ah
+                        FROM dataset.tb_dataset_favorites sm <!--esg.tb_sys_menu sm-->
+                   LEFT JOIN esg.tb_sys_menu a
+                          ON a.menu_id = sm.menu_id
+                        LEFT JOIN esg.tb_group_menu ca
+                        ON ca.menu_id = sm.menu_id
+                        AND ca.comp_id = #{compId}
+                        <if test='isWeb == true'>
+                            AND ca.param='W'
+                        </if>
+                        <if test='isWeb == false'>
+                            AND ca.param='A'
+                        </if>
+                        AND ca.grp_id in
+                        <foreach item="id" index="index" collection="userGroup"
+                                 open="(" separator="," close=")">
+                            #{id}
+                        </foreach>
+                    </when >
+                    <!-- 속한 그룹의 정보가 없는 경우 -->
+                    <otherwise>
+                        <!-- 사용자별 CRUD 권한 체크 후 그룹별 CRUD  권한 체크 -->
+                        COALESCE(thr.sch_ah,'N') AS sch_ah,
+                        'U' AS cmd,
+                        COALESCE(thr.del_ah, 'N') AS del_ah,
+                        COALESCE(thr.exl_ah, 'N') AS exl_ah,
+                        COALESCE(thr.sav_ah, 'N') AS sav_ah
+                        FROM dataset.tb_dataset_favorites sm <!--esg.tb_sys_menu sm -->
+                    </otherwise>
+                </choose>
+                INNER JOIN esg.tb_comp_auth tc
+                ON tc.menu_id = sm.menu_id
+                AND tc.grp_cd = #{role}
+                <if test='isWeb == true'>
+                    AND tc.param='W'
+                </if>
+                <if test='isWeb == false'>
+                    AND tc.param='A'
+                </if>
+                LEFT JOIN esg.tb_hr_menu thr
+                ON thr.comp_id = #{compId} AND
+                thr.hr_id = (select hr_id from esg.tb_hr_info where user_id = #{createdBy})
+                AND
+                sm.menu_id = thr.menu_id
+                WHERE 1 = 1
+                GROUP BY
+                sm.menu_id,
+                sm.menu_nm,
+                sm.up_menu_id,
+                a.router_nm,
+                a.menu_nm_eng,
+                a.router_path,
+                a.view_path,
+                a.menu_icon,
+                sm.menu_odr,
+                thr.menu_id,
+                thr.del_ah,
+                thr.exl_ah,
+                thr.sav_ah,
+                thr.sch_ah,
+                tc.del_ah,
+                tc.exl_ah,
+                tc.sav_ah
+                ORDER BY sm.menu_odr
+                ) as sq
+                where (sq.cmd='U' OR sq.cmd='G') AND sq.sch_ah &lt;&gt;'N'
+
+                    ) as a
+
+        )
+    </insert>
+</mapper>

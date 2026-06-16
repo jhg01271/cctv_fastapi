@@ -1,0 +1,203 @@
+plugins {
+	id 'org.springframework.boot' version '2.7.7'
+	id 'io.spring.dependency-management' version '1.0.11.RELEASE'
+	id 'java'
+	id 'war' // war 사용할경우 id war / boot war / providedRuntime 옵션 주석 풀어서 사용
+}
+
+apply plugin: 'war'
+
+bootWar {
+	archiveBaseName = 'igns'
+	archiveFileName = 'igns.war'
+	archiveVersion = '0.0.1'
+}
+
+javadoc {                                                     
+    options.addStringOption("locale","ko_KR");
+    options.addStringOption("encoding","UTF-8");
+    options.addStringOption("charset","UTF-8");
+    options.addStringOption("docencoding","UTF-8");
+}
+
+group = 'kr.co.igns'
+version = '0.0.1-SNAPSHOT'
+sourceCompatibility = '11'
+
+ext['log4j2.version'] = '2.16.0'
+
+configurations {
+	compileOnly {
+		extendsFrom annotationProcessor
+	}
+	all {
+		//스프링부트 기본이 logback이기 때문에 log4j2사용을 위해서는 제외처리해야 함.
+		exclude group: 'ch.qos.logback', module: 'logback-classic'
+		exclude group: 'org.apache.logging.log4j', module: 'log4j-to-slf4j'
+	}
+}
+
+repositories {
+	mavenCentral()
+	// for jasper
+	maven {
+        url = uri("https://jaspersoft.jfrog.io/jaspersoft/third-party-ce-artifacts/")
+    }
+	mavenLocal()
+}
+
+dependencies {
+	// https://mvnrepository.com/artifact/commons-dbcp/commons-dbcp
+	implementation group: 'commons-dbcp', name: 'commons-dbcp', version: '1.4'
+	
+	// Jasper
+	implementation("net.sf.jasperreports:jasperreports:6.20.4")
+	// https://mvnrepository.com/artifact/net.sf.jasperreports/jasperreports-functions
+	implementation group: 'net.sf.jasperreports', name: 'jasperreports-functions', version: '6.20.4'
+	
+	// thymeleaf
+	implementation group: 'org.springframework.boot', name: 'spring-boot-starter-thymeleaf', version: '2.7.7'
+	
+    // Annotation
+	implementation group: 'javax.annotation', name: 'javax.annotation-api', version: '1.3.2'
+	
+	// WAR
+	providedRuntime('org.springframework.boot:spring-boot-starter-tomcat')
+
+	// JPA
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+			
+	// WEB	
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	// WebClient
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+	// HttpClient
+	implementation 'org.apache.httpcomponents:httpcore:4.4.15'
+	implementation group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.5.13'
+	
+	// JSON 
+	implementation group: 'com.googlecode.json-simple', name: 'json-simple', version: '1.1'
+	
+	// slf4j
+	implementation group: 'org.slf4j', name: 'slf4j-api', version: '1.7.25'
+	
+	// log4j
+	implementation group: 'org.springframework.boot', name: 'spring-boot-starter-log4j2', version: '2.6.1'
+    implementation group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-yaml', version: '2.10.3'   // log4j2
+	implementation group: 'org.bgee.log4jdbc-log4j2', name: 'log4jdbc-log4j2-jdbc4', version: '1.16'
+	
+	// XML to JSON
+	implementation group: 'org.json', name: 'json', version: '20210307'
+	
+	// JSP
+	implementation('org.apache.tomcat.embed:tomcat-embed-jasper')
+	implementation('javax.servlet:jstl:1.2')
+	
+	// Lombok
+	compileOnly 'org.projectlombok:lombok'
+	compileOnly group:'javax.servlet', name: 'javax.servlet-api', version: '4.0.1'
+	annotationProcessor 'org.projectlombok:lombok'
+	
+	// Mail
+	implementation 'org.springframework.boot:spring-boot-starter-mail'
+	
+	// Swagger
+	implementation 'org.springdoc:springdoc-openapi-ui:1.6.6'
+    
+    // i18n (message multi language)
+    implementation 'net.rakugakibox.util:yaml-resource-bundle:1.1'
+	
+	// DevTool
+	developmentOnly 'org.springframework.boot:spring-boot-devtools'
+	
+	// DB & MyBatis
+	implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:2.1.4'
+    implementation 'org.springframework.boot:spring-boot-starter-jdbc'
+	
+	// postgreSQL
+	implementation group: 'org.postgresql', name: 'postgresql', version: '42.2.1'
+			
+	// Spring Security
+	implementation group: 'org.springframework.security', name: 'spring-security-core', version: '5.7.3'
+	implementation group: 'org.springframework.security', name: 'spring-security-web', version: '5.7.3'
+	implementation group: 'org.springframework.security', name: 'spring-security-config', version: '5.7.3'
+	implementation 'com.auth0:java-jwt:4.2.1'
+	
+	// Spring Actuator
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	
+	// JWT
+	implementation 'io.jsonwebtoken:jjwt:0.9.1'
+	
+	testImplementation('org.springframework.boot:spring-boot-starter-test') {
+		exclude group: 'org.junit.vintage', module: 'junit-vintage-engine'
+	}
+	
+	// zip
+	implementation group: 'org.apache.commons', name: 'commons-compress', version: '1.20'
+	implementation group: 'org.apache.commons', name: 'commons-lang3', version: '3.10'
+	implementation group: 'net.lingala', name: 'zip4j', version: '1.3.3'
+	
+	// json
+	implementation group: 'net.sf.json-lib', name: 'json-lib-ext-spring', version: '1.0.2'
+	
+	// excel
+	implementation group: 'org.apache.poi', name: 'poi', version: '4.1.2'
+	implementation group: 'org.apache.poi', name: 'poi-ooxml', version: '4.1.2'
+	implementation group: 'eu.bitwalker', name: 'UserAgentUtils', version: '1.21'
+	
+	// file
+	implementation group: 'org.apache.directory.studio', name: 'org.apache.commons.io', version: '2.4'
+	implementation group: 'commons-io', name: 'commons-io', version: '2.6' /* Apache Commons IO */
+	implementation group: 'commons-fileupload', name: 'commons-fileupload', version: '1.3.3' /* Apache Commons File Upload */
+	
+	// Aes256 
+ 	implementation group: 'org.bouncycastle', name: 'bcprov-jdk16', version: '1.46'
+ 	 	
+ 	// JCIFS/smb2
+ 	implementation group: 'jcifs', name: 'jcifs', version: '1.3.17'
+ 	implementation 'com.hierynomus:smbj:0.10.0'
+ 	implementation group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.13.2'
+ 	
+ 	// gson
+ 	implementation 'com.google.code.gson:gson:2.8.5'
+ 	
+ 	// scheduler
+ 	implementation group: 'joda-time', name: 'joda-time', version: '2.9.7'
+
+	// datatable
+	implementation group: 'io.cucumber', name: 'datatable', version: '3.5.0'
+	
+	// commons-net FTP에 접속하여 파일 다운로드, 업로드
+	implementation group: 'commons-net', name: 'commons-net', version: '3.8.0'
+	
+	// transaction
+	implementation('org.springframework.data:spring-data-commons')
+	
+	// redis
+//	implementation "org.springframework.boot:spring-boot-starter-data-redis"
+//    implementation group: 'it.ozimov', name: 'embedded-redis', version: '0.7.2'
+    
+    // batch
+    implementation 'org.springframework.boot:spring-boot-starter-batch'
+    
+    //webScoket
+//    implementation 'org.springframework.boot:spring-boot-starter-websocket'
+    
+    //modelMapper
+    implementation 'org.modelmapper:modelmapper:2.4.2'
+    
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    
+    //firebase
+    implementation 'com.google.firebase:firebase-admin:9.1.1'
+        
+    //fems 추가
+    implementation 'org.apache.commons:commons-lang3'
+    
+    
+}
+
+test {
+	useJUnitPlatform()
+}

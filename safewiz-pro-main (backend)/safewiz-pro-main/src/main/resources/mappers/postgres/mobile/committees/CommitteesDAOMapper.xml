@@ -1,0 +1,426 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.mobile.committees.dao.postgres.CommitteesDAO">
+    <resultMap id="CommitteesCalendarResultMap" type="kr.co.igns.mobile.committees.model.CommitteesVO">
+     	<result property="docType" column="doc_type"/>
+	    <result property="calendarCount" column="dates_array" 
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+	</resultMap>
+	
+    <resultMap id="CommitteesResultMap" type="kr.co.igns.mobile.committees.model.CommitteesVO">
+        <id property="id" column="id"/>
+        <result property="category" column="category"/>
+        <result property="location" column="location"/>
+        <result property="title" column="title"/>
+        <result property="type" column="type"/>
+        
+        <!-- Use custom JsonTypeHandler -->
+        <result property="participantCount" column="participantCount"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+        
+        <result property="writer" column="writer"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+        <result property="reviewer" column="reviewer"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+        <result property="approver" column="approver"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+        
+        <result property="agreementCount" column="agreementCount"/>
+        <result property="agreementRate" column="agreementRate"/>
+        <result property="signed" column="signed"/>
+        <result property="startedAt" column="startedAt"/>
+        <result property="createdAt" column="createdAt"/>
+    </resultMap>
+    
+    <resultMap id="CommitteesDetailResultMap" type="kr.co.igns.mobile.committees.model.CommitteesDetailVO">
+        <id property="id" column="id"/>
+        <result property="category" column="category"/>
+        <result property="location" column="location"/>
+        <result property="title" column="title"/>
+        <result property="comment" column="comment"/>
+        <result property="type" column="type"/>
+        <result property="agenda" column="agenda"/>
+        
+        <!-- Use custom JsonTypeHandler -->
+        <result property="participantCount" column="participantCount"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>                
+        <result property="agreements" column="agreements"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>                
+        <result property="writer" column="writer"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+        <result property="reviewer" column="reviewer"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+        <result property="approver" column="approver"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+        
+        <result property="agreementCount" column="agreementCount"/>
+        <result property="agreementRate" column="agreementRate"/>
+        <result property="signed" column="signed"/>
+        <result property="startedAt" column="startedAt"/>
+        <result property="createdAt" column="createdAt"/>
+        <result property="endedAt" column="endedAt"/>
+    </resultMap>
+
+	<!-- 위원회 달력 count 조회 -->
+	<select id="getCommitteesCalendarCount" parameterType="kr.co.igns.mobile.committees.model.CommitteesSearchVO" resultMap="CommitteesCalendarResultMap">
+		WITH committees AS (
+		    SELECT
+		        c.doc_type,
+		        TO_CHAR(TO_DATE(c.comm_dt, 'YYYYMMDD'), 'YYYY-MM') AS comm_yyyymm,
+		        TO_CHAR(TO_DATE(c.comm_dt, 'YYYYMMDD'), 'YYYY-MM-DD') AS comm_date,
+		        COUNT(*) AS count
+		    FROM esg.tb_committee c
+		    /* 특정 인원에 대한 위원회 조회시 주석 해제 */
+		    -- JOIN esg.tb_approval_info ai
+		        -- ON ai.target_id = CONCAT(c.write_year, c.doc_no)
+		        -- AND ai.target_type = c.doc_type
+		        -- AND ai.hr_id = '202410080050' -- :hr_id
+		    WHERE c.comp_id = #{compId} -- :comp_id
+		        /* 특정 위워횐 조회시 주석 해제 */
+		        -- AND c.doc_type IN ('OHC', 'PAC') -- :category
+	         <if test="startDate != null and endDate != null">
+	            AND c.comm_dt BETWEEN #{startDate} AND #{endDate}
+            </if>
+		        AND c.use_yn = 'Y'
+		    GROUP BY c.doc_type, TO_CHAR(TO_DATE(c.comm_dt, 'YYYYMMDD'), 'YYYY-MM'), TO_CHAR(TO_DATE(c.comm_dt, 'YYYYMMDD'), 'YYYY-MM-DD')
+		),
+		formatted_committees AS (
+		    SELECT 
+		        doc_type,
+		        comm_yyyymm,
+		        JSON_OBJECT_AGG(comm_date, count ORDER BY comm_date) AS dates_counts
+		    FROM committees
+		    GROUP BY doc_type, comm_yyyymm
+		    ORDER BY doc_type, comm_yyyymm
+		)
+		    SELECT 
+		        doc_type,
+		        JSON_AGG(dates_counts) AS dates_array
+		    FROM formatted_committees
+		    GROUP BY doc_type
+	</select>
+	<!-- 위원화 일정 조회 -->
+    <select id="getCommittees" parameterType="kr.co.igns.mobile.committees.model.CommitteesSearchVO" resultMap="CommitteesResultMap">
+		WITH committees AS ( -- 기간내 위원회 일정 목록 조회 쿼리
+		    SELECT
+		        c.write_year,
+		        c.doc_type,
+		        c.doc_no,
+		        c.location,
+		        c.comm_nm AS title,
+		            CASE 
+		                WHEN c.comm_dt IS NOT NULL AND c.comm_at IS NOT NULL THEN
+		                    TO_TIMESTAMP(c.comm_dt || ' ' || SUBSTRING(c.comm_at FROM '^\d{2}:\d{2}'), 'YYYYMMDD HH24:MI')::timestamp
+		                ELSE NULL
+		            END AS started_at,
+		            CASE 
+		                    WHEN c.comm_dt IS NOT NULL AND c.comm_at IS NOT NULL THEN
+		                    TO_TIMESTAMP(c.comm_dt || ' ' || SUBSTRING(c.comm_at FROM '\d{2}:\d{2}$'), 'YYYYMMDD HH24:MI')::timestamp
+		                ELSE NULL
+		            END AS ended_at,
+		            c.comm_agenda AS agenda,
+		            c.comm_div,
+		            ROUND(COALESCE(AVG(cm.percent), 0), 1) AS agreement_rate,
+		            COALESCE(COUNT(cm.doc_seq), 0) AS agreement_count,
+		            c.created_at
+		    FROM esg.tb_committee c
+		        LEFT JOIN esg.tb_committee_content_map cm 
+		                ON c.write_year = cm.write_year 
+		                        AND c.doc_type = cm.doc_type AND c.doc_no = cm.doc_no
+		    WHERE c.comp_id = #{compId} -- :comp_id
+		        AND c.comm_dt BETWEEN #{startDate} AND #{endDate} -- :start_date, :end_date
+		        /* 위원회 종류 질의 조건 필요시 주석해제 */
+	        <if test="category != null">   
+		        AND c.doc_type IN (#{category}) -- category: OHC or PAC
+	        </if>
+		        AND c.use_yn = 'Y'
+		    GROUP BY c.write_year, c.doc_type, c.doc_no
+		), 
+		participant AS ( -- 참석자 및 결재라인 정보 조회 쿼리
+		    SELECT 
+		        c.write_year,
+		        c.doc_type,
+		        c.doc_no,
+		        SUM(CASE WHEN ai.type = 'company' THEN 1 ELSE 0 END) AS company_count,
+		        SUM(CASE WHEN ai.type = 'partner' THEN 1 ELSE 0 END) AS partner_count,
+		        SUM(CASE WHEN ai.type = 'employee' THEN 1 ELSE 0 END) AS employee_count,
+		        SUM(CASE WHEN ai.type = 'company' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) AS signed_company_count,
+		        SUM(CASE WHEN ai.type = 'partner' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) AS signed_partner_count,
+		        SUM(CASE WHEN ai.type = 'employee' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) AS signed_employee_count,
+		        CASE 
+		            WHEN MAX(CASE WHEN ai.hr_id = #{hrId} -- :hr_id 조회자 ID
+		                    AND ai.type IN ('company', 'partner', 'employee')
+		                AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) >= 1 THEN true
+		            WHEN MAX(CASE WHEN ai.hr_id = #{hrId} -- :hr_id 조회자 ID
+		                AND ai.type IN ('company', 'partner', 'employee')
+		                    AND ai.signature IS NULL THEN 1 ELSE 0 END) >= 1 THEN false
+		        END AS signed,
+		        MAX(CASE WHEN ai.param = 'writer' THEN ai.hr_id ELSE NULL END) AS writer_hr_id,
+		        MAX(CASE WHEN ai.param = 'writer' THEN ai.hr_nm ELSE NULL END) AS writer_name,
+		        MAX(CASE WHEN ai.param = 'writer' THEN ai.jbrp_nm ELSE NULL END) AS writer_job_title,
+		        MAX(CASE WHEN ai.param = 'writer' THEN ai.orgn_nm ELSE NULL END) AS writer_org_name,
+		        MAX(CASE WHEN ai.param = 'reviewer' THEN ai.hr_id ELSE NULL END) AS reviewer_hr_id,
+		        MAX(CASE WHEN ai.param = 'reviewer' THEN ai.hr_nm ELSE NULL END) AS reviewer_name,
+		        MAX(CASE WHEN ai.param = 'reviewer' THEN ai.jbrp_nm ELSE NULL END) AS reviewer_job_title,
+		        MAX(CASE WHEN ai.param = 'reviewer' THEN ai.orgn_nm ELSE NULL END) AS reviewer_org_name,
+		        MAX(CASE WHEN ai.param = 'approver' THEN ai.hr_id ELSE NULL END) AS approver_hr_id,
+		        MAX(CASE WHEN ai.param = 'approver' THEN ai.hr_nm ELSE NULL END) AS approver_name,
+		        MAX(CASE WHEN ai.param = 'approver' THEN ai.jbrp_nm ELSE NULL END) AS approver_job_title,
+		        MAX(CASE WHEN ai.param = 'approver' THEN ai.orgn_nm ELSE NULL END) AS approver_org_name,
+		        CASE 
+		            WHEN MAX(CASE WHEN ai.param = 'writer' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) >= 1 THEN true
+		            ELSE false
+		        END AS writer_signed,
+		        CASE 
+		            WHEN MAX(CASE WHEN ai.param = 'reviewer' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) >= 1 THEN true
+		            ELSE false
+		        END AS reviewer_signed,
+		        CASE 
+		                    WHEN MAX(CASE WHEN ai.param = 'approver' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) >= 1 THEN true
+		            ELSE false
+		        END AS approver_signed
+		    FROM esg.tb_approval_info ai
+		    JOIN committees c 
+		            ON ai.target_type = c.doc_type 
+		                    AND ai.target_id = CONCAT(c.write_year, c.doc_no) 
+		                AND ai.type IN ('company', 'partner', 'employee', 'writer', 'reviewer', 'approver')
+		        GROUP BY c.write_year, c.doc_type, c.doc_no
+		) 
+		SELECT -- 목록 조회 쿼리 본문
+		        CONCAT(c.write_year, '-', c.doc_type, '-', c.doc_no) AS id,
+		        c.doc_type AS category,
+		        c.location,
+		        c.title,
+		        CASE
+		                WHEN c.comm_div = 'E' THEN 'REGULAR'
+		        ELSE 'ADHOC'
+		    END AS type,
+		    json_build_object(
+		                'company', p.company_count,
+		        'partner', p.partner_count,
+		        'employee', p.employee_count,
+		        'signedCompany', p.signed_company_count,
+		        'signedPartner', p.signed_partner_count,
+		        'signedEmployee', p.signed_employee_count
+		    ) AS participantCount,
+		        c.agenda,
+		        c.agreement_count AS agreementCount,
+		        c.agreement_rate AS agreementRate,        
+		        p.signed,
+		        CASE 
+		                WHEN p.writer_hr_id IS NOT NULL THEN
+		                        json_build_object(
+		                                'hrId', p.writer_hr_id,
+		                                'name', p.writer_name,
+		                                'jobTitle', p.writer_job_title,
+		                                'orgName', p.writer_org_name,
+		                                'signed', p.writer_signed
+		            ) 
+		                ELSE NULL 
+		    END AS writer,
+		        CASE 
+		                WHEN p.reviewer_hr_id IS NOT NULL THEN
+		                        json_build_object(
+		                                'hrId', p.reviewer_hr_id,
+		                                'name', p.reviewer_name,
+		                                'jobTitle', p.reviewer_job_title,
+		                                'orgName', p.reviewer_org_name,
+		                                'signed', p.reviewer_signed
+		            )
+		        ELSE NULL        
+		        END AS reviewer,
+		    CASE 
+		                WHEN p.approver_hr_id IS NOT NULL THEN
+		                        json_build_object(
+		                                'hrId', p.approver_hr_id,
+		                                'name', p.approver_name,
+		                                'jobTitle', p.approver_job_title,
+		                                'orgName', p.approver_org_name,
+		                                'signed', p.approver_signed
+		            ) 
+		                ELSE NULL
+		    END AS approver,                        
+		        c.started_at AS startedAt,
+		        c.ended_at AS endedAt,
+		        c.created_at AS createdAt
+		FROM participant p
+		JOIN committees c 
+		        ON c.write_year = p.write_year 
+		                AND c.doc_type = p.doc_type 
+		                AND c.doc_no = p.doc_no
+		        /* 나와 관련된 위원회만 조회시 주석 해제 */
+        <if test="onlyMine == true">
+	        AND (
+	        p.signed IS NOT NULL 
+	        OR p.writer_hr_id = #{hrId}  -- :hr_id
+	        OR p.reviewer_hr_id = #{hrId} -- :hr_id
+	        OR p.approver_hr_id = #{hrId} -- :hr_id
+	    )
+	    </if>
+    </select>
+    
+	<!-- 위원화 일정 상세 조회 -->
+    <select id="getCommitteesDetail" parameterType="kr.co.igns.mobile.committees.model.CommitteesSearchVO" resultMap="CommitteesDetailResultMap">
+		WITH committee AS ( -- 대상 위원회 조회
+		    SELECT
+		        c.write_year,
+		        c.doc_type,
+		        c.doc_no,
+		        c.location,
+		        c.comm_nm AS title,
+		        c.remark,
+		        CASE 
+		            WHEN c.comm_dt IS NOT NULL AND c.comm_at IS NOT NULL THEN
+		                TO_TIMESTAMP(c.comm_dt || ' ' || SUBSTRING(c.comm_at FROM '^\d{2}:\d{2}'), 'YYYYMMDD HH24:MI')::timestamp
+		            ELSE NULL
+		        END AS started_at,
+		        CASE 
+		            WHEN c.comm_dt IS NOT NULL AND c.comm_at IS NOT NULL THEN
+		                TO_TIMESTAMP(c.comm_dt || ' ' || SUBSTRING(c.comm_at FROM '\d{2}:\d{2}$'), 'YYYYMMDD HH24:MI')::timestamp
+		            ELSE NULL
+		        END AS ended_at,
+		        c.comm_agenda AS agenda,
+		        c.comm_div,
+		        ROUND(COALESCE(AVG(cm.percent), 0), 1) AS agreement_rate,
+		        COALESCE(COUNT(cm.doc_seq), 0) AS agreement_count,
+		        c.created_at
+		    FROM esg.tb_committee c
+		    LEFT JOIN esg.tb_committee_content_map cm 
+		        ON c.write_year = cm.write_year 
+		            AND c.doc_type = cm.doc_type AND c.doc_no = cm.doc_no
+		    WHERE c.comp_id = #{compId} -- :comp_id
+		        AND c.write_year = #{writeYear} -- :write_year
+		        AND c.doc_type = #{docType} -- :doc_type
+		        AND c.doc_no = #{docNo} -- :doc_no
+		        AND c.use_yn = 'Y'
+		    GROUP BY c.write_year, c.doc_type, c.doc_no
+		    LIMIT 1
+		), 
+		participant AS ( -- 참석자 및 결재라인 정보 조회 쿼리
+		    SELECT
+		        SUM(CASE WHEN ai.type = 'company' THEN 1 ELSE 0 END) AS company_count,
+		        SUM(CASE WHEN ai.type = 'partner' THEN 1 ELSE 0 END) AS partner_count,
+		        SUM(CASE WHEN ai.type = 'employee' THEN 1 ELSE 0 END) AS employee_count,
+		        SUM(CASE WHEN ai.type = 'company' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) AS signed_company_count,
+		        SUM(CASE WHEN ai.type = 'partner' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) AS signed_partner_count,
+		        SUM(CASE WHEN ai.type = 'employee' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) AS signed_employee_count,
+		        CASE 
+		            WHEN MAX(CASE WHEN ai.hr_id = #{hrId} -- :hr_id -- 조회자 ID
+		                AND ai.type IN ('company', 'partner', 'employee')
+		                AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) >= 1 THEN true
+		            WHEN MAX(CASE WHEN ai.hr_id = #{hrId} -- :hr_id -- 조회자 ID
+		                AND ai.type IN ('company', 'partner', 'employee')
+		                AND ai.signature IS NULL THEN 1 ELSE 0 END) >= 1 THEN false
+		        END AS signed,
+		        MAX(CASE WHEN ai.param = 'writer' THEN ai.hr_id ELSE NULL END) AS writer_hr_id,
+		        MAX(CASE WHEN ai.param = 'writer' THEN ai.hr_nm ELSE NULL END) AS writer_name,
+		        MAX(CASE WHEN ai.param = 'writer' THEN ai.jbrp_nm ELSE NULL END) AS writer_job_title,
+		        MAX(CASE WHEN ai.param = 'writer' THEN ai.orgn_nm ELSE NULL END) AS writer_org_name,
+		        MAX(CASE WHEN ai.param = 'reviewer' THEN ai.hr_id ELSE NULL END) AS reviewer_hr_id,
+		        MAX(CASE WHEN ai.param = 'reviewer' THEN ai.hr_nm ELSE NULL END) AS reviewer_name,
+		        MAX(CASE WHEN ai.param = 'reviewer' THEN ai.jbrp_nm ELSE NULL END) AS reviewer_job_title,
+		        MAX(CASE WHEN ai.param = 'reviewer' THEN ai.orgn_nm ELSE NULL END) AS reviewer_org_name,
+		        MAX(CASE WHEN ai.param = 'approver' THEN ai.hr_id ELSE NULL END) AS approver_hr_id,
+		        MAX(CASE WHEN ai.param = 'approver' THEN ai.hr_nm ELSE NULL END) AS approver_name,
+		        MAX(CASE WHEN ai.param = 'approver' THEN ai.jbrp_nm ELSE NULL END) AS approver_job_title,
+		        MAX(CASE WHEN ai.param = 'approver' THEN ai.orgn_nm ELSE NULL END) AS approver_org_name,
+		        CASE 
+		            WHEN MAX(CASE WHEN ai.param = 'writer' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) >= 1 THEN true
+		            ELSE false
+		        END AS writer_signed,
+		        CASE 
+		            WHEN MAX(CASE WHEN ai.param = 'reviewer' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) >= 1 THEN true
+		            ELSE false
+		        END AS reviewer_signed,
+		        CASE 
+		            WHEN MAX(CASE WHEN ai.param = 'approver' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) >= 1 THEN true
+		            ELSE false
+		        END AS approver_signed
+		    FROM esg.tb_approval_info ai
+		    JOIN committee c 
+		        ON ai.target_type = c.doc_type 
+		            AND ai.target_id = CONCAT(c.write_year, c.doc_no) 
+		            AND ai.type IN ('company', 'partner', 'employee', 'writer', 'reviewer', 'approver')
+		        GROUP BY c.write_year, c.doc_type, c.doc_no
+		), agreements AS (
+		    SELECT 
+		        json_agg(
+		            json_build_object(
+		                'id', CONCAT(cm.write_year, '-', cm.doc_type, '-', cm.doc_no, '-', cm.doc_seq),
+		                'content', cm.content,
+		                'rate', cm.percent,
+		                'order', cm.ord_seq
+		                
+		            )
+		        ) agreements
+		    FROM committee c
+		    LEFT JOIN esg.tb_committee_content_map cm 
+		        ON c.write_year = cm.write_year 
+		            AND c.doc_type = cm.doc_type 
+		            AND c.doc_no = cm.doc_no
+		) 
+		SELECT -- 상세 조회 쿼리 본문
+		        CONCAT(c.write_year, '-', c.doc_type, '-', c.doc_no) AS id,
+		        c.doc_type AS category,
+		        c.location,
+		        c.title,
+		        c.remark AS comment,
+		        CASE
+		                WHEN c.comm_div = 'E' THEN 'REGULAR'
+		        ELSE 'ADHOC'
+		    END AS type,
+		    json_build_object(
+		        'company', p.company_count,
+		        'partner', p.partner_count,
+		        'employee', p.employee_count,
+		        'signedCompany', p.signed_company_count,
+		        'signedPartner', p.signed_partner_count,
+		        'signedEmployee', p.signed_employee_count
+		    ) AS participantCount,
+		    c.agenda,
+		    c.agreement_count AS agreementCount,
+		    c.agreement_rate AS agreementRate,   
+		    a.agreements,     
+		    p.signed,
+		    CASE 
+		        WHEN p.writer_hr_id IS NOT NULL THEN
+		            json_build_object(
+		                'hrId', p.writer_hr_id,
+		                'name', p.writer_name,
+		                'jobTitle', p.writer_job_title,
+		                'orgName', p.writer_org_name,
+		                'signed', p.writer_signed
+		            ) 
+		        ELSE NULL 
+		    END AS writer,
+		    CASE 
+		        WHEN p.reviewer_hr_id IS NOT NULL THEN
+		            json_build_object(
+		                'hrId', p.reviewer_hr_id,
+		                'name', p.reviewer_name,
+		                'jobTitle', p.reviewer_job_title,
+		                'orgName', p.reviewer_org_name,
+		                'signed', p.reviewer_signed
+		            )
+		        ELSE NULL        
+		        END AS reviewer,
+		    CASE 
+		        WHEN p.approver_hr_id IS NOT NULL THEN
+		            json_build_object(
+		                'hrId', p.approver_hr_id,
+		                'name', p.approver_name,
+		                'jobTitle', p.approver_job_title,
+		                'orgName', p.approver_org_name,
+		                'signed', p.approver_signed
+		            ) 
+		        ELSE NULL
+		    END AS approver,                        
+		    c.started_at AS startedAt,
+		    c.ended_at AS endedAt,
+		    c.created_at AS createdAt 
+		FROM committee c 
+		LEFT JOIN participant p ON TRUE
+		LEFT JOIN agreements a ON TRUE   
+	</select>
+</mapper>

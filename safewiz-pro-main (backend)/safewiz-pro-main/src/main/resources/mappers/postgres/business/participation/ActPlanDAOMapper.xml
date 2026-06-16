@@ -1,0 +1,1406 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.participation.dao.postgres.ActPlanDAO">
+
+    <sql id="filter">
+        <if test="docType != null and docType != ''">
+            <![CDATA[ 			AND tam.doc_type = #{docType}]]>
+        </if>
+    </sql>
+
+    <select id='getActPlanMaster' parameterType='kr.co.igns.system.common.model.SpSearchVO'  resultType='kr.co.igns.business.participation.model.ActPlanVO'>
+        SELECT tam.*
+        FROM esg.tb_action_master tam -- 추진 목표
+        WHERE 1 = 1
+          AND tam.comp_id = #{compId}
+          AND tam.write_year = #{writeYear}
+        <include refid='kr.co.igns.business.participation.dao.postgres.ActPlanDAO.filter' />
+    </select>
+
+    <insert id="insertActPlanMaster" parameterType="kr.co.igns.business.participation.model.ActPlanVO">
+
+        <selectKey keyProperty="docNo" resultType="kr.co.igns.business.participation.model.ActPlanVO" order="BEFORE">
+            <![CDATA[
+            SELECT
+                LPAD((COALESCE(MAX(SUBSTRING(doc_no, 1, 5)::INTEGER), 0) + 1)::TEXT, 5, '0') AS docNo
+              FROM esg.tb_action_master
+            WHERE write_year = #{writeYear}
+              AND doc_type = #{docType}
+         ]]>
+        </selectKey>
+
+        INSERT INTO esg.tb_action_master (
+            write_year,
+            doc_type,
+            doc_no,
+            comp_id,
+            created_at,
+            created_by
+        )
+        VALUES (
+            #{writeYear},
+            #{docType},
+            #{docNo},
+            #{compId},
+            now(),
+            #{createdBy}
+        )
+
+    </insert>
+
+    <select id='getActPlan' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.participation.model.ActPlanVO'>
+           SELECT
+                  taop.*,
+                  taco.company_objective,
+                  taco.created_at,
+                  tcd1.minor_nm as performance_type_nm,
+                  tcd2.minor_nm as performance_repeat_nm,
+                  COALESCE(SUM(tap.budget), 0) AS budget
+             FROM esg.tb_action_master tam
+        LEFT JOIN esg.tb_action_objective_plan taop ON tam.write_year = taop.write_year AND tam.doc_type = taop.doc_type AND tam.doc_no = taop.doc_no AND tam.comp_id = taop.comp_id
+        LEFT JOIN esg.tb_action_company_objective taco ON taco.comp_objective_id = taop.comp_objective_id
+        LEFT JOIN esg.tb_action_detail_plan tadp ON tam.write_year = tadp.write_year AND tam.doc_type = tadp.doc_type AND tam.doc_no = tadp.doc_no AND tam.comp_id = tadp.comp_id AND taop.doc_seq  = tadp.doc_seq
+        LEFT JOIN esg.tb_common_d tcd1 ON taop.performance_type = tcd1.minor_cd AND tcd1.major_cd = 'C0011'
+        LEFT JOIN esg.tb_common_d tcd2 ON taop.performance_repeat = tcd2.minor_cd AND tcd2.major_cd = 'C0012'
+        LEFT JOIN esg.tb_orgn_map tom
+               ON tom.target_id = taop.write_year || taop.doc_no || taop.doc_seq    -- 조직 매핑 데이터
+              AND tom.target_type = taop.doc_type
+              AND tom.use_yn = 'Y'
+        LEFT JOIN esg.tb_action_performance tap  -- 실적
+               ON tam.write_year = tap.write_year
+              AND tam.doc_type = tap.doc_type
+              AND tam.doc_no = tap.doc_no
+              AND tam.comp_id = tap.comp_id
+              AND tadp.doc_seq = tap.doc_seq
+              AND tadp.doc_detail_seq  = tap.doc_detail_seq
+              AND tom.orgn_id = tap.orgn_id
+        WHERE taop.comp_id = #{compId}
+        AND taop.write_year = #{writeYear}
+        GROUP BY taop.write_year,
+                taop.doc_type,
+                taop.doc_no,
+                taop.doc_seq ,
+                taop.comp_objective_id,
+                taco.company_objective,
+                taop.action_objective,
+                taop.performance_type,
+                taop.performance_repeat,
+                taop.performance_cnt,
+                taop.performance_custom,
+                taop.remark,
+                taop.ord_seq,
+                taop.use_yn,
+                taop.action_schedule1,
+                taop.action_schedule2,
+                taop.action_schedule3,
+                taop.action_schedule4,
+                taop.created_at,
+                taop.created_by,
+                taop.updated_at,
+                taop.updated_by,
+                taop.comp_id,
+                tcd1.minor_nm,
+                tcd2.minor_nm,
+                taco.created_at
+        ORDER BY taco.created_at, taop.use_yn DESC, taop.write_year, taop.ord_seq, taop.doc_no, taop.doc_seq
+    </select>
+
+    <select id='getActPlanDetail' parameterType='kr.co.igns.system.common.model.SpSearchVO'  resultType='kr.co.igns.business.participation.model.ActPlanVO'>
+        SELECT
+        	taop.*,
+		    COALESCE(SUM(tap.budget), 0) AS budget,
+			taco.company_objective
+        FROM esg.tb_action_master tam
+        LEFT JOIN esg.tb_action_objective_plan taop ON tam.write_year = taop.write_year AND tam.doc_type = taop.doc_type AND tam.doc_no = taop.doc_no AND tam.comp_id = taop.comp_id
+        LEFT JOIN esg.tb_action_company_objective taco ON taco.comp_objective_id = taop.comp_objective_id
+        LEFT JOIN esg.tb_action_detail_plan tadp ON tam.write_year = tadp.write_year AND tam.doc_type = tadp.doc_type AND tam.doc_no = tadp.doc_no AND tam.comp_id = tadp.comp_id AND taop.doc_seq  = tadp.doc_seq
+        LEFT JOIN esg.tb_common_d tcd1 ON taop.performance_type = tcd1.minor_cd AND tcd1.major_cd = 'C0011'
+        LEFT JOIN esg.tb_orgn_map tom
+               ON tom.target_id = taop.write_year || taop.doc_no || taop.doc_seq    -- 조직 매핑 데이터
+              AND tom.target_type = taop.doc_type
+              AND tom.use_yn = 'Y'
+        LEFT JOIN esg.tb_action_performance tap  -- 실적
+               ON tam.write_year = tap.write_year
+              AND tam.doc_type = tap.doc_type
+              AND tam.doc_no = tap.doc_no
+              AND tam.comp_id = tap.comp_id
+              AND tadp.doc_seq = tap.doc_seq
+              AND tadp.doc_detail_seq  = tap.doc_detail_seq
+              AND tom.orgn_id = tap.orgn_id
+        WHERE taop.comp_id = #{compId}
+        AND taop.write_year = #{writeYear}
+        AND taop.doc_no = #{docNo}
+        AND taop.doc_type = #{docType}
+        AND taop.doc_seq = #{docSeq}
+        GROUP BY taop.write_year,
+                 taop.doc_type,
+                 taop.doc_no,
+                 taop.doc_seq ,
+                 taop.comp_objective_id,
+                 taco.company_objective,
+                 taop.action_objective,
+                 taop.performance_type,
+                 taop.performance_repeat,
+                 taop.performance_cnt,
+                 taop.performance_custom,
+                 taop.remark,
+                 taop.ord_seq,
+                 taop.use_yn,
+                 taop.action_schedule1,
+                 taop.action_schedule2,
+                 taop.action_schedule3,
+                 taop.action_schedule4,
+                 taop.created_at,
+                 taop.created_by,
+                 taop.updated_at,
+                 taop.updated_by,
+                 taop.comp_id,
+                 tcd1.minor_nm
+    </select>
+
+    <select id='getObjective' parameterType='kr.co.igns.system.common.model.SpSearchVO'  resultType='kr.co.igns.business.participation.model.ActPlanVO'>
+        SELECT *
+        FROM esg.tb_action_company_objective
+        WHERE comp_id = #{compId}
+    </select>
+
+    <select id='getActionObjective' parameterType='kr.co.igns.system.common.model.SpSearchVO'  resultType='kr.co.igns.business.participation.model.ActPlanVO'>
+        WITH RankedObjectives AS (
+            SELECT *,
+                   ROW_NUMBER() OVER (PARTITION BY action_objective ORDER BY created_at DESC) AS rn
+            FROM esg.tb_action_objective_plan
+            WHERE comp_id = #{compId}
+        )
+        SELECT *
+        FROM RankedObjectives
+        WHERE rn = 1;
+    </select>
+
+    <select id='getActionObjectiveOrgnList' parameterType='kr.co.igns.system.common.model.SpSearchVO'  resultType='kr.co.igns.business.participation.model.ActPlanPerformanceVO'>
+        SELECT toi.orgn_id, toi.orgn_nm, tap.*
+          FROM ESG.tb_action_performance tap
+     LEFT JOIN esg.tb_orgn_info toi
+            ON tap.orgn_id = toi.orgn_id
+         WHERE tap.comp_id = #{compId}
+           AND tap.write_year = #{writeYear}
+           AND tap.doc_type = #{docType}
+           AND tap.doc_no = #{docNo}
+           AND tap.doc_seq = #{docSeq}
+    </select>
+
+    <select id='getSafetyHealthObjOrgnList' parameterType='kr.co.igns.system.common.model.SpSearchVO'  resultType='kr.co.igns.business.planning.model.SafetyAndHealthObjectivesVO'>
+        SELECT DISTINCT toi.orgn_id, toi.orgn_nm
+          FROM ESG.tb_action_detail_plan tadp
+          LEFT JOIN esg.tb_safety_health_objectives_detail tsho
+            ON tsho.write_year = tadp.write_year
+           AND tsho.action_doc_type = tadp.doc_type
+           AND tsho.action_doc_no = tadp.doc_no
+           AND tsho.action_doc_seq = tadp.doc_seq
+           AND tsho.action_doc_detail_seq  = tadp.doc_detail_seq
+           AND tsho.use_yn = 'Y'
+          LEFT JOIN esg.tb_safety_health_objectives tsh
+            ON tsh.write_year = tsho.write_year
+           AND tsh.doc_type = tsho.doc_type
+           AND tsh.doc_no = tsho.doc_no
+          LEFT JOIN esg.tb_orgn_info toi
+            ON tsho.orgn_id = toi.orgn_id
+         WHERE tadp.comp_id = #{compId}
+           AND tadp.write_year = #{writeYear}
+           AND tadp.doc_type = #{docType}
+           AND tadp.doc_no = #{docNo}
+           AND tadp.doc_seq = #{docSeq}
+           AND tadp.use_yn = 'Y'
+           AND tsh.use_yn = 'Y'
+           AND tsho.orgn_id IS NOT NULL
+    </select>
+
+    <insert id="insertActPlan" parameterType="kr.co.igns.business.participation.model.ActPlanVO">
+
+        <selectKey keyProperty="docSeq,writeYear" resultType="kr.co.igns.business.participation.model.ActPlanVO" order="BEFORE">
+            <![CDATA[
+            SELECT
+                #{writeYear} as writeYear,
+                LPAD((COALESCE(MAX(SUBSTRING(doc_seq, 1, 5)::INTEGER), 0) + 1)::TEXT, 5, '0') AS docSeq
+              FROM esg.tb_action_objective_plan
+            WHERE write_year = #{writeYear}
+               AND doc_type = #{docType}
+               AND doc_no = #{docNo}
+         ]]>
+        </selectKey>
+
+        INSERT INTO esg.tb_action_objective_plan (
+            write_year,
+            doc_type,
+            doc_no,
+            doc_seq,
+            comp_objective_id,
+            action_objective,
+            performance_type,
+            performance_repeat,
+            performance_cnt,
+            performance_custom,
+            remark,
+            ord_seq,
+            use_yn,
+            action_schedule1,
+            action_schedule2,
+            action_schedule3,
+            action_schedule4,
+            comp_id,
+            created_at,
+            created_by
+        )
+        VALUES (
+                   #{writeYear},
+                   #{docType},
+                   #{docNo},
+                   #{docSeq},
+                   #{compObjectiveId},
+                   #{actionObjective},
+                   #{performanceType},
+                   #{performanceRepeat},
+                   #{performanceCnt},
+                   #{performanceCustom},
+                   #{remark},
+                   #{ordSeq},
+                   #{useYn},
+                   #{actionSchedule1},
+                   #{actionSchedule2},
+                   #{actionSchedule3},
+                   #{actionSchedule4},
+                   #{compId},
+                   now(),
+                   #{createdBy}
+               )
+
+    </insert>
+
+    <insert id="insertObjective" parameterType="kr.co.igns.business.participation.model.ActPlanVO">
+        <selectKey keyProperty="compObjectiveId" resultType="kr.co.igns.business.participation.model.ActPlanVO" order="BEFORE">
+            select to_char(now(), 'yyyymmdd') ||
+				   lpad(
+					   (coalesce(max(substring(comp_objective_id from 9 for 4))::int, 0) + 1)::text,
+					   4,
+					   '0'
+				   ) as comp_objective_id
+			from esg.tb_action_company_objective
+			where comp_objective_id like to_char(now(), 'YYYYMMDD') || '%'
+    	</selectKey>
+        INSERT INTO esg.tb_action_company_objective (
+            comp_objective_id,
+            company_objective,
+            comp_id,
+            created_at,
+            created_by
+        )
+        VALUES (
+                   #{compObjectiveId},
+                   #{companyObjective},
+                   #{compId},
+                   now(),
+                   #{createdBy}
+               )
+
+    </insert>
+
+    <update id="updateObjective" parameterType="kr.co.igns.business.participation.model.ActPlanVO">
+
+        UPDATE esg.tb_action_company_objective
+        SET
+            company_objective = #{companyObjective},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE comp_objective_id = #{compObjectiveId}
+
+    </update>
+
+    <update id="updateActPlan" parameterType="kr.co.igns.business.participation.model.ActPlanVO">
+
+        UPDATE esg.tb_action_objective_plan
+        SET
+            action_objective = #{actionObjective},
+            performance_type = #{performanceType},
+            performance_repeat = #{performanceRepeat},
+            performance_cnt = #{performanceCnt},
+            performance_custom = #{performanceCustom},
+            remark = #{remark},
+            ord_seq = #{ordSeq},
+            use_yn = #{useYn},
+            action_schedule1 = #{actionSchedule1},
+            action_schedule2 = #{actionSchedule2},
+            action_schedule3 = #{actionSchedule3},
+            action_schedule4 = #{actionSchedule4},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE write_year = #{writeYear}
+          AND doc_type= #{docType}
+          AND doc_no= #{docNo}
+          AND doc_seq= #{docSeq}
+
+    </update>
+
+    <delete id="deleteActPlan" parameterType="kr.co.igns.business.participation.model.ActPlanVO">
+
+        UPDATE esg.tb_action_objective_plan
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE write_year = #{writeYear}
+          AND doc_type= #{docType}
+          AND doc_no= #{docNo}
+          AND doc_seq= #{docSeq}
+
+    </delete>
+
+    <select id='getActPlanById' parameterType='String' resultType='kr.co.igns.business.participation.model.ActPlanVO'>
+
+        SELECT *
+        FROM esg.tb_action_objective_plan
+        WHERE 1=1
+          AND write_year = #{writeYear}
+          AND doc_type= #{docType}
+          AND doc_no= #{docNo}
+          AND doc_seq= #{docSeq}
+
+    </select>
+
+    <!-- 추진 계획 상세 - 월별 -->
+    <select id='getActionMonthly' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.participation.model.ActPlanDetailVO'>
+        SELECT
+              tadp.write_year,
+              tadp.doc_type,
+              tadp.doc_no,
+              tadp.doc_seq,
+              tadp.doc_detail_seq,
+              tadp.comp_id,
+              tadp.detail_item_id,
+              tadp.detail_plan,
+              tadp.performance_type,
+              tadp.performance_repeat,
+              tadp.performance_cnt,
+              tadp.performance_custom,
+              tadp.remark,
+              tadp.ord_seq,
+--               tadp.use_yn,
+              tadp.action_schedule1,
+              tadp.action_schedule2,
+              tadp.action_schedule3,
+              tadp.action_schedule4,
+              tadp.action_schedule5,
+              tadp.action_schedule6,
+              tadp.action_schedule7,
+              tadp.action_schedule8,
+              tadp.action_schedule9,
+              tadp.action_schedule10,
+              tadp.action_schedule11,
+              tadp.action_schedule12,
+              tadp.created_at,
+              tadp.created_by,
+              tadp.updated_at,
+              tadp.updated_by,
+              taco.company_objective,
+              taco.created_at,
+              taop.action_objective,
+              taop.comp_objective_id,
+              taop.action_schedule1 as action_schedule1_o,
+              taop.action_schedule2 as action_schedule2_o,
+              taop.action_schedule3 as action_schedule3_o,
+              taop.action_schedule4 as action_schedule4_o,
+              taop.performance_type as performance_type_o,
+              taop.performance_repeat as performance_repeat_o,
+              taop.performance_cnt as performance_cnt_o,
+              taop.performance_custom as performance_custom_o,
+              taop.doc_seq as doc_seq_o,
+              taop.write_year as write_year_o,
+              taop.doc_type as doc_type_o,
+              taop.doc_no as doc_no_o,
+              tcd1.minor_nm as performance_type_nm,
+              tcd2.minor_nm as performance_repeat_nm,
+              tadi.detail_item,
+              CASE
+                  WHEN taop.use_yn = 'N' THEN 'N'
+                  WHEN tadp.use_yn = 'N' THEN 'N'
+                  ELSE 'Y'
+                  END AS use_yn,
+              COALESCE(SUM(tap.budget), 0) AS budget
+        FROM esg.tb_action_master tam
+        LEFT JOIN esg.tb_action_objective_plan taop ON tam.write_year = taop.write_year AND tam.doc_type = taop.doc_type AND tam.doc_no = taop.doc_no AND tam.comp_id = taop.comp_id
+        LEFT JOIN esg.tb_action_detail_plan tadp ON tam.write_year = tadp.write_year AND tam.doc_type = tadp.doc_type AND tam.doc_no = tadp.doc_no AND tam.comp_id = tadp.comp_id AND taop.doc_seq  = tadp.doc_seq
+        LEFT JOIN esg.tb_action_company_objective taco ON taco.comp_objective_id = taop.comp_objective_id
+        LEFT JOIN esg.tb_action_detail_item tadi on tadi.detail_item_id = tadp.detail_item_id
+        LEFT JOIN esg.tb_common_d tcd1 ON tadp.performance_type = tcd1.minor_cd AND tcd1.major_cd = 'C0011'
+        LEFT JOIN esg.tb_common_d tcd2 ON tadp.performance_repeat = tcd2.minor_cd AND tcd2.major_cd = 'C0012'
+        LEFT JOIN esg.tb_orgn_map tom
+               ON tom.target_id = taop.write_year || taop.doc_no || taop.doc_seq    -- 조직 매핑 데이터
+              AND tom.target_type = taop.doc_type
+              AND tom.use_yn = 'Y'
+        LEFT JOIN esg.tb_action_performance tap  -- 실적
+               ON tam.write_year = tap.write_year
+              AND tam.doc_type = tap.doc_type
+              AND tam.doc_no = tap.doc_no
+              AND tam.comp_id = tap.comp_id
+              AND tadp.doc_seq = tap.doc_seq
+              AND tadp.doc_detail_seq  = tap.doc_detail_seq
+              AND tom.orgn_id = tap.orgn_id
+        WHERE 1 = 1
+        AND taop.comp_id = #{compId}
+        AND taop.write_year = #{writeYear}
+        AND taop.use_yn = 'Y'
+        <if test="orgnId != null and orgnId != ''"> -- 안전보건 목표 상세 (추진 계획 선택 팝업창) 작성년도의 해당 조직이 선택할 수 있는 추진 계획만 표시되어야 함
+        AND tom.orgn_id = #{orgnId}
+        </if>
+        GROUP BY tadp.write_year,
+                 tadp.doc_type,
+                 tadp.doc_no,
+                 tadp.doc_seq,
+                 tadp.doc_detail_seq,
+                 tadp.comp_id,
+                 tadp.detail_item_id,
+                 tadp.detail_plan,
+                 tadp.performance_type,
+                 tadp.performance_repeat,
+                 tadp.performance_cnt,
+                 tadp.performance_custom,
+                 tadp.remark,
+                 tadp.ord_seq,
+                 tadp.use_yn,
+                 tadp.action_schedule1,
+                 tadp.action_schedule2,
+                 tadp.action_schedule3,
+                 tadp.action_schedule4,
+                 tadp.action_schedule5,
+                 tadp.action_schedule6,
+                 tadp.action_schedule7,
+                 tadp.action_schedule8,
+                 tadp.action_schedule9,
+                 tadp.action_schedule10,
+                 tadp.action_schedule11,
+                 tadp.action_schedule12,
+                 tadp.created_at,
+                 tadp.created_by,
+                 tadp.updated_at,
+                 tadp.updated_by,
+                 taco.company_objective,
+                 taco.created_at,
+                 taop.action_objective,
+                 taop.comp_objective_id,
+                 taop.action_schedule1,
+                 taop.action_schedule2,
+                 taop.action_schedule3,
+                 taop.action_schedule4,
+                 taop.performance_type,
+                 taop.performance_repeat,
+                 taop.performance_cnt,
+                 taop.performance_custom,
+                 taop.doc_seq,
+                 taop.write_year,
+                 taop.doc_type,
+                 taop.use_yn,
+                 taop.doc_no,
+                 taop.ord_seq,
+                 tcd1.minor_nm,
+                 tcd2.minor_nm,
+                 tadi.detail_item,taop.use_yn,tadp.use_yn
+        ORDER BY taco.created_at, taop.use_yn DESC, write_year_o, taop.ord_seq, doc_seq_o, doc_no_o, tadp.ord_seq, tadp.doc_seq, tadp.doc_detail_seq
+    </select>
+
+    <select id='getActionMonthlyDetail' parameterType='kr.co.igns.system.common.model.SpSearchVO'  resultType='kr.co.igns.business.participation.model.ActPlanDetailVO'>
+        SELECT
+               tadp.write_year,
+               tadp.doc_type,
+               tadp.doc_no,
+               tadp.doc_seq,
+               tadp.doc_detail_seq,
+               tadp.comp_id,
+               tadp.detail_item_id,
+               tadp.detail_plan,
+               tadp.performance_type,
+               tadp.performance_repeat,
+               tadp.performance_cnt,
+               tadp.performance_custom,
+               tadp.remark,
+               tadp.ord_seq,
+               tadp.action_schedule1,
+               tadp.action_schedule2,
+               tadp.action_schedule3,
+               tadp.action_schedule4,
+               tadp.action_schedule5,
+               tadp.action_schedule6,
+               tadp.action_schedule7,
+               tadp.action_schedule8,
+               tadp.action_schedule9,
+               tadp.action_schedule10,
+               tadp.action_schedule11,
+               tadp.action_schedule12,
+               tadp.created_at,
+               tadp.created_by,
+               tadp.updated_at,
+               tadp.updated_by,
+               taop.comp_objective_id,
+               taco.company_objective,
+               taop.action_objective,
+               taop.action_schedule1 as action_schedule1_o,
+               taop.action_schedule2 as action_schedule2_o,
+               taop.action_schedule3 as action_schedule3_o,
+               taop.action_schedule4 as action_schedule4_o,
+               taop.performance_type as performance_type_o,
+               taop.performance_repeat as performance_repeat_o,
+               taop.performance_cnt as performance_cnt_o,
+               taop.performance_custom as performance_custom_o,
+               tadi.detail_item,
+               CASE
+                   WHEN taop.use_yn = 'N' THEN 'N'
+                   WHEN tadp.use_yn = 'N' THEN 'N'
+                   ELSE 'Y'
+                   END AS use_yn,
+               COALESCE(SUM(tap.budget), 0) AS budget
+        FROM esg.tb_action_master tam
+        LEFT JOIN esg.tb_action_objective_plan taop ON tam.write_year = taop.write_year AND tam.doc_type = taop.doc_type AND tam.doc_no = taop.doc_no AND tam.comp_id = taop.comp_id
+        LEFT JOIN esg.tb_action_detail_plan tadp ON tam.write_year = tadp.write_year AND tam.doc_type = tadp.doc_type AND tam.doc_no = tadp.doc_no AND tam.comp_id = tadp.comp_id AND taop.doc_seq  = tadp.doc_seq
+        LEFT JOIN esg.tb_action_company_objective taco ON taco.comp_objective_id = taop.comp_objective_id
+        LEFT JOIN esg.tb_action_detail_item tadi on tadi.detail_item_id = tadp.detail_item_id
+        LEFT JOIN esg.tb_orgn_map tom
+               ON tom.target_id = taop.write_year || taop.doc_no || taop.doc_seq    -- 조직 매핑 데이터
+              AND tom.target_type = taop.doc_type
+              AND tom.use_yn = 'Y'
+        LEFT JOIN esg.tb_action_performance tap  -- 실적
+               ON tam.write_year = tap.write_year
+              AND tam.doc_type = tap.doc_type
+              AND tam.doc_no = tap.doc_no
+              AND tam.comp_id = tap.comp_id
+              AND tadp.doc_seq = tap.doc_seq
+              AND tadp.doc_detail_seq  = tap.doc_detail_seq
+              AND tom.orgn_id = tap.orgn_id
+        WHERE 1 = 1
+          AND taop.comp_id = #{compId}
+          AND taop.write_year = #{writeYear}
+          AND tadp.doc_no = #{docNo}
+          AND tadp.doc_type = #{docType}
+          AND tadp.doc_seq = #{docSeq}
+          AND tadp.detail_item_id = #{searchText}
+     GROUP BY tadp.write_year,
+              tadp.doc_type,
+              tadp.doc_no,
+              tadp.doc_seq,
+              tadp.doc_detail_seq,
+              tadp.comp_id,
+              tadp.detail_item_id,
+              tadp.detail_plan,
+              tadp.performance_type,
+              tadp.performance_repeat,
+              tadp.performance_cnt,
+              tadp.performance_custom,
+              tadp.remark,
+              tadp.ord_seq,
+              tadp.action_schedule1,
+              tadp.action_schedule2,
+              tadp.action_schedule3,
+              tadp.action_schedule4,
+              tadp.action_schedule5,
+              tadp.action_schedule6,
+              tadp.action_schedule7,
+              tadp.action_schedule8,
+              tadp.action_schedule9,
+              tadp.action_schedule10,
+              tadp.action_schedule11,
+              tadp.action_schedule12,
+              tadp.created_at,
+              tadp.created_by,
+              tadp.updated_at,
+              tadp.updated_by,
+              taop.comp_objective_id,
+              taco.company_objective,
+              taop.action_objective,
+              taop.action_schedule1,
+              taop.action_schedule2,
+              taop.action_schedule3,
+              taop.action_schedule4,
+              taop.performance_type,
+              taop.performance_repeat,
+              taop.performance_cnt,
+              taop.performance_custom,
+              taop.use_yn,
+              taop.ord_seq,
+              taop.doc_no,
+              tadi.detail_item,tadp.use_yn
+        ORDER BY taop.use_yn DESC, tadp.use_yn DESC, taop.ord_seq, taop.doc_no, tadp.ord_seq, tadp.doc_seq
+
+    </select>
+
+    <select id='getDetailItem' parameterType='kr.co.igns.system.common.model.SpSearchVO'  resultType='kr.co.igns.business.participation.model.ActPlanDetailVO'>
+
+       SELECT DISTINCT p.detail_item_id, i.detail_item
+			FROM esg.tb_action_detail_plan p
+			JOIN esg.tb_action_detail_item i
+			  ON p.detail_item_id = i.detail_item_id
+			WHERE p.comp_id =  #{compId}
+			  AND p.write_year = #{writeYear}
+			  AND p.doc_type = #{docType}
+			  AND p.doc_no = #{docNo}
+			  AND p.doc_seq = #{docSeq}
+
+    </select>
+
+    <insert id="insertActionMonthly" parameterType="kr.co.igns.business.participation.model.ActPlanDetailVO">
+        <selectKey keyProperty="docDetailSeq,writeYear" resultType="kr.co.igns.business.participation.model.ActPlanDetailVO" order="BEFORE">
+            SELECT
+                #{writeYear} as writeYear,
+                LPAD((COALESCE(MAX(SUBSTRING(doc_detail_seq, 1, 5)::INTEGER), 0) + 1)::TEXT, 5, '0') AS docDetailSeq
+             FROM esg.tb_action_detail_plan
+            WHERE write_year = #{writeYear}
+               AND doc_type = #{docType}
+               AND doc_no = #{docNo}
+               AND doc_seq = #{docSeq}
+        </selectKey>
+
+        INSERT INTO esg.tb_action_detail_plan (
+            write_year,
+            doc_type,
+            doc_no,
+            doc_seq,
+            doc_detail_seq,
+            detail_item_id,
+            detail_plan,
+            performance_type,
+            performance_repeat,
+            performance_cnt,
+            performance_custom,
+            remark,
+            ord_seq,
+            use_yn,
+            action_schedule1,
+            action_schedule2,
+            action_schedule3,
+            action_schedule4,
+            action_schedule5,
+            action_schedule6,
+            action_schedule7,
+            action_schedule8,
+            action_schedule9,
+            action_schedule10,
+            action_schedule11,
+            action_schedule12,
+            created_at,
+            created_by,
+            comp_id
+        )
+        VALUES (
+                   #{writeYear},
+                   #{docType},
+                   #{docNo},
+                   #{docSeq},
+                   #{docDetailSeq},
+                   #{detailItemId},
+                   #{detailPlan},
+                   #{performanceType},
+                   #{performanceRepeat},
+                   #{performanceCnt},
+                   #{performanceCustom},
+                   #{remark},
+                   #{ordSeq},
+                   #{useYn},
+                   #{actionSchedule1},
+                   #{actionSchedule2},
+                   #{actionSchedule3},
+                   #{actionSchedule4},
+                   #{actionSchedule5},
+                   #{actionSchedule6},
+                   #{actionSchedule7},
+                   #{actionSchedule8},
+                   #{actionSchedule9},
+                   #{actionSchedule10},
+                   #{actionSchedule11},
+                   #{actionSchedule12},
+                   now(),
+                   #{createdBy},
+                   #{compId}
+               );
+
+    </insert>
+
+    <update id="updateActionMonthly" parameterType="kr.co.igns.business.participation.model.ActPlanDetailVO">
+
+        UPDATE esg.tb_action_detail_plan
+        SET
+            detail_plan = #{detailPlan},
+            performance_type = #{performanceType},
+            performance_repeat = #{performanceRepeat},
+            performance_cnt = #{performanceCnt},
+            performance_custom = #{performanceCustom},
+            remark = #{remark},
+            ord_seq = #{ordSeq},
+            use_yn = #{useYn},
+            action_schedule1 = #{actionSchedule1},
+            action_schedule2 = #{actionSchedule2},
+            action_schedule3 = #{actionSchedule3},
+            action_schedule4 = #{actionSchedule4},
+            action_schedule5 = #{actionSchedule5},
+            action_schedule6 = #{actionSchedule6},
+            action_schedule7 = #{actionSchedule7},
+            action_schedule8 = #{actionSchedule8},
+            action_schedule9 = #{actionSchedule9},
+            action_schedule10 = #{actionSchedule10},
+            action_schedule11 = #{actionSchedule11},
+            action_schedule12 = #{actionSchedule12},
+            comp_id = #{compId},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE 1 = 1
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND doc_seq = #{docSeq}
+          AND doc_detail_seq = #{docDetailSeq}
+
+    </update>
+
+    <delete id="deleteActionMonthly" parameterType="kr.co.igns.business.participation.model.ActPlanDetailVO">
+
+        UPDATE esg.tb_action_detail_plan
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE 1 = 1
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND doc_seq = #{docSeq}
+          AND doc_detail_seq = #{docDetailSeq}
+
+    </delete>
+
+    <delete id="deleteActionMonthlyByDetailItem" parameterType="kr.co.igns.business.participation.model.ActPlanDetailVO">
+
+        UPDATE esg.tb_action_detail_plan
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE 1 = 1
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND doc_seq = #{docSeq}
+          AND detail_item_id = #{detailItemId}
+
+    </delete>
+
+    <select id='getActionMonthlyById' parameterType='kr.co.igns.business.participation.model.ActPlanDetailVO' resultType='kr.co.igns.business.participation.model.ActPlanDetailVO'>
+
+        SELECT *
+        FROM esg.tb_action_detail_plan
+        WHERE 1=1
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND doc_seq = #{docSeq}
+          AND doc_detail_seq = #{docDetailSeq}
+    </select>
+    <update id="updateActionDetailItem" parameterType="kr.co.igns.business.participation.model.ActPlanPerformanceDetailVO">
+
+        UPDATE esg.tb_action_detail_item
+        SET
+            detail_item = #{detailItem},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+            and detail_item_id = #{detailItemId}
+    </update>
+
+    <insert id="insertDetailItem" parameterType="kr.co.igns.business.participation.model.ActPlanDetailVO">
+    <selectKey keyProperty="detailItemId" resultType="kr.co.igns.business.participation.model.ActPlanDetailVO" order="BEFORE">
+            select to_char(now(), 'yyyymmdd') ||
+				   lpad(
+					   (coalesce(max(substring(detail_item_id from 9 for 4))::int, 0) + 1)::text,
+					   4,
+					   '0'
+				   ) as detail_item_id
+            from esg.tb_action_detail_item
+            where detail_item_id like to_char(now(), 'YYYYMMDD') || '%'
+        </selectKey>
+        INSERT INTO esg.tb_action_detail_item(
+            detail_item_id,
+            detail_item,
+            comp_id,
+            created_at,
+            created_by
+        )
+        VALUES (
+                   #{detailItemId},
+                   #{detailItem},
+                   #{compId},
+                   now(),
+                   #{createdBy}
+               )
+
+    </insert>
+
+    <!-- 추진 실적, 예산 (증빙자료) -->
+    <select id='getActionPerformance' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.participation.model.ActPlanPerformanceVO'>
+           SELECT
+                  tap.*,
+                  taco.comp_objective_id,
+                  taco.company_objective,
+                  taop.action_objective,
+                  taop.created_at,
+                  tcd1.minor_nm as performance_type_nm,
+                  tcd2.minor_nm as performance_repeat_nm,
+                  tadi.detail_item,
+                  taop.doc_seq as doc_seq_o,
+                  taop.write_year as write_year_o,
+                  taop.doc_type as doc_type_o,
+                  taop.doc_no as doc_no_o,
+                  tom.orgn_id as orgn_id_o,
+                  toi.orgn_nm,
+                  tadp.detail_item_id, tadp.detail_plan, tadp.doc_detail_seq as doc_detail_seq_o,
+                  tadp.performance_type, tadp.performance_repeat, tadp.performance_cnt, tadp.performance_custom,
+                  tadp.remark, tadp.ord_seq, tadp.use_yn, tadp.action_schedule1,
+                  tadp.action_schedule2, tadp.action_schedule3, tadp.action_schedule4,
+                  tadp.action_schedule5, tadp.action_schedule6, tadp.action_schedule7,
+                  tadp.action_schedule8, tadp.action_schedule9, tadp.action_schedule10,
+                  tadp.action_schedule11, tadp.action_schedule12, tadp.comp_id,
+                  COALESCE(SUM(tap.budget), 0) AS budget,
+                  COALESCE(SUM(CASE WHEN tapd.use_yn = 'Y' THEN tapd.performance_amount ELSE 0 END), 0) AS performance_amount,
+                  tap.created_by
+           FROM esg.tb_action_master tam
+      LEFT JOIN esg.tb_action_objective_plan taop
+             ON tam.write_year = taop.write_year
+            AND tam.doc_type = taop.doc_type
+            AND tam.doc_no = taop.doc_no
+            AND tam.comp_id = taop.comp_id
+      LEFT JOIN esg.tb_action_detail_plan tadp
+             ON tam.write_year = tadp.write_year
+            AND tam.doc_type = tadp.doc_type
+            AND tam.doc_no = tadp.doc_no
+            AND tam.comp_id = tadp.comp_id
+            AND taop.doc_seq  = tadp.doc_seq
+      LEFT JOIN esg.tb_action_company_objective taco
+             ON taco.comp_objective_id = taop.comp_objective_id
+      LEFT JOIN esg.tb_action_detail_item tadi
+             ON tadi.detail_item_id = tadp.detail_item_id
+      LEFT JOIN esg.tb_common_d tcd1
+             ON tadp.performance_type = tcd1.minor_cd
+            AND tcd1.major_cd = 'C0011'
+      LEFT JOIN esg.tb_common_d tcd2
+	     	ON tadp.performance_repeat = tcd2.minor_cd
+	    	AND tcd2.major_cd = 'C0012'
+      LEFT JOIN esg.tb_orgn_map tom
+             ON tom.target_id = taop.write_year || taop.doc_no || taop.doc_seq    -- 조직 매핑 데이터
+            AND tom.target_type = taop.doc_type
+            AND tom.use_yn = 'Y'
+      LEFT JOIN esg.tb_orgn_info toi
+             ON toi.orgn_id = tom.orgn_id
+            -- 조직별 실적 데이터
+      LEFT JOIN esg.tb_action_performance tap  -- 실적
+             ON tam.write_year = tap.write_year
+            AND tam.doc_type = tap.doc_type
+            AND tam.doc_no = tap.doc_no
+            AND tam.comp_id = tap.comp_id
+            AND tadp.doc_seq = tap.doc_seq
+            AND tadp.doc_detail_seq  = tap.doc_detail_seq
+            AND tom.orgn_id = tap.orgn_id
+      LEFT JOIN esg.tb_action_performance_detail tapd -- 실적증빙자료
+             ON tap.write_year = tapd.write_year
+            AND tap.doc_type = tapd.doc_type
+            AND tap.doc_no = tapd.doc_no
+            AND tap.comp_id = tapd.comp_id
+            AND tapd.doc_seq = tap.doc_seq
+            AND tapd.doc_detail_seq  = tap.doc_detail_seq
+            AND tapd.doc_performance_seq = tap.doc_performance_seq
+          WHERE 1 = 1
+            AND taop.comp_id = #{compId}
+            AND taop.write_year = #{writeYear}
+            AND taop.use_yn = 'Y'
+            AND tadi.detail_item notnull -- 세부계획에 세부항목이 없을때 필터
+            AND tadp.use_yn = 'Y'--세부계획 삭제 여부
+       GROUP BY tadp.detail_item_id, tadp.detail_plan,tadp.doc_detail_seq,
+                tadp.performance_type, tadp.performance_repeat, tadp.performance_cnt, tadp.performance_custom,
+                tadp.remark, tadp.ord_seq, tadp.use_yn, tadp.action_schedule1,
+                tadp.action_schedule2, tadp.action_schedule3, tadp.action_schedule4,
+                tadp.action_schedule5, tadp.action_schedule6, tadp.action_schedule7,
+                tadp.action_schedule8, tadp.action_schedule9, tadp.action_schedule10,
+                tadp.action_schedule11, tadp.action_schedule12, tadp.comp_id,tadp.doc_seq,
+               tap.write_year, tap.doc_no, tap.doc_type, tap.doc_seq, tap.doc_detail_seq,tap.doc_performance_seq,
+                tap.budget, tap.action_performance12, tap.action_performance1,
+                tap.action_performance2, tap.action_performance3,
+                tap.action_performance4,tap.action_performance5,
+                tap.action_performance6,tap.action_performance7,
+                tap.action_performance8, tap.action_performance9,
+                tap.action_performance10,tap.action_performance11,
+                tap.created_at, tap.created_by, tap.updated_at, tap.updated_by,
+                taco.company_objective, taop.action_objective, tadi.detail_item, tadi.detail_item_id,
+                tcd1.minor_nm, tcd2.minor_nm,
+                taop.doc_seq,taop.write_year, taop.doc_type, taop.doc_no, taop.use_yn, taop.ord_seq,
+                tom.orgn_id, toi.orgn_nm, toi.ord_seq, taco.comp_objective_id
+--         ORDER BY taop.use_yn DESC,  taop.created_at, tadp.use_yn DESC, taop.write_year, taop.ord_seq, taop.doc_no, tadp.ord_seq, tadp.doc_seq , toi.ord_seq
+           ORDER BY taop.use_yn DESC, tadp.use_yn DESC, taop.write_year, taop.ord_seq, taop.doc_seq, tadi.detail_item_id asc, tadp.ord_seq, tadp.doc_detail_seq asc, toi.ord_seq asc, tap.orgn_id asc
+    </select>
+
+    <select id='getActionPerformanceDetail' parameterType='kr.co.igns.system.common.model.SpSearchVO'  resultType='kr.co.igns.business.participation.model.ActPlanPerformanceVO'>
+            SELECT tap.*,
+                   taco.company_objective,
+                   taop.action_objective,
+                   tcd1.minor_nm as performance_type_nm,
+                   tadi.detail_item,
+                   taop.doc_seq as doc_seq_o,
+                   taop.write_year as write_year_o,
+                   taop.doc_type as doc_type_o,
+                   taop.doc_no as doc_no_o,
+                   tom.orgn_id,
+                   toi.orgn_nm,
+                   tadp.detail_item_id, tadp.detail_plan,tadp.doc_detail_seq as doc_detail_seq_o,
+                   tadp.performance_type, tadp.performance_repeat, tadp.performance_cnt, tadp.performance_custom,
+                   tadp.remark, tadp.ord_seq, tadp.use_yn, tadp.action_schedule1,
+                   tadp.action_schedule2, tadp.action_schedule3, tadp.action_schedule4,
+                   tadp.action_schedule5, tadp.action_schedule6, tadp.action_schedule7,
+                   tadp.action_schedule8, tadp.action_schedule9, tadp.action_schedule10,
+                   tadp.action_schedule11, tadp.action_schedule12, tadp.comp_id,
+                   COALESCE(SUM(tap.budget), 0) AS budget,
+                   COALESCE(SUM(CASE WHEN tapd.use_yn = 'Y' THEN tapd.performance_amount ELSE 0 END), 0) AS performance_amount
+            FROM esg.tb_action_master tam
+       LEFT JOIN esg.tb_action_objective_plan taop
+              ON tam.write_year = taop.write_year
+             AND tam.doc_type = taop.doc_type
+             AND tam.doc_no = taop.doc_no
+             AND tam.comp_id = taop.comp_id
+       LEFT JOIN esg.tb_action_detail_plan tadp
+              ON tam.write_year = tadp.write_year
+             AND tam.doc_type = tadp.doc_type
+             AND tam.doc_no = tadp.doc_no
+             AND tam.comp_id = tadp.comp_id
+             AND taop.doc_seq  = tadp.doc_seq
+       LEFT JOIN esg.tb_action_company_objective taco
+              ON taco.comp_objective_id = taop.comp_objective_id
+       LEFT JOIN esg.tb_action_detail_item tadi
+              ON tadi.detail_item_id = tadp.detail_item_id
+       LEFT JOIN esg.tb_common_d tcd1
+              ON taop.performance_type = tcd1.minor_cd
+             AND tcd1.major_cd = 'C0011'
+       LEFT JOIN esg.tb_orgn_map tom
+              ON tom.target_id = taop.write_year || taop.doc_no || taop.doc_seq    -- 조직 매핑 데이터
+             AND tom.target_type = taop.doc_type
+             AND tom.use_yn = 'Y'
+       LEFT JOIN esg.tb_orgn_info toi
+              ON toi.orgn_id = tom.orgn_id
+        -- 조직별 실적 데이터
+       LEFT JOIN esg.tb_action_performance tap  -- 실적
+              ON tam.write_year = tap.write_year
+             AND tam.doc_type = tap.doc_type
+             AND tam.doc_no = tap.doc_no
+             AND tam.comp_id = tap.comp_id
+             AND tadp.doc_seq = tap.doc_seq
+             AND tadp.doc_detail_seq  = tap.doc_detail_seq
+             AND tom.orgn_id = tap.orgn_id
+       LEFT JOIN esg.tb_action_performance_detail tapd -- 실적증빙자료
+              ON tap.write_year = tapd.write_year
+             AND tap.doc_type = tapd.doc_type
+             AND tap.doc_no = tapd.doc_no
+             AND tap.comp_id = tapd.comp_id
+             AND tapd.doc_seq = tap.doc_seq
+             AND tapd.doc_detail_seq  = tap.doc_detail_seq
+             AND tapd.doc_performance_seq = tap.doc_performance_seq
+           WHERE 1 = 1
+             AND taop.comp_id = #{compId}
+             AND tadp.write_year = #{writeYear}
+             AND tadp.doc_no = #{docNo}
+             AND tadp.doc_type = #{docType}
+             AND tadp.doc_seq = #{docSeq}
+             AND tadp.doc_detail_seq = #{docDetailSeq}
+             AND tap.orgn_id = #{orgnId}
+            GROUP BY tadp.detail_item_id, tadp.detail_plan,tadp.doc_detail_seq,
+                     tadp.performance_type, tadp.performance_repeat, tadp.performance_cnt,tadp.performance_custom,
+                     tadp.remark, tadp.ord_seq, tadp.use_yn, tadp.action_schedule1,
+                     tadp.action_schedule2, tadp.action_schedule3, tadp.action_schedule4,
+                     tadp.action_schedule5, tadp.action_schedule6, tadp.action_schedule7,
+                     tadp.action_schedule8, tadp.action_schedule9, tadp.action_schedule10,
+                     tadp.action_schedule11, tadp.action_schedule12, tadp.comp_id,
+                     tap.write_year, tap.doc_no, tap.doc_type, tap.doc_seq, tap.doc_detail_seq,tap.doc_performance_seq,
+                     tap.budget, tap.action_performance12, tap.action_performance1,
+                     tap.action_performance2, tap.action_performance3,
+                     tap.action_performance4,tap.action_performance5,
+                     tap.action_performance6,tap.action_performance7,
+                     tap.action_performance8, tap.action_performance9,
+                     tap.action_performance10,tap.action_performance11,
+                     tap.created_at, tap.created_by, tap.updated_at, tap.updated_by,
+                     taco.company_objective, taop.action_objective, tadi.detail_item,
+                     tcd1.minor_nm,
+                     taop.doc_seq,taop.write_year, taop.doc_type, taop.doc_no,
+                     tom.orgn_id, toi.orgn_nm
+    </select>
+
+    <select id='getActionPerformanceById' parameterType='String' resultType='kr.co.igns.business.participation.model.ActPlanPerformanceVO'>
+
+        SELECT *
+        FROM esg.tb_action_performance
+        WHERE comp_id = #{compId}
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND doc_seq = #{docSeq}
+          AND doc_detail_seq = #{docDetailSeq}
+          AND doc_performance_seq = #{docPerformanceSeq}
+
+    </select>
+
+    <select id='getActionPerformanceDetailById' parameterType='String' resultType='kr.co.igns.business.participation.model.ActPlanPerformanceDetailVO'>
+
+        SELECT *
+        FROM esg.tb_action_performance_detail
+        WHERE comp_id = #{compId}
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND doc_seq = #{docSeq}
+          AND doc_detail_seq = #{docDetailSeq}
+          AND doc_performance_seq = #{docPerformanceSeq}
+          AND doc_performance_detail_seq = #{docPerformanceDetailSeq}
+
+    </select>
+
+    <select id='getPerformanceList' parameterType='kr.co.igns.system.common.model.SpSearchVO'  resultType='kr.co.igns.business.participation.model.ActPlanPerformanceDetailVO'>
+        SELECT tapd.*, sf1.file_id
+        FROM esg.tb_action_performance_detail tapd
+                 -- 파일 정보 매핑
+                 LEFT JOIN esg.tb_sys_file sf1 ON sf1.target_id = (tapd.write_year || tapd.doc_no || tapd.doc_seq || tapd.doc_detail_seq || tapd.doc_performance_seq || tapd.doc_performance_detail_seq)
+            AND sf1.target_type = #{docType}
+            AND sf1.comp_id =  #{compId}
+        WHERE 1 = 1
+          AND tapd.comp_id = #{compId}
+          AND tapd.write_year = #{writeYear}
+          AND tapd.doc_no = #{docNo}
+          AND tapd.doc_type = #{docType}
+          AND tapd.doc_seq = #{docSeq}
+          AND tapd.doc_detail_seq = #{docDetailSeq}
+          AND tapd.doc_performance_seq = #{searchText}
+        ORDER BY use_yn desc, ord_seq, created_at
+
+    </select>
+
+    <select id='getPerformanceHrList' parameterType='kr.co.igns.business.participation.model.ActPlanPerformanceVO'  resultType='kr.co.igns.system.base.model.HrVO'>
+        SELECT t1.hr_id
+            , t2.hr_nm
+        FROM esg.tb_action_performance_hr t1
+        LEFT JOIN esg.tb_hr_info t2
+            on t1.hr_id = t2.hr_id
+        WHERE 1 = 1
+          AND t1.comp_id = #{compId}
+          AND t1.write_year = #{writeYear}
+          AND t1.doc_no = #{docNo}
+          AND t1.doc_type = #{docType}
+          AND t1.doc_seq = #{docSeq}
+          AND t1.doc_detail_seq = #{docDetailSeq}
+          AND t1.doc_performance_seq = #{docPerformanceSeq}
+    </select>
+
+
+    <insert id="insertActionPerformance" parameterType="kr.co.igns.business.participation.model.ActPlanPerformanceVO">
+
+        <selectKey keyProperty="docPerformanceSeq" resultType="kr.co.igns.business.participation.model.ActPlanPerformanceVO" order="BEFORE">
+            <![CDATA[
+            SELECT
+                LPAD((COALESCE(MAX(SUBSTRING(doc_performance_seq, 1, 5)::INTEGER), 0) + 1)::TEXT, 5, '0') AS docPerformanceSeq
+             FROM esg.tb_action_performance
+            WHERE write_year = #{writeYear}
+               AND doc_type = #{docType}
+               AND doc_no = #{docNo}
+               AND doc_seq = #{docSeq}
+               AND doc_detail_seq = #{docDetailSeq}
+         ]]>
+        </selectKey>
+
+        INSERT INTO esg.tb_action_performance (
+            write_year,
+            doc_no,
+            doc_type,
+            doc_seq,
+            doc_detail_seq,
+            doc_performance_seq,
+            comp_id,
+            orgn_id,
+            action_performance1,
+            action_performance2,
+            action_performance3,
+            action_performance4,
+            action_performance5,
+            action_performance6,
+            action_performance7,
+            action_performance8,
+            action_performance9,
+            action_performance10,
+            action_performance11,
+            action_performance12,
+            budget,
+            created_at,
+            created_by
+        )
+        VALUES (
+                   #{writeYear},
+                   #{docNo},
+                   #{docType},
+                   #{docSeq},
+                   #{docDetailSeq},
+                   #{docPerformanceSeq},
+                   #{compId},
+                   #{orgnId},
+                   #{actionPerformance1},
+                   #{actionPerformance2},
+                   #{actionPerformance3},
+                   #{actionPerformance4},
+                   #{actionPerformance5},
+                   #{actionPerformance6},
+                   #{actionPerformance7},
+                   #{actionPerformance8},
+                   #{actionPerformance9},
+                   #{actionPerformance10},
+                   #{actionPerformance11},
+                   #{actionPerformance12},
+                   #{budget},
+                   now(),
+                   #{createdBy}
+               )
+
+    </insert>
+
+    <update id="updateActionPerformance" parameterType="kr.co.igns.business.participation.model.ActPlanPerformanceVO">
+
+        UPDATE esg.tb_action_performance
+        SET
+            action_performance1 = #{actionPerformance1},
+            action_performance2 = #{actionPerformance2},
+            action_performance3 = #{actionPerformance3},
+            action_performance4 = #{actionPerformance4},
+            action_performance5 = #{actionPerformance5},
+            action_performance6 = #{actionPerformance6},
+            action_performance7 = #{actionPerformance7},
+            action_performance8 = #{actionPerformance8},
+            action_performance9 = #{actionPerformance9},
+            action_performance10 = #{actionPerformance10},
+            action_performance11 = #{actionPerformance11},
+            action_performance12 = #{actionPerformance12},
+            budget = #{budget},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND doc_seq = #{docSeq}
+          AND doc_detail_seq = #{docDetailSeq}
+          AND doc_performance_seq = #{docPerformanceSeq}
+
+    </update>
+
+    <delete id="deleteActionPerformanceHrList" parameterType="kr.co.igns.business.participation.model.ActPlanPerformanceVO">
+        DELETE FROM esg.tb_action_performance_hr
+        WHERE comp_id = #{compId}
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND doc_seq = #{docSeq}
+          AND doc_detail_seq = #{docDetailSeq}
+          AND doc_performance_seq = #{docPerformanceSeq}
+    </delete>
+
+    <insert id="insertActionPerformanceHrList" parameterType="kr.co.igns.business.participation.model.ActPlanPerformanceVO">
+        INSERT INTO esg.tb_action_performance_hr (
+            write_year,
+            doc_no,
+            doc_type,
+            doc_seq,
+            doc_detail_seq,
+            doc_performance_seq,
+            comp_id,
+            hr_id,
+            created_at,
+            created_by
+        ) VALUES (
+            #{writeYear},
+            #{docNo},
+            #{docType},
+            #{docSeq},
+            #{docDetailSeq},
+            #{docPerformanceSeq},
+            #{compId},
+            #{id},
+            now(),
+            #{createdBy}
+        )
+    </insert>
+
+    <update id="updateActionPerformanceUseYn" parameterType="kr.co.igns.business.participation.model.ActPlanPerformanceVO">
+
+        UPDATE esg.tb_action_performance
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND doc_seq = #{docSeq}
+          AND doc_detail_seq = #{docDetailSeq}
+          AND doc_performance_seq = #{docPerformanceSeq}
+
+    </update>
+
+    <delete id="deleteActionPerformance" parameterType="kr.co.igns.business.participation.model.ActPlanPerformanceVO">
+
+        DELETE FROM esg.tb_action_performance
+        WHERE comp_id = #{compId}
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND doc_seq = #{docSeq}
+          AND doc_detail_seq = #{docDetailSeq}
+          AND doc_performance_seq = #{docPerformanceSeq}
+
+    </delete>
+
+    <delete id="deleteActionPerformanceByOrgnId" parameterType="kr.co.igns.business.participation.model.ActPlanPerformanceVO">
+
+        DELETE FROM esg.tb_action_performance
+         WHERE comp_id = #{compId}
+           AND write_year = #{writeYear}
+           AND doc_no = #{docNo}
+           AND doc_type = #{docType}
+           AND doc_seq = #{docSeq}
+           AND doc_detail_seq = #{docDetailSeq}
+           AND doc_performance_seq = #{docPerformanceSeq}
+           AND orgn_id = #{orgnId}
+
+    </delete>
+
+    <insert id="insertActionPerformanceDetail" parameterType="kr.co.igns.business.participation.model.ActPlanPerformanceDetailVO">
+
+        <selectKey keyProperty="docPerformanceDetailSeq" resultType="kr.co.igns.business.participation.model.ActPlanPerformanceDetailVO" order="BEFORE">
+            <![CDATA[
+            SELECT
+                LPAD((COALESCE(MAX(SUBSTRING(doc_performance_detail_seq, 1, 5)::INTEGER), 0) + 1)::TEXT, 5, '0') AS docPerformanceDetailSeq
+             FROM esg.tb_action_performance_detail
+            WHERE write_year = #{writeYear}
+               AND doc_type = #{docType}
+               AND doc_no = #{docNo}
+               AND doc_seq = #{docSeq}
+               AND doc_detail_seq = #{docDetailSeq}
+               AND doc_performance_seq = #{docPerformanceSeq}
+         ]]>
+        </selectKey>
+
+        INSERT INTO esg.tb_action_performance_detail (
+            write_year,
+            doc_no,
+            doc_type,
+            doc_seq,
+            doc_detail_seq,
+            doc_performance_seq,
+            doc_performance_detail_seq,
+            comp_id,
+            ord_seq,
+            contents,
+            performance_amount,
+            created_at,
+            created_by
+        )
+        VALUES (
+                   #{writeYear},
+                   #{docNo},
+                   #{docType},
+                   #{docSeq},
+                   #{docDetailSeq},
+                   #{docPerformanceSeq},
+                   #{docPerformanceDetailSeq},
+                   #{compId},
+                   #{ordSeq},
+                   #{contents},
+                   #{performanceAmount},
+                   now(),
+                   #{createdBy}
+               )
+
+    </insert>
+
+    <update id="updateActionPerformanceDetail" parameterType="kr.co.igns.business.participation.model.ActPlanPerformanceDetailVO">
+
+        UPDATE esg.tb_action_performance_detail
+        SET
+            ord_seq = #{ordSeq},
+            use_yn = #{useYn},
+            contents = #{contents},
+            performance_amount = #{performanceAmount},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND doc_seq = #{docSeq}
+          AND doc_detail_seq = #{docDetailSeq}
+          AND doc_performance_seq = #{docPerformanceSeq}
+          AND doc_performance_detail_seq = #{docPerformanceDetailSeq}
+
+    </update>
+
+    <update id="updateActionPerformanceDetailUseYn" parameterType="kr.co.igns.business.participation.model.ActPlanPerformanceDetailVO">
+
+        UPDATE esg.tb_action_performance_detail
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND doc_seq = #{docSeq}
+          AND doc_detail_seq = #{docDetailSeq}
+          AND doc_performance_seq = #{docPerformanceSeq}
+          AND doc_performance_detail_seq = #{docPerformanceDetailSeq}
+
+    </update>
+
+    <delete id="deleteActionPerformanceDetail" parameterType="kr.co.igns.business.participation.model.ActPlanPerformanceVO">
+
+        DELETE FROM esg.tb_action_performance_detail
+        WHERE comp_id = #{compId}
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND doc_seq = #{docSeq}
+          AND doc_detail_seq = #{docDetailSeq}
+          AND doc_performance_seq = #{docPerformanceSeq}
+
+    </delete>
+
+    <select id='getOnlyActionPerformance' parameterType='kr.co.igns.business.participation.model.ActPlanDetailVO' resultType='kr.co.igns.business.impl.model.HseKeyPerformanceResultVO'>
+        SELECT
+            t1.comp_id,
+            t1.doc_type,
+            MAX(CASE WHEN t2.action_result1 = 'Y' THEN 'Y' ELSE NULL END) AS action_result1,
+            MAX(CASE WHEN t2.action_result2 = 'Y' THEN 'Y' ELSE NULL END) AS action_result2,
+            MAX(CASE WHEN t2.action_result3 = 'Y' THEN 'Y' ELSE NULL END) AS action_result3,
+            MAX(CASE WHEN t2.action_result4 = 'Y' THEN 'Y' ELSE NULL END) AS action_result4,
+            MAX(CASE WHEN t2.action_result5 = 'Y' THEN 'Y' ELSE NULL END) AS action_result5,
+            MAX(CASE WHEN t2.action_result6 = 'Y' THEN 'Y' ELSE NULL END) AS action_result6,
+            MAX(CASE WHEN t2.action_result7 = 'Y' THEN 'Y' ELSE NULL END) AS action_result7,
+            MAX(CASE WHEN t2.action_result8 = 'Y' THEN 'Y' ELSE NULL END) AS action_result8,
+            MAX(CASE WHEN t2.action_result9 = 'Y' THEN 'Y' ELSE NULL END) AS action_result9,
+            MAX(CASE WHEN t2.action_result10 = 'Y' THEN 'Y' ELSE NULL END) AS action_result10,
+            MAX(CASE WHEN t2.action_result11 = 'Y' THEN 'Y' ELSE NULL END) AS action_result11,
+            MAX(CASE WHEN t2.action_result12 = 'Y' THEN 'Y' ELSE NULL END) AS action_result12
+        FROM esg.tb_safety_health_objectives_detail t1
+        left join esg.tb_hse_key_performance_result t2
+            on t1.write_year = t2.write_year
+            and t1.doc_no = t2.doc_no
+            and t1.doc_seq = t2.doc_seq
+        WHERE t1.write_year = #{writeYear}
+            AND t1.action_doc_no = #{docNo}
+            AND t1.action_doc_seq = #{docSeq}
+            AND t1.action_doc_detail_seq = #{docDetailSeq}
+        GROUP BY t1.comp_id, t1.doc_type
+
+    </select>
+</mapper>

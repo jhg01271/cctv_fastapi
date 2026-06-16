@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json.schemastore.org/prettierrc",
+  "semi": true,
+  "tabWidth": 4,
+  "singleQuote": true,
+  "printWidth": 9999,
+  "trailingComma": "none",
+  "bracketSpacing": true,
+  "overrides": [
+    {
+      "files": "*.scss",
+      "options": {
+        "disableLanguages": ["scss"]
+      }
+    }
+  ],
+  "arrowParens": "avoid"
+}

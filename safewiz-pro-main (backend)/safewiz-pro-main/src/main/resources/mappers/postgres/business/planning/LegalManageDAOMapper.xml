@@ -1,0 +1,518 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+
+<!-->kr.co.igns.system.common.model.SpSearchVO<-->
+<mapper namespace="kr.co.igns.business.planning.dao.postgres.LegalManageDAO">
+    <select id='getLegalManageList' parameterType='kr.co.igns.business.planning.model.LegalManageVO' resultType='kr.co.igns.business.planning.model.LegalManageVO'>
+        	select   A.write_year, A.doc_type, A.doc_no, A.comp_id
+	  			,D.legal_id, D.legal_nm, D.legal_cd, A.confirmed_yn, A.confirmed_dt, A.use_yn, B.minor_nm as div_fg, A.revision_at, A.revision_by
+	  			,A.created_at, A.created_by, A.updated_at, A.updated_by, 'U' as cmd
+	  			, (case when c.approverCnd > 0 then 'Y'
+		             when c.reviewerCnd > 0 then 'I'
+		             when c.writerCnd > 0 then 'W'
+		             else 'C'
+		        end) as approval_status
+	  	from esg.tb_legal_manage A
+	  	left join esg.tb_common_d B on a.div_fg =b.minor_cd and b.major_cd = 'C0015'
+	  	left join (
+	  		select 
+	        	target_type, target_id,
+	        	count(CASE WHEN param = 'writer' and signature is not null THEN 1 END) AS writerCnd,
+	        	count(CASE WHEN param = 'reviewer' and signature is not null THEN 1 END) AS reviewerCnd,
+	        	count(CASE WHEN param = 'approver' and signature is not null THEN 1 END) AS approverCnd
+	        from esg.tb_approval_info
+	        where target_type ='LGM'
+	        group by target_type, target_id
+	  	) C on C.target_type = a.doc_type and C.target_id = a.write_year||a.doc_no
+	  	left join esg.tb_legal_manage_type D on D.legal_id = A.legal_id and D.comp_id = A.comp_id
+	  	where A.comp_id = #{compId}
+
+		<if test="writeYear != null">
+			and A.write_year = #{writeYear}
+		</if>
+	  	
+	  	<if test="docType != null">
+	  		and A.doc_type = #{docType}
+	  	</if>
+	  	
+        ORDER BY A.write_year DESC, A.use_yn DESC, A.created_at DESC
+        
+    </select>
+    
+    <select id='getLegalManageTypeList' parameterType='kr.co.igns.business.planning.model.LegalManageVO' resultType='kr.co.igns.business.planning.model.LegalManageVO'>
+        SELECT comp_id, legal_id, legal_nm, legal_cd, ord_seq, use_yn
+        FROM esg.tb_legal_manage_type
+        WHERE comp_id = #{compId}
+        ORDER BY use_yn DESC, ord_seq 
+    </select>
+    
+    <!-- 법규 관리 - 예시 불러오기  -->
+    <select id='getDatasetLegalManageType' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.planning.model.LegalManageVO'>
+
+		SELECT
+				tdlmt.legal_id,
+				tdlmt.legal_cd,
+				tdlmt.legal_nm,
+				tdlmt.ord_seq,
+				tdlmt.use_yn,
+				tdlmt.remark AS desc
+		  FROM dataset.tb_dataset_legal_manage_type tdlmt
+		 WHERE tdlmt.use_yn = 'Y'
+		 ORDER BY tdlmt.ord_seq ASC;
+
+    </select>
+    
+    <select id='getLegalManageListPopup' parameterType='kr.co.igns.business.planning.model.LegalManageVO' resultType='kr.co.igns.business.planning.model.LegalManageVO'>
+        	select   A.write_year, A.doc_type, A.doc_no, A.comp_id
+	  			,A.legal_id, D.legal_nm, A.use_yn, B.minor_nm as div_fg, A.revision_at, A.revision_by
+	  			,A.created_at, A.created_by, A.updated_at, A.updated_by, 'U' as cmd, A.confirmed_yn
+	  			, (case when c.approverCnd > 0 then 'Y'
+		             when c.reviewerCnd > 0 then 'I'
+		             when c.writerCnd > 0 then 'W'
+		             else 'C'
+		        end) as approval_status
+	  	from esg.tb_legal_manage A
+	  	left join esg.tb_common_d B on a.div_fg =b.minor_cd and b.major_cd = 'C0015'
+	  	left join (
+	  		select 
+	        	target_type, target_id,
+	        	count(CASE WHEN param = 'writer' and signature is not null THEN 1 END) AS writerCnd,
+	        	count(CASE WHEN param = 'reviewer' and signature is not null THEN 1 END) AS reviewerCnd,
+	        	count(CASE WHEN param = 'approver' and signature is not null THEN 1 END) AS approverCnd
+	        from esg.tb_approval_info
+	        where target_type ='LGM'
+	        group by target_type, target_id
+	  	) C on C.target_type = a.doc_type and C.target_id = a.write_year||a.doc_no
+	  	left join esg.tb_legal_manage_type D on D.legal_id = A.legal_id and D.comp_id = A.comp_id
+	  	where A.write_year = #{writeYear}
+	  	  and A.comp_id = #{compId}
+	  	
+	  	<if test="docType != null">
+	  		and A.doc_type = #{docType}
+	  	</if>
+	  	
+        ORDER BY A.write_year DESC, A.use_yn DESC, A.created_at DESC
+        
+    </select>
+    
+    <select id='getLegalManageDetailMasterList' parameterType='kr.co.igns.business.planning.model.LegalManageVO' resultType='kr.co.igns.business.planning.model.LegalManageVO'>
+        select   A.write_year, A.doc_type, A.doc_no, A.comp_id, A.confirmed_yn
+	  			,A.legal_id, B.legal_nm, B.legal_cd, A.use_yn, A.div_fg, A.revision_at, A.revision_by
+	  			,A.created_at, A.created_by, A.updated_at, A.updated_by, 'U' as cmd 
+	  	from esg.tb_legal_manage A
+	  	left join esg.tb_legal_manage_type B on B.legal_id = A.legal_id and B.comp_id = A.comp_id
+	  	where A.write_year = #{writeYear}
+  		  and A.comp_id = #{compId}
+	  	
+	  	<if test="docNo != null">
+	  		and A.doc_no = #{docNo}
+	  	</if>
+	  	
+	  	<if test="docType != null">
+	  		and A.doc_type = #{docType}
+	  	</if>
+	  	
+        ORDER BY A.use_yn DESC, A.created_at DESC
+        
+    </select>
+
+    <select id='getLegalManageDetail' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.planning.model.LegalManageDetailVO'>
+        select A.write_year, A.doc_type, A.doc_no, A.doc_seq, A.article_title, A.article_content, A.ref_id, C.legal_id, C.legal_nm
+			, A.remark_dc, A.revision_at, A.use_yn, A.created_at, 'U' as cmd
+			from esg.tb_legal_manage_detail A
+			left join esg.tb_legal_manage B on a.write_year = b.write_year and a.doc_type = b.doc_type and a.doc_no = b.doc_no
+			left join esg.tb_legal_manage_type C on C.legal_id = B.legal_id and C.comp_id = B.comp_id
+			where A.write_year = #{writeYear} and C.comp_id = #{compId}
+			<if test="docNo != null">
+		  		and A.doc_no = #{docNo}
+		  	</if>
+			
+			<if test="docType != null">
+	  			and A.doc_type = #{docType}
+		  	</if>
+		  	
+		 
+		  	ORDER BY A.use_yn DESC, CAST(A.doc_seq AS INTEGER) DESC
+			
+    </select>
+    
+    
+    <select id='getSelectDivList' parameterType='kr.co.igns.business.support.model.JobCompetencyAssessmentVO' resultType='kr.co.igns.business.support.model.JobCompetencyAssessmentVO'>
+        		
+		select a.major_cd, a.minor_cd, a.minor_nm, a.minor_desc, a.remark, a.ord_seq, a.use_yn from esg.tb_common_d a
+		where a.major_cd = #{majorCd}
+		and a.use_yn = 'Y'
+		order by a.ord_seq 
+			
+    </select>
+    
+
+    <insert id="insertLegalManage" parameterType="kr.co.igns.business.planning.model.LegalManageVO">
+    	
+    	
+    		insert into esg.tb_legal_manage (write_year , doc_type, doc_no, comp_id, legal_id, legal_nm, use_yn, div_fg, revision_at, revision_by, created_at, created_by, updated_at, updated_by, confirmed_yn)
+          							  values(#{writeYear} , #{docType}, #{docNo}, #{compId}, #{legalId}, #{legalNm}, #{useYn}, #{divFg}, TO_TIMESTAMP(#{revisionAt}, 'YYYYMMDD HH24:MI:SS'), #{revisionBy}, now(), #{createdBy}, now(), #{updatedBy}, #{confirmedYn})
+   
+    
+    </insert>
+    
+    
+     <!-- (
+          							  	SELECT
+											LPAD((COALESCE(MAX(doc_no::INTEGER), 0) + 1)::TEXT, 5, '0') AS docNo
+									    FROM esg.tb_legal_manage
+										WHERE write_year = #{writeYear}
+											AND doc_type = #{docType}
+          							  ), -->
+    
+     <update id="updateLegalManage" parameterType="kr.co.igns.business.planning.model.LegalManageVO">
+        
+    		<!-- update -->
+    		update esg.tb_legal_manage
+    		set
+    			legal_id = #{legalId},
+    			legal_nm = #{legalNm},
+    			div_fg = #{divFg},
+    			use_yn = #{useYn},
+    			revision_at = TO_TIMESTAMP(#{revisionAt}, 'YYYYMMDD HH24:MI:SS'),
+    			updated_at = now(),
+    			updated_by = #{createdBy}
+   			WHERE comp_id = #{compId}
+	            AND write_year = #{writeYear}
+	            AND doc_type = #{docType}
+	            AND doc_no = #{docNo}
+    	
+    </update>
+    
+   	<update id="confirmLegalManage" parameterType="kr.co.igns.business.planning.model.LegalManageVO">
+        UPDATE esg.tb_legal_manage
+           SET confirmed_yn = #{confirmedYn},
+			<if test='confirmedYn == "Y"'>
+               confirmed_dt = to_char(now(), 'YYYYMMDD'),
+            </if>
+            <if test='confirmedYn == "N"'>
+               confirmed_dt = '',
+            </if>
+               updated_at = now(),
+               updated_by = #{updatedBy}
+         WHERE write_year = #{writeYear} AND doc_type = #{docType} AND doc_no = #{docNo}
+    </update>
+    
+    <insert id="insertLegalManageDetail" parameterType="map">
+    	    
+    		insert into esg.tb_legal_manage_detail (write_year, doc_type, doc_no, doc_seq, article_title, article_content, remark_dc, revision_at, created_at, created_by, updated_at, updated_by, use_yn, ref_id)
+								 values(#{writeYear} , #{docType}, #{docNo},
+								
+        						 (
+          							  	SELECT
+											(COALESCE(MAX(doc_seq::INTEGER), 0) + 1)::TEXT AS docSeq
+									    FROM esg.tb_legal_manage_detail
+										WHERE write_year = #{writeYear}
+											AND doc_type = #{docType}
+											AND doc_no   = #{docNo}
+        						 ),
+								 #{articleTitle}, #{articleContent}, #{remarkDc}, TO_TIMESTAMP(#{revisionAt}, 'YYYYMMDD HH24:MI:SS'), now(), #{createdBy}, now(), #{createdBy}, #{useYn}, #{refId})
+						
+    
+    </insert>
+    
+    <!-- 
+    	coalesce(#{docNo}, (
+         							  	SELECT
+										LPAD((COALESCE(MAX(doc_no::INTEGER), 0) + 1)::TEXT, 5, '0') AS docNo
+								    FROM esg.tb_legal_manage
+									WHERE write_year = #{writeYear}
+										AND doc_type = #{docType}
+         							  )),
+     -->
+    
+    
+    <insert id="updateLegalManageDetail" parameterType="map">
+    	
+    		<!-- update -->
+    		update esg.tb_legal_manage_detail
+    		set
+    			article_title = #{articleTitle},
+    			article_content = #{articleContent},
+				remark_dc = #{remarkDc},
+    			revision_at = TO_TIMESTAMP(#{revisionAt}, 'YYYYMMDD HH24:MI:SS'),
+    			updated_at = now(),
+    			updated_by = #{createdBy},
+    			use_yn = #{useYn}
+   			WHERE write_year = #{writeYear}
+	            AND doc_type = #{docType}
+	            AND doc_no = #{docNo}
+	            AND doc_seq = #{docSeq}
+	    
+    	 
+    
+    </insert>
+    
+    <insert id="insertLegalManageType" parameterType="kr.co.igns.business.planning.model.LegalManageVO">
+		<selectKey keyProperty="legalId" resultType="string" order="BEFORE">
+			SELECT
+			CASE
+				WHEN #{legalId} IS NULL OR #{legalId} = ''
+					THEN to_char(now(), 'yyyymmdd') || lpad((coalesce(max(substring(legal_id from 9 for 4))::int, 0) + 1)::text, 4, '0')
+				ELSE #{legalId}
+			END
+			FROM esg.tb_legal_manage_type
+			WHERE legal_id LIKE to_char(now(), 'yyyymmdd') || '%'
+			AND comp_id = #{compId}
+		</selectKey>
+        insert into esg.tb_legal_manage_type (
+            comp_id,
+            legal_id,
+            legal_nm,
+            legal_cd,
+            ord_seq,
+            use_yn,
+            created_at,
+            created_by
+        )
+        values (
+            #{compId},
+            #{legalId},
+            #{legalNm},
+            #{legalCd},
+            #{ordSeq},
+            #{useYn},
+            now(),
+            #{createdBy}
+        )
+    </insert>
+
+    <update id="updateLegalManageType" parameterType="kr.co.igns.business.planning.model.LegalManageVO">
+        update
+            esg.tb_legal_manage_type
+        set
+            legal_nm = #{legalNm},
+            ord_seq = #{ordSeq},
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        where
+            legal_id = #{legalId} AND comp_id = #{compId}
+    </update>
+
+    <update id="deleteLegalManage" parameterType="kr.co.igns.business.planning.model.LegalManageVO">
+        UPDATE esg.tb_legal_manage
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+            AND write_year = #{writeYear}
+            AND doc_type = #{docType}
+            AND doc_no = #{docNo}
+    </update>
+    
+    <update id="deleteLegalManageType" parameterType="kr.co.igns.business.planning.model.LegalManageVO">
+        UPDATE
+            esg.tb_legal_manage_type
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE
+            legal_id = #{legalId} AND comp_id = #{compId}
+    </update>
+    
+    <update id="deleteLegalManageDetail" parameterType="kr.co.igns.business.planning.model.LegalManageDetailVO">
+        UPDATE esg.tb_legal_manage_detail
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE doc_no = #{docNo}
+            AND write_year = #{writeYear}
+            AND doc_type = #{docType}
+            And doc_seq = #{docSeq}
+    </update>
+    
+    <select id='getDocNo' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='java.lang.String'>
+        SELECT
+			LPAD((COALESCE(MAX(doc_no::INTEGER), 0) + 1)::TEXT, 5, '0') AS docNo
+	    FROM esg.tb_legal_manage
+		WHERE write_year = #{writeYear}
+			AND doc_type = #{docType}
+    </select>
+    
+        
+    <select id='getLegalNm' parameterType='kr.co.igns.business.planning.model.LegalManageVO' resultType='java.lang.Integer'>
+        select count(legal_nm) as cnt
+		from esg.tb_legal_manage 
+		WHERE doc_type = #{docType}
+			AND legal_nm = #{legalNm}
+    </select>
+    
+    <select id='getValidLegalDivFg' parameterType='kr.co.igns.business.planning.model.LegalManageVO' resultType='kr.co.igns.business.planning.model.LegalManageVO'>
+        select legal_id, div_fg
+		from esg.tb_legal_manage 
+		WHERE doc_type = #{docType}
+			AND comp_id = #{compId}
+			AND legal_id = #{legalId}
+    </select>
+    
+    <select id='getReportData' parameterType='kr.co.igns.business.planning.model.LegalManageVO' resultType='kr.co.igns.business.planning.model.LegalManageVO'>
+       	
+
+		select  a.write_year,
+				a.doc_type ,
+				a.doc_no ,
+				a.legal_nm,
+				a.revision_at ,
+				a.created_at ,
+				a.created_by ,
+				a.updated_at ,
+				a.updated_by 
+			from esg.tb_legal_manage a
+			where a.comp_id = #{compId}
+		    and   a.write_year = #{writeYear}
+		    and   a.doc_type = #{docType}
+		    and   a.doc_no = #{docNo}
+			
+    </select>
+    
+    <select id='getReportGridData' parameterType='kr.co.igns.business.planning.model.LegalManageVO' resultType='kr.co.igns.business.planning.model.LegalManageDetailVO'>
+
+		 	<![CDATA[
+		 		WITH original_data AS (
+		    SELECT 
+		        a.legal_nm, 
+		        b.article_title, 
+		        a.revision_at,
+		        b.article_content,
+		        b.remark_dc,
+		        CAST(b.doc_seq AS INTEGER) as doc_seq,
+		        #{checkYn}
+		    FROM esg.tb_legal_manage a
+		    LEFT JOIN esg.tb_legal_manage_detail b 
+		    ON a.write_year = b.write_year 
+		    AND a.doc_type = b.doc_type 
+		    AND a.doc_no = b.doc_no 
+		    where a.comp_id = #{compId}
+		    and   a.write_year = #{writeYear}
+		    and   a.doc_type = #{docType}
+		    and   a.doc_no = #{docNo} ]]> 
+		    <![CDATA[ and   B.doc_seq IN ]]>  
+			    <foreach item="gridValue" index="index" collection="gridValue" open="(" separator="," close=")">
+			        #{gridValue}
+			    </foreach>
+			        
+		    <if test='checkYn != "Y"'>
+		  		and B.use_yn = 'Y'	
+		  	</if>
+		    <![CDATA[
+			),
+		
+			data_count AS (
+			    SELECT COUNT(*) AS row_count FROM original_data
+			)
+			
+			SELECT * FROM original_data
+			
+			order by doc_seq DESC;
+		 	
+		 	]]>
+   
+   </select>
+   
+   <select id='getReportGridDataAll' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.planning.model.LegalManageDetailVO'>
+
+		 	<![CDATA[
+		 		WITH original_data AS (
+		    SELECT 
+		        a.legal_nm, 
+		        b.article_title, 
+		        a.revision_at,
+		        b.article_content,
+		        b.remark_dc,
+		        CAST(b.doc_seq AS INTEGER) as doc_seq
+		    FROM esg.tb_legal_manage a
+		    LEFT JOIN esg.tb_legal_manage_detail b 
+		    ON a.write_year = b.write_year 
+		    AND a.doc_type = b.doc_type 
+		    AND a.doc_no = b.doc_no 
+		    where a.comp_id = #{compId}
+		    and   a.write_year = #{writeYear}
+		    and   a.doc_no = #{docNo} 
+			),
+		
+			data_count AS (
+			    SELECT COUNT(*) AS row_count FROM original_data
+			)
+			
+			SELECT * FROM original_data
+			
+			order by doc_seq asc;
+		 	
+		 	]]>
+   </select>
+
+	<select id='getAllReport' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.common.model.SpSearchVO'>
+		select t1.*
+		from esg.tb_legal_manage t1
+		where t1.write_year = #{writeYear}
+			and t1.comp_id = #{compId}
+	</select>
+
+	<select id='getReportData1' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.planning.model.LegalManageDetailVO'>
+		select t1.write_year
+			, t1.doc_type
+			, t1.doc_no
+			, t1.legal_nm
+			, t1.revision_at
+			, t1.created_at
+			, t1.created_by
+			, t1.updated_at
+			, t1.updated_by
+		from esg.tb_legal_manage t1
+		where t1.write_year = #{writeYear}
+			and t1.doc_no = #{docNo}
+			and t1.comp_id = #{compId}
+	</select>
+
+</mapper>
+
+
+
+<!--        <selectKey keyProperty="docNo" resultType="kr.co.igns.business.planning.model.LegalManageVO" order="BEFORE">  
+        <![CDATA[
+				SELECT
+					LPAD((COALESCE(MAX(doc_no::INTEGER), 0) + 1)::TEXT, 5, '0') AS docNo
+			    FROM esg.tb_hse_policy
+				WHERE write_year = #{writeYear}
+					AND doc_type = #{docType}
+			]]>
+		</selectKey>
+		kr.co.igns.business.planning.model.LegalManageVO
+        INSERT INTO esg.tb_hse_policy (
+            write_year,
+            doc_type,
+            doc_no,
+            data_type,
+            content_header,
+            content_body,
+            content_footer,
+            use_yn,
+            created_at,
+            created_by,
+            comp_id
+        )
+        VALUES (-->
+<!--            TO_CHAR(now(), 'yyyy'),-->
+ <!--           #{writeYear},
+            #{docType},
+            #{docNo},
+            #{dataType},
+            #{contentHeader},
+            #{contentBody},
+            #{contentFooter},
+            #{useYn},
+            now(),
+            #{createdBy},
+            #{compId}
+        )-->
+

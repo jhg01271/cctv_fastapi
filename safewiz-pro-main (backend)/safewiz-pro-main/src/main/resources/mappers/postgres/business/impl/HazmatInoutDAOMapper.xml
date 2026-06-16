@@ -1,0 +1,271 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.impl.dao.postgres.HazmatInoutDAO">
+    <select id='getHazmatInout' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.HazmatInoutVO'>
+         SELECT thi.*,
+                twi.workplace_nm,
+                twio.msds_nm as hazmat_nm,
+                COUNT(CASE WHEN thid.in_qty IS NOT NULL THEN 1 END) + COUNT(CASE WHEN thid.out_qty IS NOT NULL THEN 1 END) as result_cnt,
+                (SELECT store_qty
+                   FROM (
+                     SELECT store_qty,
+                            ROW_NUMBER() OVER (PARTITION BY write_year ORDER BY inout_dt DESC) AS rn
+                       FROM esg.tb_hazmat_inout_detail
+                      WHERE write_year = #{writeYear}
+                        AND doc_no = thi.doc_no
+                        AND store_qty IS NOT NULL
+                ) lastData
+                  WHERE rn = 1) as last_store_qty
+           FROM esg.tb_hazmat_inout thi
+      LEFT JOIN esg.tb_hazmat_inout_detail thid
+             ON thi.write_year = thid.write_year
+            AND thi.doc_no = thid.doc_no
+            AND thi.doc_type = thid.doc_type
+      LEFT JOIN esg.tb_workplace_info twi
+             ON twi.workplace_id = thi.workplace_id
+      LEFT JOIN esg.tb_msds_info twio
+             ON twio.msds_id = thi.hazmat_id       
+          WHERE 1 = 1
+            AND thi.comp_id = #{compId}
+            AND thi.write_year = #{writeYear}
+            <if test="docNo != null and !docNo.equals('')">
+                AND thi.doc_no = #{docNo}
+            </if>
+       GROUP BY thi.write_year, thi.doc_type, thi.doc_no, thi.comp_id, thi.workplace_id, thi.hazmat_id,
+                thi.msds_synonym,thi.cas_no,thi.daily_volume,thi.daily_time,thi.created_at,thi.created_by,thi.updated_at,thi.updated_by,
+                twi.workplace_nm, twio.msds_nm
+       ORDER BY thi.workplace_id, thi.hazmat_id
+    </select>
+
+    <select id='getHazmatInoutDetail' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType="kr.co.igns.business.impl.model.HazmatInoutDetailVO">
+		WITH grouped_data AS (
+		    SELECT 
+		        LEFT(thid.inout_dt, 6) AS year_month,
+		        COUNT(CASE WHEN thid.in_qty IS NOT NULL THEN 1 END) AS total_in_count,
+		        COUNT(CASE WHEN thid.out_qty IS NOT NULL THEN 1 END) AS total_out_count
+		    FROM 
+		        esg.tb_hazmat_inout_detail thid
+		    WHERE 
+		        thid.write_year = #{writeYear}
+		        AND thid.doc_no = #{docNo}
+		        AND thid.doc_type = #{docType}
+		    GROUP BY 
+		        LEFT(thid.inout_dt, 6)
+		)
+		SELECT 
+		    thid.*, 
+		    g.year_month, 
+		    g.total_in_count + g.total_out_count AS total_qty
+		FROM 
+		    esg.tb_hazmat_inout_detail thid
+		LEFT JOIN 
+		    grouped_data g
+		ON 
+		    LEFT(thid.inout_dt, 6) = g.year_month
+		WHERE 
+		    thid.write_year = #{writeYear}
+		    AND thid.doc_no = #{docNo}
+		    AND thid.doc_type = #{docType};
+		        
+    </select>
+
+    <select id='getHazmatInoutByMonth' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.HazmatInoutDetailVO'>
+
+        WITH RECURSIVE all_dates AS (
+            SELECT
+                   CONCAT(#{searchCd}, LPAD(n::TEXT, 2, '0')) AS inout_dt
+              FROM generate_series(1, 31) n
+             WHERE to_date(CONCAT(#{searchCd}, '01'), 'YYYYMMDD') + (n - 1) * INTERVAL '1 day' &lt; to_date(CONCAT(#{searchCd}, '01'), 'YYYYMMDD') + INTERVAL '1 month'
+        )
+        SELECT
+               d.inout_dt,
+               thid.in_qty,
+               thid.out_qty,
+               thid.store_qty,
+               thid.remark,
+               thid.doc_seq
+          FROM all_dates d
+     LEFT JOIN esg.tb_hazmat_inout_detail thid
+            ON d.inout_dt = thid.inout_dt
+           AND thid.write_year = #{writeYear}
+           AND thid.doc_no = #{docNo}
+           AND thid.doc_type = #{docType}
+         WHERE d.inout_dt LIKE #{searchCd} || '%'
+      ORDER BY d.inout_dt;
+
+    </select>
+
+    <insert id="insertHazmatInout" parameterType="kr.co.igns.business.impl.model.HazmatInoutVO">
+
+        <selectKey keyProperty="docNo" resultType="kr.co.igns.business.impl.model.HazmatInoutVO" order="BEFORE">
+            <![CDATA[
+            SELECT
+                LPAD((COALESCE(MAX(SUBSTRING(doc_no, 1, 5)::INTEGER), 0) + 1)::TEXT, 5, '0') AS docNo
+             FROM esg.tb_hazmat_inout
+            WHERE write_year = #{writeYear}
+              AND doc_type = #{docType}
+         ]]>
+        </selectKey>
+
+        INSERT INTO esg.tb_hazmat_inout (
+            write_year,
+            doc_no,
+            doc_type,
+            comp_id,
+            workplace_id,
+            hazmat_id,
+            msds_synonym,
+            cas_no,
+            daily_volume,
+            daily_time,
+            use_yn,
+            created_at,
+            created_by
+        )
+        VALUES (
+                   #{writeYear},
+                   #{docNo},
+                   #{docType},
+                   #{compId},
+                   #{workplaceId},
+                   #{hazmatId},
+                   #{msdsSynonym},
+                   #{casNo},
+                   #{dailyVolume},
+            	   #{dailyTime},
+                   #{useYn},
+                   now(),
+                   #{createdBy}
+               )
+
+    </insert>
+
+    <insert id="insertHazmatInoutDetail" parameterType="kr.co.igns.business.impl.model.HazmatInoutDetailVO">
+
+        <selectKey keyProperty="docSeq" resultType="kr.co.igns.business.impl.model.HazmatInoutDetailVO" order="BEFORE">
+            <![CDATA[
+            SELECT
+                LPAD((COALESCE(MAX(SUBSTRING(doc_seq, 1, 5)::INTEGER), 0) + 1)::TEXT, 5, '0') AS docSeq
+              FROM esg.tb_hazmat_inout_detail
+             WHERE write_year = #{writeYear}
+               AND doc_type = #{docType}
+               AND doc_no = #{docNo}
+         ]]>
+        </selectKey>
+
+        INSERT INTO esg.tb_hazmat_inout_detail (
+            write_year,
+            doc_no,
+            doc_type,
+            doc_seq,
+            inout_dt,
+            in_qty,
+            out_qty,
+            store_qty,
+            remark,
+            created_at,
+            created_by
+        )
+        VALUES (
+            #{writeYear},
+            #{docNo},
+            #{docType},
+            #{docSeq},
+            #{inoutDt},
+            #{inQty},
+            #{outQty},
+            #{storeQty},
+            #{remark},
+            now(),
+            #{createdBy}
+        )
+
+    </insert>
+
+    <update id="updateHazmatInout" parameterType="kr.co.igns.business.impl.model.HazmatInoutVO">
+
+        UPDATE esg.tb_hazmat_inout
+        SET
+              msds_synonym = #{msdsSynonym},
+              cas_no = #{casNo},
+              daily_volume = #{dailyVolume},
+              daily_time = #{dailyTime},
+              use_yn = #{useYn},
+              updated_at = now(),
+              updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+
+    </update>
+
+    <update id="updateHazmatInoutDetail" parameterType="kr.co.igns.business.impl.model.HazmatInoutDetailVO">
+
+        UPDATE esg.tb_hazmat_inout_detail
+        SET
+            in_qty = #{inQty},
+            out_qty = #{outQty},
+            store_qty = #{storeQty},
+            remark = #{remark},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE 1 = 1
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND doc_seq = #{docSeq}
+
+    </update>
+
+    <delete id="deleteHazmatInout" parameterType="kr.co.igns.business.impl.model.HazmatInoutVO">
+
+        UPDATE esg.tb_hazmat_inout
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE 1 = 1
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+
+    </delete>
+
+    <delete id="deleteHazmatInoutDetail" parameterType="kr.co.igns.business.impl.model.HazmatInoutDetailVO">
+
+     DELETE FROM esg.tb_hazmat_inout_detail
+           WHERE 1 = 1
+             AND write_year = #{writeYear}
+             AND doc_no = #{docNo}
+             AND doc_type = #{docType}
+             AND doc_seq = #{docSeq}
+
+    </delete>
+
+    <select id='getHazmatInoutById' parameterType='kr.co.igns.business.impl.model.HazmatInoutVO' resultType='kr.co.igns.business.impl.model.HazmatInoutVO'>
+
+        SELECT *
+        FROM esg.tb_hazmat_inout
+        WHERE comp_id = #{compId}
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+
+    </select>
+
+    <select id='getHazmatInoutDetailById' parameterType='kr.co.igns.business.impl.model.HazmatInoutDetailVO' resultType='kr.co.igns.business.impl.model.HazmatInoutDetailVO'>
+
+        SELECT *
+        FROM esg.tb_hazmat_inout_detail
+        WHERE 1 = 1
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND doc_seq = #{docSeq}
+
+    </select>
+
+
+</mapper>

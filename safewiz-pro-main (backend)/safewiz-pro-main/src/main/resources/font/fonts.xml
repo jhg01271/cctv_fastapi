@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<fontFamilies>
+	<!-- fontFamily name 속성에 입력하는 값는 Jasper Studio에서 폰트를 등록할때 지정한 폰트명과 동일해야한다. -->
+
+	<fontFamily name="맑은 고딕">
+
+		<!-- fonts 패키지내에 등록된 트루타입 폰트 파일의 경로 -->
+
+		<normal><![CDATA[font/malgun.ttf]]></normal>
+		<bold><![CDATA[font/malgunbd.ttf]]></bold>
+
+		
+
+		<!-- pdfEncoding 파입. Jasper Studio에서 폰트 한글 설정을 할때의 값과 동일하다. -->
+
+		<pdfEncoding>Identity-H</pdfEncoding>
+
+		<pdfEmbedded><![CDATA[true]]></pdfEmbedded>
+
+		<!-- 
+
+		<exportFonts>
+
+			<export key="net.sf.jasperreports.html">Gentium, 'Times New Roman', Times, serif</export>
+			<export key="net.sf.jasperreports.xhtml">Gentium, 'Times New Roman', Times, serif</export>
+
+		</exportFonts>
+
+		-->
+
+	</fontFamily>
+</fontFamilies>

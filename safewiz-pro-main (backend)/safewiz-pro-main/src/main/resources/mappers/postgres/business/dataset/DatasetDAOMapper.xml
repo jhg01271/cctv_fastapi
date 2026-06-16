@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.dataset.dao.postgres.DatasetDAO">
+
+    <!-- 업종 리스트 조회 쿼리 -->
+    <select id='getTypeofbusinessList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.dataset.model.TypeofbusinessVO'>
+        SELECT *
+        FROM dataset.tb_dataset_typeofbusiness
+        WHERE 1=1
+        ORDER BY detail_cd
+    </select>
+
+
+    <!-- 설비 리스트 조회 쿼리 -->
+    <select id='getTypeofEquipmentList' parameterType='map' resultType='kr.co.igns.business.dataset.model.TypeofEquipmentVO'>
+        SELECT tdy.std_eq_id, tdy.std_eq_nm, tdy.std_eq_eng_nm, tdy.std_eq_desc AS desc, tdy.use_yn, tdy.ord_seq
+          FROM dataset.tb_dataset_typeofEquipment tdy
+         WHERE tdy.use_yn = 'Y'
+<!--           AND NOT EXISTS (-->
+<!--                            SELECT 1-->
+<!--                              FROM esg.tb_dataset_typeofequipment tdt-->
+<!--                             WHERE tdt.std_eq_id = tdy.std_eq_id-->
+<!--                               AND tdt.comp_id = #{compId}-->
+<!--                           )-->
+        ORDER BY tdy.std_eq_id
+    </select>
+
+</mapper>

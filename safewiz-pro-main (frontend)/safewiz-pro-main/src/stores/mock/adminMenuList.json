@@ -1,0 +1,59 @@
+[
+    {
+      "menuId": "CCC",
+      "menuNm": "시스템 관리",
+      "menuNmEng": "MasterMgt",
+      "menuIcon": "icon_lnb01",
+      "routerNm": "Master",
+      "routerPath": "",
+      "param": "",
+      "children": [
+        {
+          "menuId": "AAA",
+          "menuNm": "메뉴 관리2",
+          "menuNmEng": "EquipmentManagement1",
+          "menuIcon": "icon-equip",
+          "routerNm": "equipmentMgt",
+          "routerPath": "/page/admin/base/system/menu",
+          "param": "&from=2024-0101&to=2024-12-01"
+        },
+        {
+          "menuId": "AAA",
+          "menuNm": "사용자 관리",
+          "menuNmEng": "EquipmentManagement1",
+          "menuIcon": "icon-equip",
+          "routerNm": "equipmentMgt",
+          "routerPath": "/page/admin/comp/company/user",
+          "param": "&from=2024-0101&to=2024-12-01"
+        },
+        {
+          "menuId": "AAA",
+          "menuNm": "사업장 관리",
+          "menuNmEng": "EquipmentManagement1",
+          "menuIcon": "icon-equip",
+          "routerNm": "equipmentMgt",
+          "routerPath": "/page/admin/comp/company/company",
+          "param": "&from=2024-0101&to=2024-12-01"
+        },
+        {
+          "menuId": "AAA",
+          "menuNm": "공통코드 관리",
+          "menuNmEng": "EquipmentManagement1",
+          "menuIcon": "icon-equip",
+          "routerNm": "equipmentMgt",
+          "routerPath": "/page/admin/base/system/systemCode",
+          "param": "&from=2024-0101&to=2024-12-01"
+        },
+        {
+          "menuId": "AAA",
+          "menuNm": "그룹별 권한 관리",
+          "menuNmEng": "EquipmentManagement1",
+          "menuIcon": "icon-equip",
+          "routerNm": "equipmentMgt",
+          "routerPath": "/page/admin/comp/auth/group",
+          "param": "&from=2024-0101&to=2024-12-01"
+        }
+      ]
+    }
+  ]
+  

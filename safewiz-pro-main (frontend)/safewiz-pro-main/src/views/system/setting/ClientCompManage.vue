@@ -1,0 +1,145 @@
+<template>
+    <!-- 콘텐츠 영역 -->
+    <div class="contents df fdc">
+        <!-- 카드 타이틀 -->
+        <OverlayScrollbarsComponent
+            class="h100p"
+            :options="{
+                scrollbars: {
+                    x: 'hidden',
+                    y: 'visible'
+                }
+            }"
+        >
+            <div class="oh h100p ul-ha">
+                <div class="row flex gutters1rem h100p md-gutters2-4rem">
+                    <div class="grid12-6 md-grid12-12">
+                        <div class="box h100p">
+                            <div class="pt2-2rem pb1-2rem px2-2rem">
+                                <h3>{{ t('clinetComp_clntTitle') }}</h3>
+                            </div>
+                            <hr />
+                            <div class="pa2-2rem">
+                                <div class="form ui mb8px">
+                                    <div class="df">
+                                        <input v-input="{ type: ['reset'] }" type="text" class="radius search" :placeholder="t('placeHolderSearch')" v-model="clientCompStore.searchClient" @keyup.enter="clientCompStore.searchSystemCodeGrid(false)" />
+                                        <button type="submit" class="shrink0" @click="clientCompStore.searchSystemCodeGrid(false)">
+                                            <img src="/assets/img/common/icon_search.svg" alt />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- 테이블 시작 -->
+                                <OverlayScrollbarsComponent
+                                    :options="{
+                                        scrollbars: {
+                                            x: 'visible',
+                                            y: 'visible'
+                                        }
+                                    }"
+                                >
+                                    <i-DataGrid class="minw640px" ref="gridMaster" gridId="gridMaster" :columns="clientCompStore.gridClientColumns" @focusChange="clientCompStore.focusGridClient" />
+                                </OverlayScrollbarsComponent>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="grid12-6 md-grid12-12">
+                        <div class="box h100p">
+                            <div class="pt2-2rem pb1-2rem px2-2rem">
+                                <h3>{{ t('clinetComp_compTitle') }}</h3>
+                            </div>
+                            <hr />
+                            <div class="pa2-2rem">
+                                <div class="ui form mb8px">
+                                    <div class="df">
+                                        <input v-input="{ type: ['reset'] }" type="text" class="radius w100p search" :placeholder="t('placeHolderSearch')" v-model="clientCompStore.searchComp" @keyup.enter="clientCompStore.searchGroupMenuGrid(true)" />
+                                        <button type="submit" class="shrink0" @click="clientCompStore.searchGroupMenuGrid(true)">
+                                            <img src="/assets/img/common/icon_search.svg" alt />
+                                        </button>
+                                        <button type="submit" class="btn line radius shrink0 ml8px" @click="clientCompStore.openComp">
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M4.09202 20.782L3.86502 21.2275H3.86502L4.09202 20.782ZM3.21799 19.908L2.77248 20.135H2.77248L3.21799 19.908ZM15.782 19.908L16.2275 20.135L15.782 19.908ZM14.908 20.782L15.135 21.2275H15.135L14.908 20.782ZM14.908 8.21799L14.681 8.66349L14.908 8.21799ZM15.782 9.09202L15.3365 9.31901V9.31901L15.782 9.09202ZM4.09202 8.21799L4.31901 8.66349H4.31901L4.09202 8.21799ZM3.21799 9.09202L2.77248 8.86502L3.21799 9.09202ZM20.782 14.908L21.2275 15.135V15.135L20.782 14.908ZM19.908 15.782L20.135 16.2275L19.908 15.782ZM19.908 3.21799L20.135 2.77248V2.77248L19.908 3.21799ZM20.782 4.09202L21.2275 3.86502V3.86502L20.782 4.09202ZM9.09202 3.21799L8.86502 2.77248L9.09202 3.21799ZM8.21799 4.09202L8.66349 4.31901V4.31901L8.21799 4.09202ZM10 12C10 11.7239 9.77614 11.5 9.5 11.5C9.22386 11.5 9 11.7239 9 12H10ZM9 17C9 17.2761 9.22386 17.5 9.5 17.5C9.77614 17.5 10 17.2761 10 17H9ZM12 15C12.2761 15 12.5 14.7761 12.5 14.5C12.5 14.2239 12.2761 14 12 14V15ZM7 14C6.72386 14 6.5 14.2239 6.5 14.5C6.5 14.7761 6.72386 15 7 15V14ZM12.8 20.5H6.2V21.5H12.8V20.5ZM3.5 17.8V11.2H2.5V17.8H3.5ZM6.2 20.5C5.6317 20.5 5.23554 20.4996 4.92712 20.4744C4.62454 20.4497 4.45069 20.4036 4.31901 20.3365L3.86502 21.2275C4.16117 21.3784 4.48126 21.4413 4.84569 21.4711C5.20428 21.5004 5.6482 21.5 6.2 21.5V20.5ZM2.5 17.8C2.5 18.3518 2.49961 18.7957 2.52891 19.1543C2.55868 19.5187 2.62159 19.8388 2.77248 20.135L3.66349 19.681C3.5964 19.5493 3.55031 19.3755 3.52559 19.0729C3.50039 18.7645 3.5 18.3683 3.5 17.8H2.5ZM4.31902 20.3365C4.03677 20.1927 3.8073 19.9632 3.66349 19.681L2.77248 20.135C3.01217 20.6054 3.39462 20.9878 3.86502 21.2275L4.31902 20.3365ZM15.5 17.8C15.5 18.3683 15.4996 18.7645 15.4744 19.0729C15.4497 19.3755 15.4036 19.5493 15.3365 19.681L16.2275 20.135C16.3784 19.8388 16.4413 19.5187 16.4711 19.1543C16.5004 18.7957 16.5 18.3518 16.5 17.8H15.5ZM12.8 21.5C13.3518 21.5 13.7957 21.5004 14.1543 21.4711C14.5187 21.4413 14.8388 21.3784 15.135 21.2275L14.681 20.3365C14.5493 20.4036 14.3755 20.4497 14.0729 20.4744C13.7645 20.4996 13.3683 20.5 12.8 20.5V21.5ZM15.3365 19.681C15.1927 19.9632 14.9632 20.1927 14.681 20.3365L15.135 21.2275C15.6054 20.9878 15.9878 20.6054 16.2275 20.135L15.3365 19.681ZM12.8 8.5C13.3683 8.5 13.7645 8.50039 14.0729 8.52559C14.3755 8.55031 14.5493 8.5964 14.681 8.66349L15.135 7.77248C14.8388 7.62159 14.5187 7.55868 14.1543 7.52891C13.7957 7.49961 13.3518 7.5 12.8 7.5V8.5ZM16.5 11.2C16.5 10.6482 16.5004 10.2043 16.4711 9.84569C16.4413 9.48126 16.3784 9.16117 16.2275 8.86502L15.3365 9.31901C15.4036 9.45069 15.4497 9.62454 15.4744 9.92712C15.4996 10.2355 15.5 10.6317 15.5 11.2H16.5ZM14.681 8.66349C14.9632 8.8073 15.1927 9.03677 15.3365 9.31901L16.2275 8.86502C15.9878 8.39462 15.6054 8.01217 15.135 7.77248L14.681 8.66349ZM6.2 7.5C5.6482 7.5 5.20428 7.49961 4.84569 7.52891C4.48126 7.55868 4.16117 7.62159 3.86502 7.77248L4.31901 8.66349C4.45069 8.5964 4.62454 8.55031 4.92712 8.52559C5.23554 8.50039 5.6317 8.5 6.2 8.5V7.5ZM3.5 11.2C3.5 10.6317 3.50039 10.2355 3.52559 9.92712C3.55031 9.62454 3.5964 9.45069 3.66349 9.31901L2.77248 8.86502C2.62159 9.16117 2.55868 9.48126 2.52891 9.84569C2.49961 10.2043 2.5 10.6482 2.5 11.2H3.5ZM3.86502 7.77248C3.39462 8.01217 3.01217 8.39462 2.77248 8.86502L3.66349 9.31901C3.8073 9.03677 4.03677 8.8073 4.31901 8.66349L3.86502 7.77248ZM11.2 3.5H17.8V2.5H11.2V3.5ZM20.5 6.2V12.8H21.5V6.2H20.5ZM20.5 12.8C20.5 13.3683 20.4996 13.7645 20.4744 14.0729C20.4497 14.3755 20.4036 14.5493 20.3365 14.681L21.2275 15.135C21.3784 14.8388 21.4413 14.5187 21.4711 14.1543C21.5004 13.7957 21.5 13.3518 21.5 12.8H20.5ZM17.8 16.5C18.3518 16.5 18.7957 16.5004 19.1543 16.4711C19.5187 16.4413 19.8388 16.3784 20.135 16.2275L19.681 15.3365C19.5493 15.4036 19.3755 15.4497 19.0729 15.4744C18.7645 15.4996 18.3683 15.5 17.8 15.5V16.5ZM20.3365 14.681C20.1927 14.9632 19.9632 15.1927 19.681 15.3365L20.135 16.2275C20.6054 15.9878 20.9878 15.6054 21.2275 15.135L20.3365 14.681ZM17.8 3.5C18.3683 3.5 18.7645 3.50039 19.0729 3.52559C19.3755 3.55031 19.5493 3.5964 19.681 3.66349L20.135 2.77248C19.8388 2.62159 19.5187 2.55868 19.1543 2.52891C18.7957 2.49961 18.3518 2.5 17.8 2.5V3.5ZM21.5 6.2C21.5 5.6482 21.5004 5.20428 21.4711 4.84569C21.4413 4.48126 21.3784 4.16117 21.2275 3.86502L20.3365 4.31901C20.4036 4.45069 20.4497 4.62454 20.4744 4.92712C20.4996 5.23554 20.5 5.6317 20.5 6.2H21.5ZM19.681 3.66349C19.9632 3.8073 20.1927 4.03677 20.3365 4.31902L21.2275 3.86502C20.9878 3.39462 20.6054 3.01217 20.135 2.77248L19.681 3.66349ZM11.2 2.5C10.6482 2.5 10.2043 2.49961 9.84569 2.52891C9.48126 2.55868 9.16117 2.62159 8.86502 2.77248L9.31901 3.66349C9.45069 3.5964 9.62454 3.55031 9.92712 3.52559C10.2355 3.50039 10.6317 3.5 11.2 3.5V2.5ZM8.5 6.2C8.5 5.6317 8.50039 5.23554 8.52559 4.92712C8.55031 4.62454 8.5964 4.45069 8.66349 4.31901L7.77248 3.86502C7.62159 4.16117 7.55868 4.48126 7.52891 4.84569C7.49961 5.20428 7.5 5.6482 7.5 6.2H8.5ZM8.86502 2.77248C8.39462 3.01217 8.01217 3.39462 7.77248 3.86502L8.66349 4.31901C8.8073 4.03677 9.03677 3.8073 9.31901 3.66349L8.86502 2.77248ZM8.5 8V6.2H7.5V8H8.5ZM6.2 8.5H8V7.5H6.2V8.5ZM8 8.5H12.8V7.5H8V8.5ZM17.8 15.5H16V16.5H17.8V15.5ZM15.5 11.2V16H16.5V11.2H15.5ZM15.5 16V17.8H16.5V16H15.5ZM9 12V14.5H10V12H9ZM9 14.5V17H10V14.5H9ZM12 14H9.5V15H12V14ZM9.5 14H7V15H9.5V14Z" fill="#3248F6" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- 테이블 시작 -->
+                                <OverlayScrollbarsComponent
+                                    :options="{
+                                        scrollbars: {
+                                            x: 'visible',
+                                            y: 'visible'
+                                        }
+                                    }"
+                                >
+                                    <i-DataGrid class="minw640px" :options="{ rowHeaders: ['checkbox'] }" ref="gridDetail" gridId="gridDetail" :columns="clientCompStore.gridCompColumns" />
+                                </OverlayScrollbarsComponent>
+                                <!-- 테이블 끝 -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </OverlayScrollbarsComponent>
+
+        <teleport to="body">
+            <!-- 팝업 -->
+            <!--        <i-PopupDialog ref="dialogGroup">-->
+            <!--            &lt;!&ndash; 단일 그리드 &ndash;&gt;-->
+            <!--            <div class="contents form ui w500px">-->
+            <!--                <CodePopup />-->
+            <!--                <i-PopupButtonList-->
+            <!--                    :btnInfo="{ saveBtn: true, deleteBtn: true, closeBtn: true }"-->
+            <!--                    :localInputForm="clientCompStore.inputForm"-->
+            <!--                    @save="clientCompStore.saveCode"-->
+            <!--                    @close="dialogGroup.onClose()"-->
+            <!--                />-->
+            <!--            </div>-->
+            <!--        </i-PopupDialog>-->
+
+            <!-- 사업장 모달 팝업 컴포넌트 시작  -->
+            <i-PopupDialog ref="dialogComp">
+                <div class="contents form ui w70rem md-w100p">
+                    <base-select-popup :title="'사업장'" :inputForm="clientCompStore.inputForm" uniqueKey="compId" filterKey="compNm" useYnKey="useYn" :excluded-value="'N'" :single="false" :fetch-data="getCompList" :selectedIdList="clientCompStore.inputForm.map(el => el.clntCompId)" @close="clientCompStore.closeComp" @apply="clientCompStore.applyComp" />
+                    <!-- 버튼 콤포넌트 영역 시작 -->
+                </div>
+            </i-PopupDialog>
+        </teleport>
+    </div>
+</template>
+
+<script setup>
+import BaseView from '@/components/base/BaseView';
+const { onMounted, ref, t, btnSearch, btnSave, btnDelete } = BaseView();
+
+import { useClientCompStore } from '@/stores/system/setting/clientComp.js';
+const clientCompStore = useClientCompStore();
+
+import { OverlayScrollbarsComponent } from 'overlayscrollbars-vue';
+
+const gridMaster = ref(null);
+const gridDetail = ref(null);
+const dialogComp = ref(null);
+
+import { useButtonListStore } from '@/stores/buttonList';
+import { getCompList } from '@/stores/system/setting/api/compApi.js';
+import BaseSelectPopup from '@/views/system/base/popup/BaseSelectPopup.vue';
+const layoutStore = useButtonListStore();
+layoutStore.useBtnList = ['btnSearch', 'btnSave', 'btnDelete'];
+
+btnSearch(() => {
+    clientCompStore.searchSystemCodeGrid(false);
+});
+btnDelete(() => {
+    clientCompStore.btnDelete();
+});
+btnSave(() => {
+    clientCompStore.btnSave();
+});
+
+onMounted(async () => {
+    clientCompStore.searchSystemCodeGrid(false);
+    clientCompStore.setRefs(gridMaster, gridDetail, dialogComp);
+});
+</script>

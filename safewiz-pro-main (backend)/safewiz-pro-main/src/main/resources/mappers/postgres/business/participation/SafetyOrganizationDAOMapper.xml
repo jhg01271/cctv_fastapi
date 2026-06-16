@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.participation.dao.postgres.SafetyOrganizationDAO">
+
+    <select id='getSafetyOrgList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.participation.model.SafetyOrgnRoleVO'>
+      SELECT comp_id,
+             orgn_role_id,
+             orgn_role_nm,
+             ord_seq,
+             use_yn,
+             remark,
+             created_at,
+             created_by,
+             updated_at,
+             updated_by
+        FROM esg.tb_safety_health_org_chart_orgn_role
+       WHERE comp_id = #{compId}
+    ORDER BY use_yn desc, ord_seq
+    </select>
+
+    <select id='getDataSetSafetyOrgList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.participation.model.SafetyOrgnRoleVO'>      
+		SELECT orgn_role_id,
+               orgn_role_nm,
+               ord_seq,
+               use_yn,
+               remark
+          FROM dataset.tb_dataset_safety_health_org_chart_orgn_role
+         WHERE use_yn = 'Y'
+      ORDER BY ord_seq
+    </select>
+
+    <insert id="insertSafetyOrgList" parameterType="kr.co.igns.business.participation.model.SafetyOrgnRoleVO">
+    <selectKey keyProperty="orgnRoleId" resultType="String" order="BEFORE">
+        SELECT CASE WHEN #{orgnRoleId} IS NULL or #{orgnRoleId} = ''
+                    THEN TO_CHAR(now(), 'yyyymmdd') || lpad((COALESCE(MAX(SUBSTRING(orgn_role_id from 9 for 4))::int, 0) + 1)::text , 4, '0')
+                    ELSE #{orgnRoleId}
+                     END
+          FROM esg.tb_safety_health_org_chart_orgn_role
+         WHERE orgn_role_id like to_char(now(), 'yyyymmdd') || '%'
+           AND comp_id = #{compId}
+         LIMIT 1
+    </selectKey>
+        INSERT INTO esg.tb_safety_health_org_chart_orgn_role(
+            comp_id,
+            orgn_role_id,
+            orgn_role_nm,
+            ord_seq,
+            use_yn,
+            created_at,
+            created_by
+        )VALUES(
+            #{compId},
+            #{orgnRoleId},
+            #{orgnRoleNm},
+            #{ordSeq},
+            #{useYn},
+            now(),
+            #{createdBy}
+        )
+    </insert>
+
+    <update id="updateSafetyOrgList" parameterType="kr.co.igns.business.participation.model.SafetyOrgnRoleVO">
+        UPDATE esg.tb_safety_health_org_chart_orgn_role
+        SET orgn_role_nm = #{orgnRoleNm},
+            ord_seq = #{ordSeq},
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+          AND orgn_role_id = #{orgnRoleId}
+    </update>
+
+    <select id='getChartList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.participation.model.SafetyOrgChartVO'>
+        SELECT *
+          FROM esg.tb_safety_health_org_chart toc
+         WHERE toc.comp_id = #{compId}
+      ORDER BY use_yn desc, created_at desc
+    </select>
+    <select id='getChartDetail' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.participation.model.SafetyOrgChartVO'>
+
+        SELECT *
+        FROM esg.tb_safety_health_org_chart toc
+        WHERE toc.chart_id = #{searchText}
+    </select>
+    
+    <insert id="insertOrganizationChart" parameterType="kr.co.igns.business.participation.model.SafetyOrgChartVO">
+        <selectKey keyProperty="chartId" resultType="kr.co.igns.business.participation.model.SafetyOrgChartVO" order="BEFORE">
+            select to_char(now(), 'yyyymmdd') ||
+				   lpad(
+					   (coalesce(max(substring(chart_id from 9 for 4))::int, 0) + 1)::text,
+					   4,
+					   '0'
+				   ) as chart_id
+			from esg.tb_safety_health_org_chart
+			where chart_id like to_char(now(), 'YYYYMMDD') || '%'
+    	</selectKey>
+        INSERT INTO esg.tb_safety_health_org_chart (
+            comp_id,
+            chart_id,
+            chart_nm,
+            chart_data,
+            org_count,
+            use_yn,
+            created_at,
+            created_by,
+            chart_blob_data
+        )
+        VALUES (
+            #{compId},
+            #{chartId},
+            #{chartNm},
+            #{chartData},
+            #{orgCount},
+            #{useYn},
+            now(),
+            #{createdBy},
+            #{chartBlobData}
+        )
+
+    </insert>
+
+
+    <update id="updateOrganizationChart" parameterType="kr.co.igns.business.participation.model.SafetyOrgChartVO">
+
+        UPDATE esg.tb_safety_health_org_chart
+        SET
+            comp_id = #{compId},
+            chart_nm = #{chartNm},
+            chart_data = #{chartData},
+            org_count = #{orgCount},
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy},
+            chart_blob_data = #{chartBlobData}
+        WHERE chart_id = #{chartId}
+
+    </update>
+    <update id="deleteOrganizationChart" parameterType="kr.co.igns.business.participation.model.SafetyOrgChartVO">
+
+        UPDATE esg.tb_safety_health_org_chart
+        SET 
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE chart_id = #{chartId}
+
+    </update>
+
+    <update id="confirmOrganizationChart" parameterType="kr.co.igns.business.participation.model.SafetyOrgChartVO">
+
+        UPDATE esg.tb_safety_health_org_chart
+        SET 
+            confirm_yn = #{confirmYn},
+            <if test='confirmYn == "Y"'>
+                confirm_dt = now(),
+            </if>
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE chart_id = #{chartId}
+
+    </update>
+
+    <select id='getSafetyOrgnListById' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.base.model.HrVO'>
+        select distinct(a.orgn_id)
+        from esg.tb_orgn_info a
+        left join esg.tb_hr_info b on a.orgn_id = b.orgn_id
+        where a.comp_id = #{compId}
+        and b.hr_id in (select unnest(string_to_array(#{id}, ',')))
+    </select>
+
+</mapper>
+

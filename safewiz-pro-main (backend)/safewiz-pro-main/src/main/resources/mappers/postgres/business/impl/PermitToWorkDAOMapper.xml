@@ -1,0 +1,890 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.impl.dao.postgres.PermitToWorkDAO">
+    <select id='getPermitToWork' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.PermitToWorkVO'>
+        SELECT tptw.*,
+        	   tptw.work_start || ' ~ ' || tptw.work_end AS work_time,
+               tei.equipment_nm,
+               tpci.part_comp_nm,
+               CASE WHEN taia.signature IS NOT NULL THEN 'Y'
+                    WHEN tais.signature IS NOT NULL OR taiw.signature IS NOT NULL OR tair.signature IS NOT NULL THEN 'I'
+--                     WHEN tais.signature IS NOT NULL THEN 'I'
+--                     WHEN taiw.signature IS NOT NULL OR tair.signature IS NOT NULL THEN 'W'
+                    ELSE 'C'
+                END AS approval_status
+          FROM esg.tb_permit_to_work tptw
+     LEFT JOIN esg.tb_equipment_info tei
+            ON tei.equipment_id = tptw.equipment_id
+     LEFT JOIN esg.tb_partner_comp_info tpci
+            ON tpci.part_comp_id = tptw.part_comp_id
+     LEFT JOIN esg.tb_approval_info taiw /* 작업자 대표 */
+            ON taiw.target_type = 'PTW'
+           AND taiw.target_id = tptw.write_year || tptw.doc_no
+           AND taiw.type = 'worker'
+     LEFT JOIN esg.tb_approval_info taia /* 승인권자 (작업허가 책임자) */
+            ON taia.target_type = 'PTW'
+           AND taia.target_id = tptw.write_year || tptw.doc_no
+           AND taia.type = 'workApprover'
+     LEFT JOIN esg.tb_approval_info tair /* 수급업체 대표 */
+            ON tair.target_type = 'PTW'
+           AND tair.target_id = tptw.write_year || tptw.doc_no
+           AND tair.type = 'subcontractorRep'
+     LEFT JOIN esg.tb_approval_info tais /* 현장감독자 */
+            ON tais.target_type = 'PTW'
+           AND tais.target_id = tptw.write_year || tptw.doc_no
+           AND tais.type = 'siteSupervisor'
+         WHERE 1 = 1
+           AND tptw.comp_id = #{compId}
+           AND tptw.write_year = #{writeYear}
+      ORDER BY tptw.use_yn DESC, tptw.doc_no DESC
+    </select>
+
+    <select id='getPermitToWorkByDocNo' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.PermitToWorkVO'>
+        SELECT tptw.*,
+        	   tptw.work_start || ' ~ ' || tptw.work_end AS work_time,
+               tei.equipment_nm,
+               tpci.part_comp_nm,
+               tpc.inspection_nm
+          FROM esg.tb_permit_to_work tptw
+     LEFT JOIN esg.tb_equipment_info tei
+            ON tei.equipment_id = tptw.equipment_id
+     LEFT JOIN esg.tb_partner_comp_info tpci
+            ON tpci.part_comp_id = tptw.part_comp_id
+     LEFT JOIN esg.tb_dataset_safety_work_checklist tpc
+           on tpc.inspection_id = tptw.inspection_id
+         WHERE 1 = 1
+           AND tptw.comp_id = #{compId}
+           AND tptw.write_year = #{writeYear}
+           AND tptw.doc_type = #{docType}
+           AND tptw.doc_no = #{docNo}
+         ORDER BY tptw.use_yn DESC, tptw.doc_no DESC
+    </select>
+
+    <select id='getPermitToWorkDetail' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.PermitToWorkDetailVO'>
+        SELECT tptwd.*,
+        	   tptw.inspection_item_nm
+          FROM esg.tb_permit_to_work_detail tptwd
+     LEFT JOIN esg.tb_dataset_safety_work_checklist_detail tptw
+ 			ON tptw.inspection_item_id  = tptwd.inspection_item
+         WHERE 1 = 1
+           AND tptwd.write_year = #{writeYear}
+           AND tptwd.doc_type = #{docType}
+           AND tptwd.doc_no = #{docNo}
+         ORDER BY tptwd.doc_seq,tptwd.ord_seq
+    </select>
+
+    <select id='getPermitToWorkType' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.PermitToWorkTypeVO'>
+        WITH has_data AS (
+            SELECT EXISTS (
+                SELECT 1
+                  FROM esg.tb_permit_to_work_type tptwt
+                 WHERE tptwt.comp_id = #{compId}
+                   AND tptwt.write_year = #{writeYear}
+                   AND tptwt.doc_type = #{docType}
+                   AND tptwt.doc_no = #{docNo}
+            ) AS exists_flag
+        ),
+        data_if_exists AS (
+            SELECT tptwt.*
+              FROM esg.tb_permit_to_work_type tptwt
+             WHERE tptwt.comp_id = #{compId}
+               AND tptwt.write_year = #{writeYear}
+               AND tptwt.doc_type = #{docType}
+               AND tptwt.doc_no = #{docNo}
+         ORDER BY tptwt.ord_seq
+        ),
+        data_if_not_exists AS (
+            SELECT NULL as write_year,
+                   NULL as doc_no,
+                   NULL as doc_type,
+                   #{compId} as comp_id,
+                   tdcd.minor_cd as work_type_id,
+                   tdcd.minor_nm as work_type_nm,
+                   'N' as check_yn,
+                   NULL as additional_info,
+                   tdcd.ord_seq,
+                   NULL::timestamp as created_at,
+                   NULL as created_by,
+                   NULL::timestamp as updated_at,
+                   NULL as updated_by
+             FROM esg.tb_common_d tdcd
+            WHERE tdcd.use_yn = 'Y'
+         ORDER BY tdcd.ord_seq
+        )
+        SELECT *
+          FROM data_if_exists
+         WHERE (SELECT exists_flag FROM has_data) = true
+     UNION ALL
+        SELECT *
+          FROM data_if_not_exists
+         WHERE (SELECT exists_flag FROM has_data) = false;
+    </select>
+
+    <insert id="insertPermitToWork" parameterType="kr.co.igns.business.impl.model.PermitToWorkVO">
+
+        <selectKey keyProperty="docNo" resultType="kr.co.igns.business.impl.model.PermitToWorkVO" order="BEFORE">
+            <![CDATA[
+            SELECT
+                LPAD((COALESCE(MAX(SUBSTRING(doc_no, 1, 5)::INTEGER), 0) + 1)::TEXT, 5, '0') AS docNo
+             FROM esg.tb_permit_to_work
+            WHERE write_year = #{writeYear}
+              AND doc_type = #{docType}
+         ]]>
+        </selectKey>
+
+        INSERT INTO esg.tb_permit_to_work (
+            write_year,
+            doc_no,
+            doc_type,
+            comp_id,
+            work_dt,
+            work_start,
+            work_end,
+            workplace,
+            equipment_id,
+            work_content,
+            part_comp_id,
+            overall_opinion,
+            use_yn,
+            created_at,
+            created_by
+        )
+        VALUES (
+                   #{writeYear},
+                   #{docNo},
+                   #{docType},
+                   #{compId},
+                   #{workDt},
+                   #{workStart},
+                   #{workEnd},
+                   #{workplace},
+                   #{equipmentId},
+                   #{workContent},
+                   #{partCompId},
+                   #{overallOpinion},
+                   #{useYn},
+                   now(),
+                   #{createdBy}
+               )
+
+    </insert>
+
+    <insert id="insertPermitToWorkDetail" parameterType="kr.co.igns.business.impl.model.PermitToWorkDetailVO">
+        <selectKey keyProperty="docSeq" resultType="kr.co.igns.business.impl.model.PermitToWorkDetailVO" order="BEFORE">
+            <![CDATA[
+            SELECT
+                LPAD((COALESCE(MAX(SUBSTRING(doc_seq, 1, 5)::INTEGER), 0) + 1)::TEXT, 5, '0') AS docSeq
+              FROM esg.tb_permit_to_work_detail
+             WHERE write_year = #{writeYear}
+               AND doc_type = #{docType}
+               AND doc_no = #{docNo}
+         ]]>
+        </selectKey>
+
+        INSERT INTO esg.tb_permit_to_work_detail (
+            write_year,
+            doc_type,
+            doc_no,
+            doc_seq,
+            ord_seq,
+            inspection_id,
+            inspection_item,
+            acceptable_yn,
+            non_compliant_yn,
+            unacceptable_yn,
+            created_at,
+            created_by
+        )
+        VALUES (
+            #{writeYear},
+            #{docType},
+            #{docNo},
+            #{docSeq},
+            #{ordSeq},
+            #{inspectionId},
+            #{inspectionItem},
+            #{acceptableYn},
+            #{nonCompliantYn},
+            #{unacceptableYn},
+            now(),
+            #{createdBy}
+        )
+
+    </insert>
+
+    <insert id="insertPermitToWorkType" parameterType="kr.co.igns.business.impl.model.PermitToWorkTypeVO">
+        INSERT INTO esg.tb_permit_to_work_type (
+            write_year,
+            doc_no,
+            doc_type,
+            comp_id,
+            work_type_id,
+            work_type_nm,
+            check_yn,
+            additional_info,
+            ord_seq,
+            created_at,
+            created_by
+        )
+        VALUES (
+            #{writeYear},
+            #{docNo},
+            #{docType},
+            #{compId},
+            #{workTypeId},
+            #{workTypeNm},
+            #{checkYn},
+            #{additionalInfo},
+            #{ordSeq},
+            now(),
+            #{createdBy}
+        )
+
+    </insert>
+
+    <update id="updatePermitToWork" parameterType="kr.co.igns.business.impl.model.PermitToWorkVO">
+
+        UPDATE esg.tb_permit_to_work
+        SET
+            work_start = #{workStart},
+            work_end = #{workEnd},
+            workplace = #{workplace},
+            equipment_id = #{equipmentId},
+            work_content = #{workContent},
+            part_comp_id = #{partCompId},
+            overall_opinion = #{overallOpinion},
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+
+    </update>
+
+    <update id="updatePermitToWorkDetail" parameterType="kr.co.igns.business.impl.model.PermitToWorkDetailVO">
+
+        UPDATE esg.tb_permit_to_work_detail
+        SET
+            acceptable_yn = #{acceptableYn},
+            non_compliant_yn = #{nonCompliantYn},
+            unacceptable_yn = #{unacceptableYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE 1 = 1
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND doc_seq = #{docSeq}
+
+    </update>
+
+    <update id="updatePermitToWorkType" parameterType="kr.co.igns.business.impl.model.PermitToWorkTypeVO">
+
+        UPDATE esg.tb_permit_to_work_type
+        SET
+            check_yn = #{checkYn},
+            additional_info = #{additionalInfo},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE 1 = 1
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND work_type_id = #{workTypeId}
+
+    </update>
+    <delete id="deletePermitToWorkType" parameterType="kr.co.igns.business.impl.model.PermitToWorkDetailVO">
+
+        DELETE FROM esg.tb_permit_to_work_type
+        WHERE 1 = 1
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND work_type_id = #{workTypeId}
+
+    </delete>
+
+    <delete id="deletePermitToWorkList" parameterType="kr.co.igns.business.impl.model.PermitToWorkTypeVO">
+
+        UPDATE esg.tb_permit_to_work
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+
+    </delete>
+
+
+    <select id='getPermitToWorkById' parameterType='kr.co.igns.business.impl.model.PermitToWorkVO' resultType='kr.co.igns.business.impl.model.PermitToWorkVO'>
+
+        SELECT *
+        FROM esg.tb_permit_to_work
+        WHERE comp_id = #{compId}
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+
+    </select>
+
+    <select id='getPermitToWorkDetailById' parameterType='kr.co.igns.business.impl.model.PermitToWorkDetailVO' resultType='kr.co.igns.business.impl.model.PermitToWorkDetailVO'>
+
+        SELECT *
+        FROM esg.tb_permit_to_work_detail
+        WHERE 1 = 1
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND doc_seq = #{docSeq}
+
+    </select>
+
+    <select id='getPermitToWorkTypeById' parameterType='kr.co.igns.business.impl.model.PermitToWorkTypeVO' resultType='kr.co.igns.business.impl.model.PermitToWorkTypeVO'>
+
+        SELECT *
+        FROM esg.tb_permit_to_work_type
+        WHERE 1 = 1
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND work_type_id = #{workTypeId}
+
+    </select>
+
+    <!-- 삭제 - 안전작업 점검사항 초기화 -->
+    <delete id="deletePermitToWork" parameterType="kr.co.igns.business.impl.model.PermitToWorkVO">
+
+       UPDATE esg.tb_permit_to_work
+          SET
+          	  use_yn = 'N',
+              overall_opinion = NULL,
+              updated_at = now(),
+              updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+
+    </delete>
+
+    <delete id="deletePermitToWorkDetail" parameterType="kr.co.igns.business.impl.model.PermitToWorkDetailVO">
+
+  DELETE FROM esg.tb_permit_to_work_detail
+        WHERE 1 = 1
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND doc_seq = #{docSeq}
+
+    </delete>
+
+    <delete id="deletePermitToWorkEqs" parameterType="kr.co.igns.business.impl.model.PermitToWorkVO">
+
+        DELETE FROM esg.tb_permit_to_work_eq
+        WHERE 1 = 1
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+
+    </delete>
+
+    <delete id="deletePermitToEqByWorkDetail" parameterType="kr.co.igns.business.impl.model.PermitToWorkDetailVO">
+
+        DELETE FROM esg.tb_permit_to_work_eq
+        WHERE 1 = 1
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND doc_seq = #{docSeq}
+
+    </delete>
+
+    <update id="initPermitToWorkDetail" parameterType="kr.co.igns.business.impl.model.PermitToWorkVO">
+
+        UPDATE esg.tb_permit_to_work_detail
+        SET
+            acceptable_yn = 'N',
+            non_compliant_yn = 'N',
+            unacceptable_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE 1 = 1
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+
+    </update>
+
+    <!-- 인원 매핑 -->
+    <select id='getPermitToWorkHr' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.base.model.HrVO'>
+        SELECT vhi.*
+          FROM esg.tb_permit_to_work_hr hrMap
+     LEFT JOIN esg.v_hr_info vhi
+            ON hrMap.hr_id = vhi.hr_id
+         WHERE 1 = 1
+           AND hrMap.write_year = #{writeYear}
+           AND hrMap.doc_no = #{docNo}
+           AND hrMap.doc_type = #{docType}
+      ORDER BY hrMap.hr_id
+
+    </select>
+
+    <insert id="insertPermitToWorkHr" parameterType="kr.co.igns.system.base.model.HrVO">
+
+        INSERT INTO esg.tb_permit_to_work_hr (
+            write_year,
+            doc_no,
+            doc_type,
+            hr_id,
+            created_at,
+            created_by
+        )
+        VALUES (
+            #{writeYear},
+            #{docNo},
+            #{docType},
+            #{hrId},
+            now(),
+            #{createdBy}
+        )
+
+    </insert>
+
+    <delete id="deletePermitToWorkHr" parameterType="kr.co.igns.system.common.model.SpSearchVO">
+
+  DELETE FROM esg.tb_permit_to_work_hr
+        WHERE 1 = 1
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+
+    </delete>
+
+    <!-- 필요안전기구 매핑 -->
+    <select id='getPermitToWorkEq' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.SafetyEquipmentVO'>
+
+        SELECT eqMap.*,
+               tdse.safety_eq_item_nm
+          FROM esg.tb_permit_to_work_eq eqMap
+     LEFT JOIN esg.tb_dataset_safety_equipment_detail tdse
+            ON eqMap.safety_eq_item_id = tdse.safety_eq_item_id
+         WHERE 1 = 1
+           AND eqMap.write_year = #{writeYear}
+           AND eqMap.doc_no = #{docNo}
+           AND eqMap.doc_type = #{docType}
+           AND eqMap.doc_seq = #{docSeq}
+      ORDER BY eqMap.ord_seq
+
+    </select>
+
+    <insert id="insertPermitToWorkEq" parameterType="kr.co.igns.system.base.model.HrVO">
+
+        INSERT INTO esg.tb_permit_to_work_eq (
+            write_year,
+            doc_no,
+            doc_type,
+            doc_seq,
+            ord_seq,
+            safety_eq_item_id,
+            created_at,
+            created_by
+        )
+        VALUES (
+            #{writeYear},
+            #{docNo},
+            #{docType},
+            #{docSeq},
+            #{ordSeq},
+            #{safetyEqItemId},
+            now(),
+            #{createdBy}
+        )
+
+    </insert>
+
+    <delete id="deletePermitToWorkEq" parameterType="kr.co.igns.system.base.model.HrVO">
+
+  DELETE FROM esg.tb_permit_to_work_eq
+        WHERE 1 = 1
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND doc_seq = #{docSeq}
+          AND safety_eq_item_id = #{safetyEqItemId}
+
+    </delete>
+
+    <!-- 점검사항 관리 (팝업) -->
+    <select id='getSafetyWorkChecklist' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.SafetyWorkChecklistVO'>
+
+        SELECT *
+          FROM esg.tb_dataset_safety_work_checklist
+         WHERE 1 = 1
+           AND comp_id = #{compId}
+      ORDER BY ord_seq
+
+    </select>
+
+    <select id='getSafetyWorkChecklistDetail' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.SafetyWorkChecklistVO'>
+
+        SELECT *
+          FROM esg.tb_dataset_safety_work_checklist_detail
+         WHERE 1 = 1
+           AND comp_id = #{compId}
+           AND inspection_id = #{inspectionId}
+      ORDER BY ord_seq
+
+    </select>
+
+    <insert id="insertSafetyWorkChecklist" parameterType="kr.co.igns.business.impl.model.SafetyWorkChecklistVO">
+
+        <selectKey keyProperty="inspectionId" resultType="kr.co.igns.business.impl.model.SafetyWorkChecklistVO" order="BEFORE">
+            <![CDATA[
+            WITH current_date_info AS (
+            SELECT
+                TO_CHAR(CURRENT_DATE, 'YYYYMMDD') AS today,
+                COALESCE(MAX(SUBSTRING(inspection_id, 9, 4)::INTEGER), 0) AS max_sequence
+            FROM
+                esg.tb_dataset_safety_work_checklist
+            WHERE
+                SUBSTRING(inspection_id, 1, 8) = TO_CHAR(CURRENT_DATE, 'YYYYMMDD')
+            )
+            SELECT
+                today ||
+                CASE
+                    WHEN max_sequence = 0 THEN '0001'
+                ELSE
+                    CASE
+                        WHEN max_sequence < 9999 THEN LPAD((max_sequence + 1)::TEXT, 4, '0')
+                        ELSE '0001'  -- 시퀀스가 9999에 도달하면 재시작
+                    END
+                END AS inspectionId
+            FROM current_date_info;
+         ]]>
+        </selectKey>
+
+        INSERT INTO esg.tb_dataset_safety_work_checklist (
+            comp_id,
+            inspection_id,
+            inspection_nm,
+            use_yn,
+            ord_seq,
+            created_at,
+            created_by
+        )
+        VALUES (
+                   #{compId},
+                   #{inspectionId},
+                   #{inspectionNm},
+                   #{useYn},
+                   #{ordSeq},
+                   now(),
+                   #{createdBy}
+               )
+
+    </insert>
+
+    <insert id="insertSafetyWorkChecklistDetail" parameterType="kr.co.igns.business.impl.model.SafetyWorkChecklistVO">
+
+        <selectKey keyProperty="inspectionItemId" resultType="kr.co.igns.business.impl.model.SafetyWorkChecklistVO" order="BEFORE">
+            <![CDATA[
+            WITH current_date_info AS (
+            SELECT
+                TO_CHAR(CURRENT_DATE, 'YYYYMMDD') AS today,
+                COALESCE(MAX(SUBSTRING(inspection_item_id, 9, 4)::INTEGER), 0) AS max_sequence
+            FROM
+                esg.tb_dataset_safety_work_checklist_detail
+            WHERE
+                SUBSTRING(inspection_item_id, 1, 8) = TO_CHAR(CURRENT_DATE, 'YYYYMMDD')
+            )
+            SELECT
+                today ||
+                CASE
+                    WHEN max_sequence = 0 THEN '0001'
+                ELSE
+                    CASE
+                        WHEN max_sequence < 9999 THEN LPAD((max_sequence + 1)::TEXT, 4, '0')
+                        ELSE '0001'  -- 시퀀스가 9999에 도달하면 재시작
+                    END
+                END AS inspectionItemId
+            FROM current_date_info;
+         ]]>
+        </selectKey>
+
+
+        INSERT INTO esg.tb_dataset_safety_work_checklist_detail (
+            comp_id,
+            inspection_id,
+            inspection_item_id,
+            inspection_item_nm,
+            use_yn,
+            ord_seq,
+            created_at,
+            created_by
+        )
+        VALUES (
+                   #{compId},
+                   #{inspectionId},
+                   #{inspectionItemId},
+                   #{inspectionItemNm},
+                   #{useYn},
+                   #{ordSeq},
+                   now(),
+                   #{createdBy}
+               )
+
+    </insert>
+
+    <update id="updateSafetyWorkChecklist" parameterType="kr.co.igns.business.impl.model.SafetyWorkChecklistVO">
+
+        UPDATE esg.tb_dataset_safety_work_checklist
+        SET
+            inspection_nm = #{inspectionNm},
+            ord_seq = #{ordSeq},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE 1 = 1
+          AND comp_id = #{compId}
+          AND inspection_id = #{inspectionId}
+
+    </update>
+
+    <update id="updateSafetyWorkChecklistDetail" parameterType="kr.co.igns.business.impl.model.SafetyWorkChecklistVO">
+
+        UPDATE esg.tb_dataset_safety_work_checklist_detail
+        SET
+            inspection_item_nm = #{inspectionItemNm},
+            ord_seq = #{ordSeq},
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE 1 = 1
+          AND comp_id = #{compId}
+          AND inspection_id = #{inspectionId}
+          AND inspection_item_id = #{inspectionItemId}
+
+    </update>
+
+
+    <delete id="deleteSafetyWorkChecklistDetail" parameterType="kr.co.igns.business.impl.model.SafetyWorkChecklistVO">
+
+        UPDATE esg.tb_dataset_safety_work_checklist_detail
+           SET
+               use_yn = 'N',
+               updated_at = now(),
+               updated_by = #{updatedBy}
+         WHERE comp_id = #{compId}
+           AND inspection_id = #{inspectionId}
+           AND inspection_item_id = #{inspectionItemId}
+
+    </delete>
+
+    <select id='getSafetyWorkChecklistById' parameterType='kr.co.igns.business.impl.model.SafetyWorkChecklistVO' resultType='kr.co.igns.business.impl.model.SafetyWorkChecklistVO'>
+
+        SELECT *
+          FROM esg.tb_dataset_safety_work_checklist
+         WHERE comp_id = #{compId}
+           AND inspection_id = #{inspectionId}
+
+    </select>
+
+    <select id='getSafetyWorkChecklistDetailById' parameterType='kr.co.igns.business.impl.model.SafetyWorkChecklistVO' resultType='kr.co.igns.business.impl.model.SafetyWorkChecklistVO'>
+
+        SELECT *
+          FROM esg.tb_dataset_safety_work_checklist_detail
+         WHERE comp_id = #{compId}
+           AND inspection_id = #{inspectionId}
+           AND inspection_item_id = #{inspectionItemId}
+
+    </select>
+
+    <!-- 안전기구 관리 (팝업) -->
+    <select id='getSafetyEquipment' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.SafetyEquipmentVO'>
+
+        SELECT *
+          FROM esg.tb_dataset_safety_equipment
+         WHERE 1 = 1
+           AND comp_id = #{compId}
+      ORDER BY ord_seq
+
+    </select>
+
+    <select id='getSafetyEquipmentDetail' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.SafetyEquipmentVO'>
+
+        SELECT *
+          FROM esg.tb_dataset_safety_equipment_detail
+         WHERE 1 = 1
+           AND comp_id = #{compId}
+           AND safety_eq_id = #{safetyEqId}
+      ORDER BY ord_seq
+
+    </select>
+
+    <insert id="insertSafetyEquipment" parameterType="kr.co.igns.business.impl.model.SafetyEquipmentVO">
+
+        <selectKey keyProperty="safetyEqId" resultType="kr.co.igns.business.impl.model.SafetyEquipmentVO" order="BEFORE">
+            <![CDATA[
+            WITH current_date_info AS (
+            SELECT
+                TO_CHAR(CURRENT_DATE, 'YYYYMMDD') AS today,
+                COALESCE(MAX(SUBSTRING(safety_eq_id, 9, 4)::INTEGER), 0) AS max_sequence
+            FROM
+                esg.tb_dataset_safety_equipment
+            WHERE
+                SUBSTRING(safety_eq_id, 1, 8) = TO_CHAR(CURRENT_DATE, 'YYYYMMDD')
+            )
+            SELECT
+                today ||
+                CASE
+                    WHEN max_sequence = 0 THEN '0001'
+                ELSE
+                    CASE
+                        WHEN max_sequence < 9999 THEN LPAD((max_sequence + 1)::TEXT, 4, '0')
+                        ELSE '0001'  -- 시퀀스가 9999에 도달하면 재시작
+                    END
+                END AS safetyEqId
+            FROM current_date_info;
+         ]]>
+        </selectKey>
+
+        INSERT INTO esg.tb_dataset_safety_equipment (
+            comp_id,
+            safety_eq_id,
+            safety_eq_nm,
+            use_yn,
+            ord_seq,
+            created_at,
+            created_by
+        )
+        VALUES (
+                   #{compId},
+                   #{safetyEqId},
+                   #{safetyEqNm},
+                   #{useYn},
+                   #{ordSeq},
+                   now(),
+                   #{createdBy}
+               )
+
+    </insert>
+
+    <insert id="insertSafetyEquipmentDetail" parameterType="kr.co.igns.business.impl.model.SafetyEquipmentVO">
+
+        <selectKey keyProperty="safetyEqItemId" resultType="kr.co.igns.business.impl.model.SafetyEquipmentVO" order="BEFORE">
+            <![CDATA[
+            WITH current_date_info AS (
+            SELECT
+                TO_CHAR(CURRENT_DATE, 'YYYYMMDD') AS today,
+                COALESCE(MAX(SUBSTRING(safety_eq_item_id, 9, 4)::INTEGER), 0) AS max_sequence
+            FROM
+                esg.tb_dataset_safety_equipment_detail
+            WHERE
+                SUBSTRING(safety_eq_item_id, 1, 8) = TO_CHAR(CURRENT_DATE, 'YYYYMMDD')
+            )
+            SELECT
+                today ||
+                CASE
+                    WHEN max_sequence = 0 THEN '0001'
+                ELSE
+                    CASE
+                        WHEN max_sequence < 9999 THEN LPAD((max_sequence + 1)::TEXT, 4, '0')
+                        ELSE '0001'  -- 시퀀스가 9999에 도달하면 재시작
+                    END
+                END AS safetyEqItemId
+            FROM current_date_info;
+         ]]>
+        </selectKey>
+
+        INSERT INTO esg.tb_dataset_safety_equipment_detail (
+            comp_id,
+            safety_eq_id,
+            safety_eq_item_id,
+            safety_eq_item_nm,
+            use_yn,
+            ord_seq,
+            created_at,
+            created_by
+        )
+        VALUES (
+                   #{compId},
+                   #{safetyEqId},
+                   #{safetyEqItemId},
+                   #{safetyEqItemNm},
+                   #{useYn},
+                   #{ordSeq},
+                   now(),
+                   #{createdBy}
+               )
+
+    </insert>
+
+    <update id="updateSafetyEquipment" parameterType="kr.co.igns.business.impl.model.SafetyEquipmentVO">
+
+        UPDATE esg.tb_dataset_safety_equipment
+        SET
+            safety_eq_nm = #{safetyEqNm},
+            ord_seq = #{ordSeq},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE 1 = 1
+          AND comp_id = #{compId}
+          AND safety_eq_id = #{safetyEqId}
+
+    </update>
+
+    <update id="updateSafetyEquipmentDetail" parameterType="kr.co.igns.business.impl.model.SafetyEquipmentVO">
+
+        UPDATE esg.tb_dataset_safety_equipment_detail
+        SET
+            safety_eq_item_nm = #{safetyEqItemNm},
+            ord_seq = #{ordSeq},
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE 1 = 1
+          AND comp_id = #{compId}
+          AND safety_eq_id = #{safetyEqId}
+          AND safety_eq_item_id = #{safetyEqItemId}
+
+    </update>
+
+
+    <delete id="deleteSafetyEquipmentDetail" parameterType="kr.co.igns.business.impl.model.SafetyEquipmentVO">
+
+        UPDATE esg.tb_dataset_safety_equipment_detail
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+          AND safety_eq_id = #{safetyEqId}
+          AND safety_eq_item_id = #{safetyEqItemId}
+
+    </delete>
+
+    <select id='getSafetyEquipmentById' parameterType='kr.co.igns.business.impl.model.SafetyEquipmentVO' resultType='kr.co.igns.business.impl.model.SafetyEquipmentVO'>
+
+        SELECT *
+        FROM esg.tb_dataset_safety_equipment
+        WHERE comp_id = #{compId}
+          AND safety_eq_id = #{safetyEqId}
+
+    </select>
+
+    <select id='getSafetyEquipmentDetailById' parameterType='kr.co.igns.business.impl.model.SafetyEquipmentVO' resultType='kr.co.igns.business.impl.model.SafetyEquipmentVO'>
+
+        SELECT *
+        FROM esg.tb_dataset_safety_equipment_detail
+        WHERE comp_id = #{compId}
+          AND safety_eq_id = #{safetyEqId}
+          AND safety_eq_item_id = #{safetyEqItemId}
+
+    </select>
+
+</mapper>

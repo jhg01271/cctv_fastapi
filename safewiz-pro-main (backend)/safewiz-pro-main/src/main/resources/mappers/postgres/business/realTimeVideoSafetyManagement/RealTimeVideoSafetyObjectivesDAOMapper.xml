@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.realTimeVideoSafetyManagement.dao.postgres.RealTimeVideoSafetyObjectivesDAO">
+    <select id='getRealTimeVideoSafetyObjectives' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.realTimeVideoSafetyManagement.model.RealTimeVideoSafetyObjectivesVO'>
+        SELECT
+            'SafetyMonitoring' AS title
+            ,'/SafetyMonitoring' AS route
+            ,'SafetyMonitoringDesc' AS description
+            , 'Y' as activeYn
+        UNION ALL
+        SELECT
+            'SafetyMonitoringHistory' AS title
+            ,'/SafetyMonitoringHistory' AS route
+            ,'SafetyMonitoringHistoryDesc' AS description
+            , 'Y' as activeYn
+        UNION ALL
+        SELECT
+            'SafetyVideoServerManage' AS title
+            ,'/SafetyVideoServerManage' AS route
+            ,'SafetyVideoServerManageDesc' AS description
+            , 'Y' as activeYn
+        UNION ALL
+        SELECT
+            'SafetyDetectionCameraManage' AS title
+            ,'/SafetyDetectionCameraManage' AS route
+            ,'SafetyDetectionCameraManageDesc' AS description
+            , 'Y' as activeYn
+        UNION ALL
+        SELECT
+            'SafetyMonitoringManage' AS title
+            ,'/SafetyMonitoringManage' AS route
+            ,'SafetyMonitoringManageDesc' AS description
+            , 'Y' as activeYn
+        UNION ALL
+        SELECT
+            'SafetyMonitoringZoneManage' AS title
+            ,'/SafetyMonitoringZoneManage' AS route
+            ,'SafetyMonitoringZoneManageDesc' AS description
+            , 'Y' as activeYn
+    </select>
+
+
+</mapper>

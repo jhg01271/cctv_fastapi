@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.support.dao.postgres.SafetyDutiesDocDAO">
+    
+    
+    <insert id="insert" parameterType="kr.co.igns.business.support.model.SafetyDutiesDocVO">
+        <selectKey keyProperty="docNo" resultType="kr.co.igns.business.participation.model.ParticipationVo" order="BEFORE">
+				select LPAD((coalesce(MAX(SUBSTRING(doc_no, 1, 5)::INTEGER), 0) + 1)::text, 5, '0') as docNo
+                from esg.tb_safety_duties_doc
+                where write_year = #{writeYear}
+                    and doc_type = #{docType}
+	    </selectKey>
+        INSERT INTO esg.tb_safety_duties_doc (
+            write_year,
+            doc_no,
+            doc_type,
+            comp_id,
+            write_date,
+            title,
+            subtitle,
+            content,
+            created_at,
+            created_by,
+            orgn_role_type,
+            orgn_role_id,
+            dismissal_title,
+            dismissal_subtitle
+        )
+        VALUES (
+            #{writeYear},
+            #{docNo},
+            #{docType},
+            #{compId},
+            #{writeDate},
+            #{title},
+            #{subtitle},
+            #{content},
+            now(),
+            #{createdBy},
+            #{orgnRoleType},
+            #{orgnRoleId},
+            #{dismissalTitle},
+            #{dismissalSubtitle}
+        )
+
+    </insert>
+    <update id="update" parameterType="kr.co.igns.business.support.model.SafetyDutiesDocVO">
+        UPDATE esg.tb_safety_duties_doc
+           SET orgn_role_type = #{orgnRoleType},
+               orgn_role_id = #{orgnRoleId},
+               write_date=#{writeDate},
+               use_yn=#{useYn},
+               title = #{title},
+               subtitle =#{subtitle},
+               content = #{content},
+               updated_at = now(),
+               updated_by = #{updatedBy},
+               dismissal_title =  #{dismissalTitle},
+               dismissal_subtitle = #{dismissalSubtitle}
+         WHERE comp_id = #{compId}
+           AND write_year = #{writeYear}
+           AND doc_no = #{docNo}
+
+    </update>
+    <delete id="deleteMember" parameterType="kr.co.igns.business.support.model.SafetyDutiesUserVO">
+        DELETE
+          FROM esg.tb_safety_duties_doc_user
+		 WHERE doc_type = #{docType}
+           AND write_year = #{writeYear}
+           AND doc_no = #{docNo}
+           AND doc_seq = #{docSeq}
+    </delete>
+    <delete id="delete" parameterType="kr.co.igns.business.support.model.SafetyDutiesDocVO">
+        UPDATE esg.tb_safety_duties_doc
+           SET use_yn='N',
+               updated_at = now(),
+               updated_by = #{updatedBy}
+         WHERE write_year = #{writeYear}
+           AND doc_no = #{docNo}
+           AND doc_type= #{docType}
+    </delete>
+    <insert id="insertMember" parameterType="kr.co.igns.business.support.model.SafetyDutiesUserVO">
+        <selectKey keyProperty="docSeq" resultType="string" order="BEFORE">
+         <![CDATA[
+            SELECT LPAD((COALESCE(MAX(SUBSTRING(doc_seq, 1, 5)::INTEGER), 0) + 1)::TEXT, 5, '0') AS docSeq
+             FROM esg.tb_safety_duties_doc_user
+            WHERE write_year = #{writeYear} 
+               AND doc_type = #{docType}
+               AND doc_no = #{docNo}
+         ]]>
+      </selectKey>
+        INSERT INTO esg.tb_safety_duties_doc_user(
+            write_year,
+            doc_no,
+            doc_type,
+            doc_seq,
+            use_yn,
+            hr_id,
+            hr_nm,
+            orgn_nm,
+            jbrp_nm,
+            appointment_dt,
+            dismissal_dt,
+            created_at,
+            created_by
+        )
+        VALUES (
+            #{writeYear},
+            #{docNo},
+            #{docType},
+            #{docSeq},
+            #{useYn},
+            #{hrId},
+            #{hrNm},
+            #{orgnNm},
+            #{jbrpNm},
+            #{appointmentDt},
+            #{dismissalDt},
+            now(),
+            #{createdBy}
+        )
+    </insert>
+    <update id="updateMember" parameterType="kr.co.igns.business.support.model.SafetyDutiesDocVO">
+        UPDATE esg.tb_safety_duties_doc_user
+           SET appointment_dt = #{appointmentDt},
+               dismissal_dt = #{dismissalDt},
+               use_yn = #{useYn}
+         WHERE doc_type=#{docType}
+           and write_year=#{writeYear}
+           and doc_no=#{docNo}
+           and doc_seq=#{docSeq}
+    </update>
+    <select id='searchList' resultType='kr.co.igns.business.support.model.SafetyDutiesDocVO' parameterType='kr.co.igns.system.common.model.SpSearchVO'>
+        WITH codeList AS(
+            SELECT comp_id, orgn_role_id as id, orgn_role_nm as nm, ord_seq, 'safety' as orgn_role_type
+              FROM esg.tb_safety_health_org_chart_orgn_role
+             WHERE comp_id = #{compId}
+             UNION
+            SELECT comp_id, orgn_role_id as id, orgn_role_nm as nm, ord_seq, 'risk' as orgn_role_type
+              FROM esg.tb_risk_assessment_organ_chart_orgn_role traocor
+             WHERE comp_id = #{compId}
+             UNION
+            SELECT comp_id, minor_cd as id, minor_nm as nm, ord_seq, 'common' as orgn_role_type
+              FROM esg.tb_common_d
+             WHERE major_cd = 'C0025'
+        )
+        SELECT a.*, b.nm as label
+          FROM esg.tb_safety_duties_doc a
+     LEFT JOIN codeList b ON a.orgn_role_id = b.id AND a.orgn_role_type = b.orgn_role_type
+         WHERE a.comp_id = #{compId}
+      ORDER BY b.orgn_role_type desc, a.use_yn desc, b.ord_seq, a.write_date desc
+    </select>
+
+    <select id='getSafetyDutyType' resultType='kr.co.igns.business.support.model.SafetyDutiesDocVO' parameterType='kr.co.igns.system.common.model.SpSearchVO'>
+        SELECT *
+          FROM (
+                SELECT comp_id, orgn_role_id, orgn_role_nm as label, 'safety' as orgn_role_type, ord_seq, use_yn, remark as desc, created_at, created_by, updated_at, updated_by
+                  FROM esg.tb_safety_health_org_chart_orgn_role
+                 WHERE comp_id = #{compId}
+                   AND use_yn = 'Y'
+             UNION ALL
+                SELECT comp_id, orgn_role_id, orgn_role_nm as label, 'risk' as orgn_role_type, ord_seq, use_yn, remark as desc, created_at, created_by, updated_at, updated_by
+                  FROM esg.tb_risk_assessment_organ_chart_orgn_role
+                 WHERE comp_id = #{compId}
+                   AND use_yn = 'Y'
+          ) as test
+      ORDER BY orgn_role_type desc, ord_seq
+    </select>
+
+    <select id='search' resultType='kr.co.igns.business.support.model.SafetyDutiesDocVO' parameterType='kr.co.igns.system.common.model.SpSearchVO'>
+        WITH codeList AS(
+            SELECT comp_id, orgn_role_id as id, orgn_role_nm as nm, ord_seq, 'safety' as orgn_role_type
+              FROM esg.tb_safety_health_org_chart_orgn_role
+             WHERE comp_id = #{compId}
+             UNION
+            SELECT comp_id, orgn_role_id as id, orgn_role_nm as nm, ord_seq, 'risk' as orgn_role_type
+              FROM esg.tb_risk_assessment_organ_chart_orgn_role traocor
+             WHERE comp_id = #{compId}
+             UNION
+            SELECT comp_id, minor_cd as id, minor_nm as nm, ord_seq, 'common' as orgn_role_type
+              FROM esg.tb_common_d
+             WHERE major_cd = 'C0025'
+        )
+        SELECT a.*, b.nm as label
+          FROM esg.tb_safety_duties_doc a
+     LEFT JOIN codeList b ON a.orgn_role_id = b.id AND a.orgn_role_type = b.orgn_role_type
+         WHERE a.comp_id = #{compId}
+           AND a.write_year = #{writeYear}
+           AND a.doc_no = #{docNo}
+      ORDER BY b.ord_seq desc
+    </select>
+
+    <select id='filteredSearchMember' resultType='kr.co.igns.business.support.model.SafetyDutiesUserVO' parameterType='kr.co.igns.business.support.model.SafetyDutiesDocVO'>
+        SELECT tsdd.*, sf.file_id as logoId
+        FROM esg.tb_safety_duties_doc_user tsdd
+        LEFT JOIN esg.tb_sys_file sf
+        ON sf.target_id = tsdd.hr_id
+        AND sf.target_type = 'hrImg'
+        WHERE write_year=#{writeYear}
+        and tsdd.use_yn = 'Y'
+        AND doc_no=#{docNo}
+    </select>
+
+    <select id='searchMember' resultType='kr.co.igns.business.support.model.SafetyDutiesUserVO' parameterType='kr.co.igns.business.support.model.SafetyDutiesDocVO'>
+        SELECT tsdd.*, sf.file_id as logoId
+          FROM esg.tb_safety_duties_doc_user tsdd
+     LEFT JOIN esg.tb_sys_file sf
+            ON sf.target_id = tsdd.hr_id
+           AND sf.target_type = 'hrImg'
+         WHERE write_year=#{writeYear}
+           AND doc_no=#{docNo}
+    </select>
+
+    <select id='searchDataset' resultType='kr.co.igns.business.support.model.SafetyDutiesDocVO' parameterType='kr.co.igns.business.support.model.SafetyDutiesDocVO'>
+        SELECT *
+          FROM dataset.tb_dataset_safety_duties_doc
+         WHERE orgn_role_id = #{orgnRoleId}
+           AND orgn_role_type = #{orgnRoleType}
+    </select>
+
+</mapper>
+

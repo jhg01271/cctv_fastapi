@@ -1,0 +1,453 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.planning.dao.postgres.SafetyAndHealthInfoSurveyDAO">
+   
+	<!-- 안전보건정보 조사 마스터 조회 --> 
+	<select id='getSafetyAndHealthInfoSurvey' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.planning.model.SafetyAndHealthInfoSurveyVO'>
+		SELECT A.write_year
+			 , A.doc_type
+			 , A.doc_no
+			 , A.process_id
+			 , B.process_nm 
+			 , A.comp_id
+			 , A.material
+			 , A.product
+			 , A.worker_cnt
+			 , A.use_yn
+			 , A.created_at
+			 , A.created_by
+			 , A.updated_at
+			 , A.updated_by
+			 , A.confirm_yn
+			 , A.confirm_dt
+			 , A.write_dt
+			 , C.prcs_cnfm_id
+			 , C.rev_no
+			 , C.rev_nm
+			 , COALESCE((SELECT count(distinct prcs_work_id) 
+					       FROM esg.tb_safety_and_health_info_survey_detail 
+					      WHERE write_year = A.write_year
+					        AND doc_type = A.doc_type
+                            AND content is not null
+					        AND doc_no = A.doc_no),0) work_cnt
+			 , COALESCE((SELECT count(write_year) 
+					       FROM esg.tb_safety_and_health_info_survey_detail 
+					      WHERE write_year = A.write_year
+					        AND doc_type = A.doc_type
+					        AND doc_no = A.doc_no
+                            AND content is not null
+					        AND work_type = 'equipment'),0) equip_cnt
+			 , COALESCE((SELECT count(write_year) 
+					       FROM esg.tb_safety_and_health_info_survey_detail 
+					      WHERE write_year = A.write_year
+					        AND doc_type = A.doc_type
+					        AND doc_no = A.doc_no
+                            AND content is not null
+					        AND work_type = 'msds'),0) msds_cnt
+		  FROM esg.tb_safety_and_health_info_survey A
+		     , esg.tb_process_info B
+		     , esg.tb_process_work_cnfm C
+		 WHERE A.comp_id = B.comp_id 
+		   AND A.process_id = B.process_id 
+		   AND B.use_yn = 'Y'
+		   AND C.process_id = B.process_id 
+		   AND C.cnfm_yn = 'Y'
+   		   AND A.comp_id = #{compId}
+   		 ORDER BY A.use_yn desc, A.write_year desc, CAST(A.doc_no AS INTEGER) desc
+	</select>
+	
+	<!-- 안전보건정보 조사 상세 조회 -->
+	<select id='getSafetyAndHealthInfoSurveyDetail' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.planning.model.SafetyAndHealthInfoSurveyVO'>
+		SELECT A.write_year
+			 , A.doc_type
+			 , A.doc_no
+			 , A.process_id
+			 , A.prcs_work_id
+			 , A.work_detail_id
+			 , A.work_type
+			 , A.content 
+			 , A.desc1
+			 , A.desc2
+			 , A.use_yn
+			 , A.created_at
+			 , A.created_by
+			 , A.updated_at
+			 , A.updated_by
+			 , B.work_content
+			 , B.ord_seq
+		  FROM esg.tb_safety_and_health_info_survey_detail A
+		     , (SELECT T1.process_id 
+					 , T2.prcs_work_id 
+					 , T2.work_content 
+					 , T2.ord_seq 
+				  FROM esg.tb_process_work_cnfm T1
+				     , esg.tb_process_work T2
+				 WHERE T1.prcs_cnfm_id = T2.prcs_cnfm_id) B
+		 WHERE A.process_id = B.process_id
+		   AND A.prcs_work_id = cast(B.prcs_work_id as VARCHAR)
+		   AND A.write_year = #{writeYear}
+		   AND A.doc_type = #{docType}
+		   AND A.doc_no = #{docNo}
+		 ORDER BY B.ord_seq, CAST(A.prcs_work_id AS INTEGER), A.work_type, A.work_detail_id
+	</select>
+	
+	<!-- 안전보건정보 조사 상세 조회 -->
+	<select id='getProcessDataDetail' parameterType='kr.co.igns.business.planning.model.SafetyAndHealthInfoSurveyVO' resultType='kr.co.igns.business.planning.model.SafetyAndHealthInfoSurveyVO'>
+		SELECT a.ord_seq,      --정렬순서 
+			   a.comp_id,      --사업장ID
+			   a.process_id,   --공정ID
+			   a.process_nm,   --공정명
+			   a.usage_type,   --사용처(본사/도급/혼재)
+			   b.rev_no,       --차수
+			   b.rev_nm,
+			   coalesce(c.prcs_work_id,'9999') prcs_work_id,   --공정작업ID
+			   c.work_content, --작업내용
+			   c.work_desc,    --작업내용설명
+			   d.target_type work_type,   --tarket타입(시스템코드) 
+			   d.target_id,    --tarketID(target타입의 Key값)
+			   e.std_eq_id,    --stdEqId(설비ID)
+			   case when d.target_type = 'equipment' then e.std_eq_nm -- 설비일때는 설비 유형 이름 표시
+			        else f.msds_nm end as content, -- msds 일때는 msds 이름 표시		   
+			   case when d.target_type = 'equipment' then COUNT(*) OVER (PARTITION BY c.prcs_work_id, e.std_eq_id) -- 설비일때는 설비 유형이 같은 설비의 개수 표시
+			        else f.daily_volume  end as desc1, -- msds 일때는 daily_volume 표시
+			   case when d.target_type = 'equipment' then 0 -- 설비일때는 안쓰므로 기본값 0
+			        else f.daily_time  end as desc2 -- msds 일때는 daily_time 표시
+		  FROM esg.tb_process_info a
+		  LEFT JOIN esg.tb_process_work_cnfm b on a.process_id = b.process_id and b.cnfm_yn = 'Y' and b.use_yn = 'Y'
+		  LEFT JOIN esg.tb_process_work c on b.prcs_cnfm_id = c.prcs_cnfm_id and c.use_yn = 'Y'
+		  LEFT JOIN esg.tb_process_work_map d on c.prcs_work_id = d.prcs_work_id and d.use_yn = 'Y'
+		  --LEFT JOIN esg.tb_equipment_info e on a.comp_id = e.comp_id and d.target_id = e.equipment_id and e.use_yn = 'Y'
+		  LEFT JOIN ( SELECT tbei.*, tbdte.std_eq_nm FROM esg.tb_equipment_info tbei
+							LEFT JOIN esg.tb_dataset_typeofequipment tbdte ON tbei.comp_id = tbdte.comp_id and tbei.std_eq_id = tbdte.std_eq_id  
+						       	WHERE tbei.comp_id = #{compId}
+					) e on a.comp_id = e.comp_id and d.target_id = e.equipment_id and e.use_yn = 'Y'
+		  LEFT JOIN esg.tb_msds_info f on a.comp_id = f.comp_id and d.target_id = f.msds_id and f.use_yn = 'Y'
+		 WHERE a.comp_id = #{compId}
+		   AND b.process_id = #{processId}
+		   AND a.use_yn = 'Y' --사용여부가 Y 인 공정만
+		 ORDER BY a.ord_seq, c.prcs_cnfm_id, c.ord_seq, d.target_type, 
+		 CASE 
+		    WHEN d.target_type = 'equipment' THEN e.ord_seq
+		    WHEN d.target_type = 'msds' THEN f.ord_seq
+    		ELSE NULL
+  		 END, d.target_id 
+	</select>
+
+	<select id="getProcessName" resultType="String" parameterType="String">
+		SELECT
+		    PROCESS_NM
+		FROM ESG.TB_PROCESS_INFO
+		WHERE PROCESS_ID = #{processId}
+	</select>
+	
+	<select id='getReportData' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.planning.model.SafetyAndHealthInfoSurveyVO'>
+		 SELECT A.write_year
+			 , A.doc_type
+			 , A.doc_no
+			 , A.process_id
+			 , B.process_nm
+			 , A.comp_id
+			 , A.rev_no
+			 , A.material
+			 , A.product
+			 , A.worker_cnt
+			 , A.created_at
+			 , A.created_by
+			 , A.updated_at
+			 , A.updated_by
+			 , C.biz_nm as biz_nm
+		  FROM esg.tb_safety_and_health_info_survey A
+		  LEFT JOIN esg.tb_process_info B ON A.process_id = B.process_id
+		  LEFT JOIN esg.tb_company_info C ON A.comp_id  = C.comp_id 
+		 WHERE A.write_year = #{writeYear}
+		   AND A.doc_type = #{docType}
+		   AND A.doc_no = #{docNo}
+		   AND A.comp_id = #{compId}
+	</select>
+	
+	<!-- 단일 출력 -->
+	<select id='getReportGridData' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.planning.model.SafetyAndHealthInfoSurveyVO'>
+		 WITH work_name_table as (
+			SELECT T1.process_id 
+				 , T2.prcs_work_id 
+				 , T2.work_content 
+			  FROM esg.tb_process_work_cnfm T1
+			     , esg.tb_process_work T2
+			 WHERE T1.prcs_cnfm_id = T2.prcs_cnfm_id
+		),
+		detail_table as (
+			select distinct A.prcs_work_id 
+				 , B.work_content
+			  from esg.tb_safety_and_health_info_survey_detail A
+			     , work_name_table B
+			 where A.process_id = B.process_id
+			   and A.prcs_work_id = cast(B.prcs_work_id as VARCHAR)
+			   and A.write_year = #{writeYear}
+		       AND A.doc_type = #{docType}
+		       AND A.doc_no = #{docNo}
+		),
+		equipment_data AS (
+			select A.prcs_work_id
+		         , A.work_type
+		         , A.content
+		         , A.desc1 equip_cnt
+		         , ROW_NUMBER() OVER (PARTITION BY A.prcs_work_id, A.work_type ORDER BY A.work_detail_id) AS new_work_detail_id
+		      FROM esg.tb_safety_and_health_info_survey_detail A
+		     WHERE A.write_year = #{writeYear}
+		       AND A.doc_type = #{docType}
+		       AND A.doc_no = #{docNo}
+		       AND A.work_type = 'equipment' 
+		),
+		msds_data AS (
+		    select A.prcs_work_id
+		         , A.work_type
+		         , A.content
+		         , A.desc1 msds_cnt
+		         , A.desc2 msds_time
+		         , ROW_NUMBER() OVER (PARTITION BY A.prcs_work_id, A.work_type ORDER BY A.work_detail_id) AS new_work_detail_id
+		      FROM esg.tb_safety_and_health_info_survey_detail A
+		     WHERE A.write_year = #{writeYear}
+		       AND A.doc_type = #{docType}
+		       AND A.doc_no = #{docNo}
+		       AND A.work_type = 'msds' 
+		)
+		select T1.work_content
+			 , ROW_NUMBER() OVER (ORDER BY T2.new_work_detail_id) new_work_detail_id
+			 , 'saftey' title 
+			 , T1.prcs_work_id
+			 , coalesce(T2.equip_content, '') equip_content
+			 , coalesce(T2.equip_cnt, '') equip_cnt
+			 , coalesce(T2.msds_content, '') msds_content
+			 , coalesce(T2.msds_cnt, '') msds_cnt
+			 , coalesce(T2.msds_time, '') msds_time
+		  from detail_table T1
+		  left JOIN (select COALESCE(A.prcs_work_id, B.prcs_work_id) prcs_work_id
+			  			  , A.new_work_detail_id
+						  , A.content equip_content
+						  , equip_cnt
+						  , B.content msds_content
+						  , B.msds_cnt
+						  , B.msds_time
+					   from equipment_data A
+					   full outer join msds_data B on A.prcs_work_id = B.prcs_work_id and A.new_work_detail_id = B.new_work_detail_id) T2
+			on T1.prcs_work_id = T2.prcs_work_id
+		 order by CAST(T1.prcs_work_id AS INTEGER), T2.new_work_detail_id
+	</select>
+	
+	<!-- 다중 출력 -->
+	<select id='getReportDataMany' parameterType='kr.co.igns.business.planning.model.SafetyAndHealthInfoSurveyVO' resultType='kr.co.igns.business.planning.model.SafetyAndHealthInfoSurveyVO'>
+		 SELECT A.write_year
+			 , A.doc_type
+			 , A.doc_no
+			 , A.process_id
+			 , B.process_nm
+			 , A.comp_id
+			 , A.rev_no
+			 , A.material
+			 , A.product
+			 , A.worker_cnt
+			 , A.created_at
+			 , A.created_by
+			 , A.updated_at
+			 , A.updated_by
+		  FROM esg.tb_safety_and_health_info_survey A
+		  LEFT JOIN esg.tb_process_info B ON A.process_id = B.process_id
+		 WHERE A.write_year = #{writeYear}
+		   AND A.doc_type = #{docType}
+		   AND A.doc_no IN
+		   <foreach item="docNo" collection="docNoList" open="(" separator="," close=")">
+				#{docNo}
+		   </foreach>
+		   AND A.comp_id = #{compId}
+	</select>
+	
+	<insert id="insertSafetyAndHealthInfoSurvey" parameterType="kr.co.igns.business.planning.model.SafetyAndHealthInfoSurveyVO" useGeneratedKeys="true" keyProperty="docNo">
+		INSERT INTO esg.tb_safety_and_health_info_survey
+		(
+			write_year,
+			doc_type, 
+			doc_no, 
+			process_id, 
+			comp_id, 
+			rev_no, 
+			material, 
+			product, 
+			worker_cnt, 
+			use_yn, 
+			created_at, 
+			created_by,
+		    write_dt
+		)
+		VALUES
+		(
+			#{writeYear}, 
+			'SAHIS', 
+			(select COALESCE(LPAD(TRIM(TO_CHAR(MAX(doc_no)::INTEGER + 1, '99999')), 5, '0'), '00001') 
+			   from esg.tb_safety_and_health_info_survey 
+			  WHERE write_year = #{writeYear}
+			    AND doc_type = 'SAHIS'), 
+			#{processId}, 
+			#{compId}, 
+			#{revNo}, 
+			#{material}, 
+			#{product}, 
+			#{workerCnt}, 
+			'Y', 
+			now(), 
+			#{createdBy},
+		    #{writeDt}
+		)
+		RETURNING doc_no
+	</insert>
+	
+	<insert id="insertSafetyAndHealthInfoSurveyDetail" parameterType="kr.co.igns.business.planning.model.SafetyAndHealthInfoSurveyVO">
+		<selectKey keyProperty="workDetailId" resultType="kr.co.igns.business.planning.model.SafetyAndHealthInfoSurveyVO" order="BEFORE">
+			SELECT LPAD((COALESCE(MAX(SUBSTRING(work_detail_id, 1, 5)::INTEGER), 0) + 1)::text, 5, '0') AS workDetailId
+			FROM esg.tb_safety_and_health_info_survey_detail
+			WHERE write_year = #{writeYear}
+			AND doc_type = #{docType}
+			AND doc_no = #{docNo}
+		</selectKey>
+		INSERT INTO esg.tb_safety_and_health_info_survey_detail
+		(
+			write_year, 
+			doc_type, 
+			doc_no, 
+			process_id,
+			prcs_work_id,
+			work_detail_id, 
+			work_type, 
+			content, 
+			desc1, 
+			desc2, 
+			use_yn, 
+			created_at, 
+			created_by
+		)
+		VALUES
+		(
+			#{writeYear}, 
+			#{docType}, 
+			#{docNo}, 
+			#{processId}, 
+			#{prcsWorkId}, 
+			#{workDetailId},
+			#{workType}, 
+			#{content}, 
+			#{desc1}, 
+			#{desc2}, 
+			#{useYn}, 
+			now(), 
+			#{createdBy}
+		);
+
+	</insert>
+
+	<update id="confirmSafetyAndHealthInfoSurvey" parameterType="kr.co.igns.business.planning.model.SafetyAndHealthInfoSurveyVO">
+		UPDATE esg.tb_safety_and_health_info_survey
+		   SET
+				confirm_yn = #{confirmYn},
+				<if test='confirmYn == "Y"'>
+					confirm_dt = now(),
+				</if>
+				<if test='confirmYn == "N"'>
+					confirm_dt = null,
+				</if>
+				updated_at = now(),
+				updated_by = #{updatedBy}
+		WHERE write_year = #{writeYear}
+		  AND doc_type = #{docType}
+		  AND doc_no = #{docNo}
+	</update>
+	
+	<update id="changeSafetyAndHealthInfoSurvey" parameterType="kr.co.igns.business.planning.model.SafetyAndHealthInfoSurveyVO">
+		UPDATE esg.tb_safety_and_health_info_survey
+		   SET material = #{material}
+		   	 , product = #{product}
+		   	 , worker_cnt = #{workerCnt}
+		   	 , use_yn = #{useYn}
+		     , updated_at = now()
+		     , updated_by = #{updatedBy}
+		     , write_dt = #{writeDt}
+		 WHERE write_year = #{writeYear}
+		   AND doc_type = #{docType}
+		   AND doc_no = #{docNo}
+	</update>
+	
+	<update id="changeSafetyAndHealthInfoSurveyUseYn" parameterType="kr.co.igns.business.planning.model.SafetyAndHealthInfoSurveyVO">
+		UPDATE esg.tb_safety_and_health_info_survey
+		   SET use_yn = 'N'
+		     , updated_at = now()
+		     , updated_by = #{updatedBy}
+		 WHERE write_year = #{writeYear}
+		   AND doc_type = #{docType}
+		   AND doc_no = #{docNo}
+	</update>
+	
+	<update id="changeSafetyAndHealthInfoSurveyDetail" parameterType="kr.co.igns.business.planning.model.SafetyAndHealthInfoSurveyVO">
+		UPDATE esg.tb_safety_and_health_info_survey_detail
+		   SET work_type = #{workType}
+		     , content = #{content}
+		     , desc1 = #{desc1}
+		     , desc2 = #{desc2}
+		     , updated_at = now()
+		     , updated_by = #{updatedBy}
+		 WHERE write_year = #{writeYear}
+		   AND doc_type = #{docType}
+		   AND doc_no = #{docNo}
+		   AND prcs_work_id = #{prcsWorkId}
+		   AND work_detail_id = #{workDetailId}
+	</update>
+	
+	<update id="changeSafetyAndHealthInfoSurveyDetailUseYn" parameterType="kr.co.igns.business.planning.model.SafetyAndHealthInfoSurveyVO">
+		UPDATE esg.tb_safety_and_health_info_survey_detail
+		   SET use_yn = #{useYn}
+		     , updated_at = now()
+		     , updated_by = #{updatedBy}
+		 WHERE write_year = #{writeYear}
+		   AND doc_type = #{docType}
+		   AND doc_no = #{docNo}
+		   AND prcs_work_id = #{prcsWorkId}
+		   AND work_detail_id = #{workDetailId}
+	</update>
+	
+	<!-- 마스터테이블 데이터 삭제 -->
+	<delete id="deleteSafetyAndHealthInfoSurvey" parameterType="kr.co.igns.business.planning.model.SafetyAndHealthInfoSurveyVO">
+		DELETE 
+		  FROM esg.tb_safety_and_health_info_survey
+		 WHERE write_year = #{writeYear}
+		   AND doc_type = #{docType}
+		   AND doc_no = #{docNo}
+	</delete>
+	
+	<!-- 상세데이터 전체 삭제 -->
+	<delete id="deleteAllSafetyAndHealthInfoSurveyDetail" parameterType="kr.co.igns.business.planning.model.SafetyAndHealthInfoSurveyVO">
+		DELETE 
+		  FROM esg.tb_safety_and_health_info_survey_detail
+		 WHERE write_year = #{writeYear}
+		   AND doc_type = #{docType}
+		   AND doc_no = #{docNo}
+	</delete>
+	
+	<!-- 특정 상세 데이터 삭제 -->
+	<update id="deleteSafetyAndHealthInfoSurveyDetail" parameterType="kr.co.igns.business.planning.model.SafetyAndHealthInfoSurveyVO">
+		UPDATE esg.tb_safety_and_health_info_survey
+		   SET use_yn = 'N'
+		 WHERE write_year = #{writeYear}
+		   AND doc_type = #{docType}
+		   AND doc_no = #{docNo};
+	</update>
+
+	<!-- 일괄 출력용 -->
+	<select id='getAllReport' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.common.model.SpSearchVO'>
+		select t1.write_year
+		 	, t1.doc_type
+			, t1.doc_no
+		    , t1.comp_id
+		from esg.tb_safety_and_health_info_survey t1
+		where t1.confirm_yn = 'Y'
+			and t1.comp_id  = #{compId}
+			and t1.use_yn = 'Y'
+    </select>
+</mapper>

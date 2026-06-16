@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.support.dao.postgres.SAndHQualificationCertRegisterDAO">
+    
+    
+    <insert id="insert" parameterType="kr.co.igns.business.support.model.SAndHQualificationCertRegisterVO">
+        <selectKey keyProperty="docNo" resultType="kr.co.igns.business.participation.model.ParticipationVo" order="BEFORE">
+				select LPAD((coalesce(MAX(SUBSTRING(doc_no, 1, 5)::INTEGER), 0) + 1)::text, 5, '0') as docNo
+                from esg.tb_qualification_cert_reg
+                where write_year = #{writeYear}
+                    and doc_type = #{docType}
+	    </selectKey>
+        INSERT INTO esg.tb_qualification_cert_reg (
+            write_year,
+            doc_no,
+            doc_type,
+            comp_id,
+            write_date,
+            hr_id,
+            reg_nm,
+            reg_dt,
+            reg_detail,
+            reg_check_yn,
+            cancle_dt,
+            cancle_detail,
+            cancle_check_yn,
+            created_at,
+            created_by
+        )
+        VALUES (
+            #{writeYear},
+            #{docNo},
+            #{docType},
+            #{compId},
+            #{writeDate},
+            #{hrId},
+            #{regNm},
+            #{regDt},
+            #{regDetail},
+            #{regCheckYn},
+            #{cancleDt},
+            #{cancleDetail},
+            #{cancleCheckYn},
+            now(),
+            #{createdBy}
+        )
+
+    </insert>
+    <update id="update" parameterType="kr.co.igns.business.support.model.SAndHQualificationCertRegisterVO">
+        UPDATE esg.tb_qualification_cert_reg
+        SET
+            write_date=#{writeDate},
+            use_yn=#{useYn},
+            hr_id=#{hrId},
+            reg_nm=#{regNm},
+            reg_dt=#{regDt},
+            reg_detail=#{regDetail},
+            reg_check_yn=#{regCheckYn},
+            cancle_dt=#{cancleDt},
+            cancle_detail=#{cancleDetail},
+            cancle_check_yn=#{cancleCheckYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE 
+            write_year = #{writeYear} AND
+            doc_no = #{docNo} AND
+            doc_type= #{docType}
+
+    </update>
+    <delete id="delete" parameterType="kr.co.igns.business.support.model.SAndHQualificationCertRegisterVO">
+        UPDATE esg.tb_qualification_cert_reg
+        SET
+            use_yn='N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE 
+            write_year = #{writeYear} AND
+            doc_no = #{docNo} AND
+            doc_type= #{docType}
+    </delete>
+    
+
+    <select id='searchList' resultType='kr.co.igns.business.support.model.SAndHQualificationCertRegisterVO' parameterType='kr.co.igns.system.common.model.SpSearchVO'>
+        SELECT tqcr.*,
+        sf.file_id as logoId,
+        thi.hr_nm,
+        jbrp.jbrp_nm,
+        toi.orgn_nm as orgn_nm
+        FROM esg.tb_qualification_cert_reg tqcr
+        left join esg.tb_hr_info thi on thi.hr_id = tqcr.hr_id
+        LEFT JOIN esg.tb_sys_file sf
+        ON sf.target_id = thi.hr_id
+        AND sf.target_type = 'hrImg'
+        left join esg.tb_hr_info_jbrp jbrp
+            on jbrp.jbrp_id = thi.jbrp and jbrp.comp_id = #{compId}
+        left join esg.tb_orgn_info toi on toi.orgn_id = thi.orgn_id
+        WHERE tqcr.comp_id = #{compId}
+    </select>
+
+    <select id='search' resultType='kr.co.igns.business.support.model.SAndHQualificationCertRegisterVO' parameterType='kr.co.igns.business.support.model.SAndHQualificationCertRegisterVO'>
+        SELECT tqcr.*,
+        thi.hr_nm,
+        jbrp.jbrp_nm,
+        toi.orgn_nm as orgn_nm
+        FROM esg.tb_qualification_cert_reg tqcr 
+        left join esg.tb_hr_info thi on thi.hr_id = tqcr.hr_id
+        left join esg.tb_hr_info_jbrp jbrp
+            on jbrp.jbrp_id = thi.jbrp and jbrp.comp_id = #{compId}
+        left join esg.tb_orgn_info toi on toi.orgn_id = thi.orgn_id
+        WHERE doc_type=#{docType} and write_year=#{writeYear} and doc_no=#{docNo}
+    </select>
+
+    <select id='searchListReport' resultType='kr.co.igns.business.support.model.SAndHQualificationCertRegisterVO' parameterType='kr.co.igns.business.support.model.SAndHQualificationCertRegisterVO'>
+        SELECT tqcr.*,
+        thi.hr_nm,
+        jbrp.jbrp_nm,
+        toi.orgn_nm as orgn_nm
+        FROM esg.tb_qualification_cert_reg tqcr
+        left join esg.tb_hr_info thi on thi.hr_id = tqcr.hr_id
+        left join esg.tb_hr_info_jbrp jbrp
+        on jbrp.jbrp_id = thi.jbrp and jbrp.comp_id = #{compId}
+        left join esg.tb_orgn_info toi on toi.orgn_id = thi.orgn_id
+        WHERE doc_type=#{docType} and write_year=#{writeYear}
+          and doc_no IN
+        <foreach item="docNo" collection="docNoList" open="(" separator="," close=")">
+            #{docNo}
+        </foreach>
+    </select>
+
+</mapper>
+

@@ -1,0 +1,638 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.planning.dao.postgres.RisksAndOpportunitieDAO">
+    <!-- 메인조회 -->
+    <select id='getRisksAndOpportunities' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.planning.model.RisksAndOpportunitieVO'>
+		SELECT A.comp_id,
+			   A.write_year,
+			   A.doc_type,
+			   A.doc_no,
+			   A.orgn_id,
+			   (SELECT ORGN.orgn_nm
+				FROM esg.tb_orgn_info ORGN
+				WHERE A.comp_id = ORGN.comp_id
+				  AND A.orgn_id = ORGN.orgn_id)    AS orgn_nm,
+			   A.use_yn,
+			   A.created_at,
+			   COUNT(DISTINCT B.doc_seq)           AS riskDetailCount,
+			   COUNT(DISTINCT C.doc_seq)           AS oppDetailCount,
+			   COUNT(DISTINCT D.doc_seq)           AS parDetailCount,
+			   (CASE
+					WHEN G.signature IS NOT NULL THEN 'Y'
+					WHEN F.signature IS NOT NULL THEN 'I'
+					WHEN E.signature IS NOT NULL THEN 'W'
+					ELSE 'C'
+				   END)                            AS approval_status
+		FROM esg.tb_risks_and_opportunities A
+				 LEFT JOIN esg.tb_risks_and_opportunities_risk_detail B
+						   ON A.write_year = B.write_year
+							   AND A.doc_type = B.doc_type
+							   AND A.doc_no = B.doc_no
+							   AND B.use_yn = 'Y'
+				 LEFT JOIN esg.tb_risks_and_opportunities_opp_detail C
+						   ON A.write_year = C.write_year
+							   AND A.doc_type = C.doc_type
+							   AND A.doc_no = C.doc_no
+							   AND C.use_yn = 'Y'
+				 LEFT JOIN esg.tb_risks_and_opportunities_par_detail D
+						   ON A.write_year = D.write_year
+							   AND A.doc_type = D.doc_type
+							   AND A.doc_no = D.doc_no
+							   AND D.use_yn = 'Y'
+				 LEFT JOIN esg.tb_approval_info E
+						   ON E.target_type = A.doc_type
+							   AND E.target_id = A.write_year || A.doc_no
+							   AND E.param = 'writer'
+				 LEFT JOIN esg.tb_approval_info F
+						   ON F.target_type = A.doc_type
+							   AND F.target_id = A.write_year || A.doc_no
+							   AND F.param = 'reviewer'
+				 LEFT JOIN esg.tb_approval_info G
+						   ON G.target_type = A.doc_type
+							   AND G.target_id = A.write_year || A.doc_no
+							   AND G.param = 'approver'
+		WHERE A.comp_id = #{compId}
+		<if test="writeYear != null and writeYear != ''">
+			AND A.write_year = #{writeYear}
+		</if>
+		<if test="docType != null and docType != ''">
+			AND A.doc_type = #{docType}
+		</if>
+		<if test="docNo != null and docNo != ''">
+			AND A.doc_no = #{docNo}
+		</if>
+		GROUP BY A.comp_id, A.write_year, A.doc_type, A.doc_no, A.orgn_id, A.use_yn, A.created_at, E.signature,
+				 F.signature, G.signature
+		ORDER BY A.WRITE_YEAR DESC
+	</select>
+	
+	<!-- 디테일조회 (리스크) -->
+    <select id='getRiskDetail' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.planning.model.RisksAndOpportunitieVO'>
+        SELECT A.write_year,
+		       A.doc_type,
+		       A.doc_no,
+		       A.orgn_id,
+		       (SELECT ORGN.orgn_nm
+		          FROM esg.tb_orgn_info ORGN
+		         WHERE A.comp_id = ORGN.comp_id
+		           AND A.orgn_id = ORGN.orgn_id) AS orgn_nm,
+			   A.created_at,
+		       B.doc_seq AS risk_doc_seq,
+		       B.risk_orgn,
+		       B.risk_desc,
+		       B.present_pos,
+		       B.present_sev,
+		       B.measure_desc AS risk_measure_desc,
+		       B.measure_st_dt as risk_measure_st_dt,
+		       B.measure_ed_dt as risk_measure_ed_dt,
+		       B.measure_pos,
+		       B.measure_sev,
+		       B.present_level,
+		       B.measure_level,
+		       B.use_yn AS risk_use_yn
+		  FROM esg.tb_risks_and_opportunities_risk_detail B
+     LEFT JOIN esg.tb_risks_and_opportunities A
+            ON A.write_year = B.write_year 
+           AND A.doc_type = B.doc_type
+           AND A.doc_no = B.doc_no 
+         WHERE A.comp_id = #{compId}
+           AND A.doc_type = 'RAO'
+           AND A.doc_no = #{docNo}
+		   AND A.write_year = #{writeYear}
+
+	</select>
+	<!-- 디테일조회 (기회) -->
+    <select id='getOppDetail' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.planning.model.RisksAndOpportunitieVO'>
+        SELECT A.write_year,
+		       A.doc_type,
+		       A.doc_no,
+		       A.orgn_id,
+		       (SELECT ORGN.orgn_nm
+		          FROM esg.tb_orgn_info ORGN
+		         WHERE A.comp_id = ORGN.comp_id
+		           AND A.orgn_id = ORGN.orgn_id) AS orgn_nm,
+			   A.created_at,
+		       C.doc_seq AS opp_doc_seq,
+		       C.opp_orgn,
+		       C.opp_desc,
+		       C.opp_concern,
+		       C.opp_importance,
+		       C.opp_influence,
+		       C.opp_level,
+		       C.measure_desc AS opp_measure_desc,
+		       C.measure_st_dt as opp_measure_st_dt,
+		       C.measure_ed_dt as opp_measure_ed_dt,
+		       C.measure_result_effect,
+		       C.use_yn AS opp_use_yn
+		  FROM esg.tb_risks_and_opportunities_opp_detail C
+	 LEFT JOIN ESG.tb_risks_and_opportunities A
+	        ON A.write_year = C.write_year 
+	       AND A.doc_type = C.doc_type
+	       AND A.doc_no = C.doc_no
+         WHERE A.comp_id = #{compId}
+           AND A.doc_type = 'RAO'
+           AND A.doc_no = #{docNo}
+		   AND A.write_year = #{writeYear}
+
+	</select>
+	<!-- 디테일조회 (참여자) -->
+    <select id='getParDetail' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.planning.model.RisksAndOpportunitieVO'>
+        SELECT A.write_year,
+		       A.doc_type,
+		       A.doc_no,
+		       A.orgn_id,
+		       (SELECT ORGN.orgn_nm
+		          FROM esg.tb_orgn_info ORGN
+		         WHERE A.comp_id = ORGN.comp_id
+		           AND A.orgn_id = ORGN.orgn_id) AS orgn_nm,
+		       A.created_at,
+		       D.doc_seq AS par_doc_seq,
+		       D.duties,
+		       D.hr_id,
+		       (SELECT Z.hr_nm
+			      FROM esg.tb_hr_info Z
+			     WHERE Z.hr_id = D.hr_id
+			   ) AS hr_nm,
+			   (select hr_nm
+		          from esg.tb_approval_info
+		         where target_type = A.doc_type
+		           and target_id = A.write_year||A.doc_no
+		           and param = 'leader') as leader,
+		       D.use_yn AS par_use_yn
+		  FROM esg.tb_risks_and_opportunities_par_detail D
+	 LEFT JOIN esg.tb_risks_and_opportunities A
+	        ON A.write_year = D.write_year 
+	       AND A.doc_type = D.doc_type
+	       AND A.doc_no = D.doc_no
+         WHERE A.comp_id = #{compId}
+           AND A.doc_type = 'RAO'
+           AND A.doc_no = #{docNo}
+		   AND A.write_year = #{writeYear}
+
+	</select>
+	
+	<!-- 평가기준표 API -->
+    <select id='getAsmtApi' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.planning.model.RisksAndOpportunitieVO'>
+        SELECT B.content1,
+	     	   B.content2,
+	           B.content3,
+	           B.content4,
+	           B.detail_type,
+	           B.detail_seq
+	      FROM esg.tb_risk_and_ops_asmt_criteria A
+	INNER JOIN esg.tb_risk_and_ops_asmt_criteria_detail B
+	        ON A.criteria_id = B.criteria_id
+	     WHERE A.confirmed_yn = 'Y'
+	       AND A.comp_id = #{compId}
+	       AND A.use_yn = 'Y'
+	       AND B.use_yn = 'Y'
+		order by B.ord_seq asc
+	</select>
+	
+	<!-- 메인 저장 -->
+    <insert id="insertRisksAndOpp" parameterType="kr.co.igns.business.planning.model.RisksAndOpportunitieVO" useGeneratedKeys="true" keyColumn="doc_no" keyProperty="docNo">
+    	
+    	<selectKey keyProperty="docNo" resultType="kr.co.igns.business.planning.model.RisksAndOpportunitieVO" order="BEFORE">
+            SELECT LPAD(CAST(COALESCE(MAX(CAST(doc_no AS INTEGER)), 0) + 1 AS INTEGER)::TEXT, 5, '0') AS doc_no
+		      FROM esg.tb_risks_and_opportunities
+	         WHERE write_year = #{writeYear}
+	           AND doc_type = 'RAO'
+        </selectKey>
+   		INSERT INTO esg.tb_risks_and_opportunities 
+				  (
+				    comp_id,
+				    write_year,
+				    doc_type,
+				    doc_no,
+				    orgn_id,
+				    use_yn,
+				    created_at,
+				    created_by
+				  ) 
+		     VALUES 
+		     	  (
+				    #{compId},
+				    #{writeYear},
+				    'RAO',
+				    #{docNo},
+				    #{orgnId},
+				    #{useYn},
+				    NOW(),
+				    #{createdBy}
+				  )
+    </insert>
+    <!-- 메인 수정 -->
+    <update id="updateRisksAndOpp" parameterType="kr.co.igns.business.planning.model.RisksAndOpportunitieVO">
+   		UPDATE esg.tb_risks_and_opportunities
+       	   SET use_yn = #{useYn},
+       	   	   updated_at = now(),
+	           updated_by = #{updatedBy}
+         WHERE write_year = #{writeYear}
+           AND doc_type = #{docType}
+           AND doc_no = #{docNo}
+    </update>
+    
+    <!-- 디테일 저장(리스크) -->
+    <insert id="insertRiskDetail" parameterType="kr.co.igns.business.planning.model.RisksAndOpportunitieVO">
+   		INSERT INTO esg.tb_risks_and_opportunities_risk_detail 
+				  (
+				    write_year,
+				    doc_type,
+				    doc_no,
+				    risk_orgn,
+				    risk_desc,
+				    present_pos,
+				    present_sev,
+				    measure_desc,
+				    measure_st_dt,
+				    measure_ed_dt,
+				    measure_pos,
+				    measure_sev,
+				    present_level,
+				    measure_level,
+				    doc_seq,
+				    use_yn,
+				    created_at,
+				    created_by
+				  ) 
+		     VALUES 
+		     	  (
+				    #{writeYear},
+				    'RAO',
+				    #{docNo},
+				    #{riskOrgn},
+				    #{riskDesc},
+				    #{presentPos},
+				    #{presentSev},
+				    #{riskMeasureDesc},
+				    #{riskMeasureStDt},
+				    #{riskMeasureEdDt},
+				    #{measurePos},
+				    #{measureSev},
+				    #{presentLevel},
+				    #{measureLevel},
+				    (SELECT CAST(COALESCE(MAX(doc_seq)::INTEGER, 0) AS INTEGER) + 1
+					   FROM esg.tb_risks_and_opportunities_risk_detail
+					  WHERE doc_type = 'RAO'
+						AND doc_no = #{docNo}
+						AND write_year = #{writeYear}
+			      	),
+				    #{riskUseYn},
+				    NOW(),
+				    #{createdBy}
+				  )
+    </insert>
+    <!-- 디테일 수정(리스크) -->
+    <update id="updateRiskDetail" parameterType="kr.co.igns.business.planning.model.RisksAndOpportunitieVO">
+   		UPDATE esg.tb_risks_and_opportunities_risk_detail
+       	   SET risk_orgn = #{riskOrgn},
+			   risk_desc = #{riskDesc},
+			   present_pos = #{presentPos},
+			   present_sev = #{presentSev},
+			   measure_desc = #{riskMeasureDesc},
+			   measure_st_dt = #{riskMeasureStDt},
+			   measure_ed_dt = #{riskMeasureEdDt},
+			   measure_pos = #{measurePos},
+			   measure_sev = #{measureSev},
+			   present_level = #{presentLevel},
+			   measure_level = #{measureLevel},
+			   use_yn = #{riskUseYn},
+       	   	   updated_at = now(),
+	           updated_by = #{updatedBy}
+         WHERE write_year = #{writeYear}
+           AND doc_type = #{docType}
+           AND doc_no = #{docNo}
+           AND doc_seq = #{riskDocSeq}
+    </update>
+    
+    <!-- 디테일 저장(기회) -->
+    <insert id="insertOppDetail" parameterType="kr.co.igns.business.planning.model.RisksAndOpportunitieVO">
+   		INSERT INTO esg.tb_risks_and_opportunities_opp_detail 
+				  (
+				    write_year,
+				    doc_type,
+				    doc_no,
+				    opp_orgn,
+				    opp_desc,
+				    opp_concern,
+				    opp_importance,
+				    opp_influence,
+				    measure_desc,
+				    measure_st_dt,
+				    measure_ed_dt,
+				    measure_result_effect,
+				    opp_level,
+				    doc_seq,
+				    use_yn,
+				    created_at,
+				    created_by
+				  ) 
+		     VALUES 
+		     	  (
+				    #{writeYear},
+				    'RAO',
+				    #{docNo},
+				    #{oppOrgn},
+				    #{oppDesc},
+				    #{oppConcern},
+				    #{oppImportance},
+				    #{oppInfluence},
+				    #{oppMeasureDesc},
+				    #{oppMeasureStDt},
+				    #{oppMeasureEdDt},
+				    #{measureResultEffect},
+				    #{oppLevel},
+				    (SELECT CAST(COALESCE(MAX(doc_seq)::INTEGER, 0) AS INTEGER) + 1
+					   FROM esg.tb_risks_and_opportunities_opp_detail
+					  WHERE doc_type = 'RAO'
+						AND doc_no = #{docNo}
+						AND write_year = #{writeYear}
+			      	),
+				    #{oppUseYn},
+				    NOW(),
+				    #{createdBy}
+				  )
+    </insert>
+    <!-- 디테일 수정(기회) -->
+    <update id="updateOppDetail" parameterType="kr.co.igns.business.planning.model.RisksAndOpportunitieVO">
+   		UPDATE esg.tb_risks_and_opportunities_opp_detail
+       	   SET opp_orgn = #{oppOrgn},
+			   opp_desc = #{oppDesc},
+			   opp_concern = #{oppConcern},
+			   opp_importance = #{oppImportance},
+			   opp_influence = #{oppInfluence},
+			   measure_desc = #{oppMeasureDesc},
+			   measure_st_dt = #{oppMeasureStDt},
+			   measure_ed_dt = #{oppMeasureEdDt},
+			   measure_result_effect = #{measureResultEffect},
+			   opp_level = #{oppLevel},
+			   use_yn = #{oppUseYn},
+       	   	   updated_at = now(),
+	           updated_by = #{updatedBy}
+         WHERE write_year = #{writeYear}
+           AND doc_type = #{docType}
+           AND doc_no = #{docNo}
+           AND doc_seq = #{oppDocSeq}
+    </update>
+    
+    <!-- 디테일 저장(참여자) -->
+    <insert id="insertParDetail" parameterType="kr.co.igns.business.planning.model.RisksAndOpportunitieVO">
+    	<selectKey keyProperty="parDocSeq" resultType="string" order="BEFORE">
+        	SELECT CAST(COALESCE(MAX(doc_seq)::INTEGER, 0) AS INTEGER) + 1 as par_doc_seq
+			  FROM esg.tb_risks_and_opportunities_par_detail
+			 WHERE doc_type = 'RAO'
+			   AND doc_no = #{docNo}
+			   AND write_year = #{writeYear}
+        </selectKey>
+   		INSERT INTO esg.tb_risks_and_opportunities_par_detail 
+				  (
+				    write_year,
+				    doc_type,
+				    doc_no,
+				    duties,
+				    hr_id,
+				    doc_seq,
+				    use_yn,
+				    created_at,
+				    created_by
+				  ) 
+		     VALUES 
+		     	  (
+				    #{writeYear},
+				    'RAO',
+				    #{docNo},
+				    #{duties},
+				    #{hrId},
+				    #{parDocSeq},
+				    #{parUseYn},
+				    NOW(),
+				    #{createdBy}
+				  )
+    </insert>
+    <!-- 디테일 수정(참여자) -->
+    <update id="updateParDetail" parameterType="kr.co.igns.business.planning.model.RisksAndOpportunitieVO">
+   		UPDATE esg.tb_risks_and_opportunities_par_detail
+       	   SET duties = #{duties},
+			   hr_id = #{hrId},
+			   use_yn = #{parUseYn},
+       	   	   updated_at = now(),
+	           updated_by = #{updatedBy}
+         WHERE write_year = #{writeYear}
+           AND doc_type = #{docType}
+           AND doc_no = #{docNo}
+           AND doc_seq = #{parDocSeq}
+    </update>
+	
+	<!-- 메인삭제 -->
+    <delete id="deleteRisksAndOpportunitesMain" parameterType="kr.co.igns.business.planning.model.RisksAndOpportunitieVO">
+        UPDATE esg.tb_risks_and_opportunities
+       	   SET use_yn = 'N',
+       	   	   updated_at = now(),
+	           updated_by = #{updatedBy}
+         WHERE write_year = #{writeYear}
+           AND doc_type = #{docType}
+           AND doc_no = #{docNo}
+    </delete>
+    <!-- TASK useYn='N' 처리 -->
+    <delete id="customUpdateTaskYn">
+        UPDATE esg.tb_task_manager_detail
+       	   SET use_yn = 'N'
+         WHERE req_info_key like #{reqInfoKey}||'%'
+    </delete>
+    <!-- 디테일삭제 (리스크) -->
+    <delete id="deleteRisk" parameterType="kr.co.igns.business.planning.model.RisksAndOpportunitieVO">
+        UPDATE esg.tb_risks_and_opportunities_risk_detail
+       	   SET use_yn = 'N',
+       	   	   updated_at = now(),
+	           updated_by = #{updatedBy}
+         WHERE write_year = #{writeYear}
+           AND doc_type = #{docType}
+           AND doc_no = #{docNo} 
+           AND doc_seq = #{riskDocSeq}
+    </delete>
+    <!-- 디테일삭제 (기회) -->
+    <delete id="deleteOpp" parameterType="kr.co.igns.business.planning.model.RisksAndOpportunitieVO">
+        UPDATE esg.tb_risks_and_opportunities_opp_detail
+       	   SET use_yn = 'N',
+       	   	   updated_at = now(),
+	           updated_by = #{updatedBy}
+         WHERE write_year = #{writeYear}
+           AND doc_type = #{docType}
+           AND doc_no = #{docNo} 
+           AND doc_seq = #{oppDocSeq} 
+    </delete>
+    <!-- 디테일삭제 (참여자) -->
+    <delete id="deletePar" parameterType="kr.co.igns.business.planning.model.RisksAndOpportunitieVO">
+        UPDATE esg.tb_risks_and_opportunities_par_detail
+       	   SET use_yn = 'N',
+       	   	   updated_at = now(),
+	           updated_by = #{updatedBy}
+         WHERE write_year = #{writeYear}
+           AND doc_type = #{docType}
+           AND doc_no = #{docNo} 
+           AND doc_seq = #{parDocSeq} 
+    </delete>
+        <!-- 리포트 - 리스크관리대장 -->
+    <select id='getReportRisk' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.planning.model.RisksAndOpportunitieVO'>
+		SELECT (SELECT Z.minor_nm
+		          FROM esg.tb_common_d Z
+		         WHERE Z.major_cd = 'C0034'
+		           AND Z.minor_cd = A.risk_orgn
+		       ) AS risk_orgn,
+		       A.risk_desc,
+		       A.present_pos,
+		       A.present_sev,
+		       A.measure_desc AS risk_measure_desc,	       
+		       CASE WHEN A.measure_st_dt = '' THEN '' else A.measure_st_dt
+		       END AS risk_measure_st_dt,
+		       CASE WHEN A.measure_ed_dt = '' THEN '' else A.measure_ed_dt
+		       END AS risk_measure_ed_dt,
+		       A.measure_pos,
+		       A.measure_sev,
+		       A.present_level,
+		       A.measure_level
+		  FROM esg.tb_risks_and_opportunities_risk_detail A
+		 WHERE A.write_year = #{writeYear}
+		   AND A.doc_type = 'RAO'
+		   AND A.doc_no = #{docNo}
+		   AND A.doc_seq = #{riskDocSeq}
+	</select>
+	
+	<!-- 리포트 - 기회 대장 -->
+    <select id='getReportOpp' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.planning.model.RisksAndOpportunitieVO'>
+		SELECT (SELECT Z.minor_nm
+		          FROM esg.tb_common_d Z
+		         WHERE Z.major_cd = 'C0034'
+		           AND Z.minor_cd = A.opp_orgn
+		       ) AS opp_orgn,
+			   A.opp_desc,
+			   A.opp_concern,
+			   A.opp_importance,
+			   A.opp_influence,
+			   A.opp_level,
+			   A.measure_desc AS opp_measure_desc,
+			   CASE WHEN A.measure_st_dt = '' THEN '' else A.measure_st_dt
+		       END AS opp_measure_st_dt,
+		       CASE WHEN A.measure_ed_dt = '' THEN '' else A.measure_ed_dt
+		       END AS opp_measure_ed_dt,
+			   A.measure_result_effect
+		  FROM esg.tb_risks_and_opportunities_opp_detail A
+		 WHERE A.write_year = #{writeYear}
+		   AND A.doc_type = 'RAO'
+		   AND A.doc_no = #{docNo}
+		   AND A.doc_seq = #{oppDocSeq}
+	</select>
+	
+	<!-- 리포트 - 리스크 및 기회평가 참석자 -->
+    <select id='getReportPar' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.planning.model.RisksAndOpportunitieVO'>
+		SELECT ROW_NUMBER() OVER (ORDER BY A.doc_seq) AS no,
+			   A.duties,
+			   (SELECT Z.hr_nm
+			      FROM esg.tb_hr_info Z
+			     WHERE Z.hr_id = A.hr_id
+			   ) AS hr_nm,
+			   (SELECT X.signature
+			   	  FROM esg.tb_approval_info X
+			   	 WHERE X.hr_id = A.hr_id
+			   	   and X.param = 'company'
+			   	   and X.target_id = A.write_year || A.doc_no || '_' || A.doc_seq
+			   ) AS signature
+		  FROM esg.tb_risks_and_opportunities_par_detail A
+		 WHERE A.write_year = #{writeYear}
+		   AND A.doc_type = 'RAO'
+		   AND A.doc_no = #{docNo}
+		   AND A.doc_seq = #{parDocSeq}
+	</select>
+	
+	<!-- 리포트 - 리스크관리대장 -->
+    <select id='getReportRisk2' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.planning.model.RisksAndOpportunitieVO'>
+		SELECT (SELECT Z.minor_nm
+		          FROM esg.tb_common_d Z
+		         WHERE Z.major_cd = 'C0034'
+		           AND Z.minor_cd = A.risk_orgn
+		       ) AS risk_orgn,
+		       A.risk_desc,
+		       A.present_pos,
+		       A.present_sev,
+		       A.measure_desc AS risk_measure_desc,
+		       CASE WHEN A.measure_st_dt = '' THEN '' else A.measure_st_dt
+		       END AS risk_measure_st_dt,
+		       CASE WHEN A.measure_ed_dt = '' THEN '' else A.measure_ed_dt
+		       END AS risk_measure_ed_dt,
+		       A.measure_pos,
+		       A.measure_sev,
+		       A.present_level,
+		       A.measure_level
+		  FROM esg.tb_risks_and_opportunities_risk_detail A
+		 WHERE A.write_year = #{writeYear}
+		   AND A.doc_type = 'RAO'
+		   AND A.doc_no = #{docNo}
+		   AND A.use_yn = 'Y'
+	</select>
+	
+	<!-- 리포트 - 기회 대장 -->
+    <select id='getReportOpp2' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.planning.model.RisksAndOpportunitieVO'>
+		SELECT (SELECT Z.minor_nm
+		          FROM esg.tb_common_d Z
+		         WHERE Z.major_cd = 'C0034'
+		           AND Z.minor_cd = A.opp_orgn
+		       ) AS opp_orgn,
+			   A.opp_desc,
+			   A.opp_concern,
+			   A.opp_importance,
+			   A.opp_influence,
+			   A.opp_level,
+			   A.measure_desc AS opp_measure_desc,
+			   CASE WHEN A.measure_st_dt = '' THEN '' else A.measure_st_dt
+		       END AS opp_measure_st_dt,
+		       CASE WHEN A.measure_ed_dt = '' THEN '' else A.measure_ed_dt
+		       END AS opp_measure_ed_dt,
+			   A.measure_result_effect
+		  FROM esg.tb_risks_and_opportunities_opp_detail A
+		 WHERE A.write_year = #{writeYear}
+		   AND A.doc_type = 'RAO'
+		   AND A.doc_no = #{docNo}
+		   AND A.use_yn = 'Y'
+	</select>
+	
+	<!-- 리포트 - 리스크 및 기회평가 참석자 -->
+    <select id='getReportPar2' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.planning.model.RisksAndOpportunitieVO'>
+		SELECT ROW_NUMBER() OVER (ORDER BY A.doc_seq) AS no,
+			   A.duties,
+			   (SELECT Z.hr_nm
+			      FROM esg.tb_hr_info Z
+			     WHERE Z.hr_id = A.hr_id
+			   ) AS hr_nm,
+			   (SELECT X.signature
+			   	  FROM esg.tb_approval_info X
+			   	 WHERE X.hr_id = A.hr_id
+			   	   and X.type = 'company'
+			   	   and X.target_id = A.write_year || A.doc_no || A.doc_seq
+			   ) AS signature
+		  FROM esg.tb_risks_and_opportunities_par_detail A
+		 WHERE A.write_year = #{writeYear}
+		   AND A.doc_type = 'RAO'
+		   AND A.doc_no = #{docNo}
+		   AND A.use_yn = 'Y'
+	</select>
+
+	<!-- 리포트 - 일괄출력용 -->
+    <select id='getAllReport' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.planning.model.RisksAndOpportunitieVO'>
+		SELECT A.comp_id,
+			   A.write_year,
+			   A.doc_type,
+			   A.doc_no,
+			   A.orgn_id,
+			   (SELECT ORGN.orgn_nm
+				FROM esg.tb_orgn_info ORGN
+				WHERE A.comp_id = ORGN.comp_id
+				  AND A.orgn_id = ORGN.orgn_id)    AS orgn_nm,
+			   A.use_yn
+		FROM esg.tb_risks_and_opportunities A
+		WHERE A.write_year = #{writeYear}
+			AND A.comp_id = #{compId}
+			AND A.orgn_id = #{searchText}
+		ORDER BY A.WRITE_YEAR DESC
+	</select>
+</mapper>

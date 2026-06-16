@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.impl.dao.postgres.EmergencyControlTaskAsgmtDAO">
+    <select id='getEmergencyControlTaskAsgmtList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.EmergencyControlTaskAsgmtVO'>
+        select t1.*
+      		, t2.chart_data
+            , t2.chart_nm
+            , count(t3.*) as registCnt
+      	from esg.tb_emergency_control_task_asgmt t1
+        left join esg.tb_emergency_control_org_chart t2
+        	on t1.chart_id = t2.chart_id
+        	and t1.comp_id = t2.comp_id
+        left join esg.tb_emergency_control_task_asgmt_detail t3
+        	on t1.write_year = t3.write_year
+        	and t1.doc_type = t3.doc_type
+        	and t1.doc_no = t3.doc_no
+        	and t1.comp_id = t3.comp_id
+        where t1.comp_id = #{compId}
+        <if test="docNo != null and !docNo.equals('')">
+            and t1.write_year = #{writeYear}
+            and t1.doc_type = #{docType}
+            and t1.doc_no = #{docNo}
+        </if>
+      	group by t1.write_year, t1.doc_type, t1.doc_no, t1.chart_id,t2.chart_data ,t2.chart_nm
+        order by t1.write_year desc, t1.use_yn desc, t1.write_dt desc
+    </select>
+
+    <select id='getEmergencyControlTaskAsgmtRoleList' parameterType='kr.co.igns.business.impl.model.EmergencyControlTaskAsgmtVO' resultType='kr.co.igns.business.impl.model.EmergencyControlTaskAsgmtVO'>
+        select t1.*
+        from esg.tb_emergency_control_task_asgmt_detail t1
+        where t1.comp_id = #{compId}
+            and t1.write_year = #{writeYear}
+            and t1.doc_type = #{docType}
+            and t1.doc_no = #{docNo}
+        order by t1.role_id desc
+    </select>
+    <select id='getEmergencyControlTaskAsgmtHrList' parameterType='kr.co.igns.business.impl.model.EmergencyControlTaskAsgmtVO' resultType='kr.co.igns.business.impl.model.EmergencyControlTaskAsgmtVO'>
+        select t1.*
+            , t2.hr_nm
+        from esg.tb_emergency_control_task_asgmt_detail_hr t1
+        left join esg.tb_hr_info t2
+            on t1.hr_id = t2.hr_id
+        where t1.comp_id = #{compId}
+            and t1.write_year = #{writeYear}
+            and t1.doc_type = #{docType}
+            and t1.doc_no = #{docNo}
+            and t1.role_id = #{roleId}
+    </select>
+
+    <update id="deleteEmergencyControlTaskAsgmt" parameterType="kr.co.igns.business.impl.model.EmergencyControlTaskAsgmtVO">
+        update esg.tb_emergency_control_task_asgmt set
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        where write_year = #{writeYear}
+            and doc_type = #{docType}
+            and doc_no = #{docNo}
+            and chart_id = #{chartId};
+    </update>
+
+    <select id='getOrgnChartData' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.EmergencyControlTaskAsgmtVO'>
+        select t1.chart_data
+        from esg.tb_emergency_control_org_chart t1
+        where t1.comp_id = #{compId}
+            and t1.chart_id = #{searchText}
+    </select>
+
+    <insert id="insertEmergencyControlTaskAsgmt" parameterType="kr.co.igns.business.impl.model.EmergencyControlTaskAsgmtVO">
+    <selectKey keyProperty="docNo" resultType="kr.co.igns.business.impl.model.EmergencyControlTaskAsgmtVO" order="BEFORE">
+				select LPAD((coalesce(MAX(SUBSTRING(doc_no, 1, 5)::INTEGER), 0) + 1)::text, 5, '0') as docNo
+                from esg.tb_emergency_control_task_asgmt
+                where write_year = #{writeYear}
+                    and doc_type = #{docType}
+				    and comp_id = #{compId}
+	</selectKey>
+        INSERT INTO esg.tb_emergency_control_task_asgmt (
+            write_year,
+            doc_type,
+            doc_no,
+            chart_id,
+            comp_id,
+            title,
+            write_dt,
+            use_yn,
+            created_at,
+            created_by
+        )
+        VALUES (
+            #{writeYear},
+            #{docType},
+            #{docNo},
+            #{chartId},
+            #{compId},
+            #{title},
+            #{writeDt},
+            #{useYn},
+            now(),
+            #{createdBy}
+        )
+    </insert>
+
+    <update id="updateEmergencyControlTaskAsgmt" parameterType="kr.co.igns.business.impl.model.EmergencyControlTaskAsgmtVO">
+        update esg.tb_emergency_control_task_asgmt set
+            title = #{title},
+            write_dt = #{writeDt},
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        where write_year = #{writeYear}
+            and doc_type = #{docType}
+            and doc_no = #{docNo}
+            and chart_id = #{chartId};
+    </update>
+
+    <insert id="insertEmergencyControlTaskAsgmtRole" parameterType="kr.co.igns.business.impl.model.EmergencyControlTaskAsgmtVO">
+        INSERT INTO esg.tb_emergency_control_task_asgmt_detail (
+            write_year,
+            doc_type,
+            doc_no,
+            role_id,
+            role_nm,
+            created_at,
+            created_by,
+            comp_id,
+            task
+        )
+        VALUES (
+            #{writeYear},
+            #{docType},
+            #{docNo},
+            #{roleId},
+            #{roleNm},
+            now(),
+            #{createdBy},
+            #{compId},
+            #{task}
+        )
+    </insert>
+
+    <update id="updateEmergencyControlTaskAsgmtRole" parameterType="kr.co.igns.business.impl.model.EmergencyControlTaskAsgmtVO">
+        update esg.tb_emergency_control_task_asgmt_detail set
+            task = #{task},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        where write_year = #{writeYear}
+            and doc_type = #{docType}
+            and doc_no = #{docNo}
+            and role_id = #{roleId};
+    </update>
+
+    <delete id="deleteEmergencyControlTaskAsgmtHr" parameterType="kr.co.igns.business.impl.model.EmergencyControlTaskAsgmtVO">
+        delete from esg.tb_emergency_control_task_asgmt_detail_hr
+        where write_year = #{writeYear}
+            and doc_type = #{docType}
+            and doc_no = #{docNo}
+            and role_id = #{roleId}
+            and comp_id = #{compId}
+    </delete>
+
+    <insert id="insertEmergencyControlTaskAsgmtHr" parameterType="kr.co.igns.business.impl.model.EmergencyControlTaskAsgmtVO">
+        INSERT INTO esg.tb_emergency_control_task_asgmt_detail_hr (
+            write_year,
+            doc_type,
+            doc_no,
+            role_id,
+            hr_id,
+            created_at,
+            created_by,
+            comp_id
+        )
+        VALUES (
+            #{writeYear},
+            #{docType},
+            #{docNo},
+            #{roleId},
+            #{hrId},
+            now(),
+            #{createdBy},
+            #{compId}
+        )
+    </insert>
+
+
+    <select id='getAllReport' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.common.model.SpSearchVO'>
+        select t1.*
+			 from esg.tb_emergency_control_task_asgmt t1
+			 where t1.write_year = #{writeYear}
+			 	and t1.comp_id  = #{compId}
+			 	and t1.use_yn = 'Y'
+    </select>
+
+</mapper>

@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Created with Jaspersoft Studio version 6.20.0.final using JasperReports Library version 6.20.0-2bc7ab61c56f459e8176eb05c7705e145cd400ad  -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="hsePolicy" pageWidth="595" pageHeight="842" columnWidth="555" leftMargin="20" rightMargin="20" topMargin="10" bottomMargin="10" uuid="46de0c63-4e39-4340-b914-f8cff5d546fd">
+	<property name="com.jaspersoft.studio.data.defaultdataadapter" value="One Empty Record"/>
+	<property name="com.jaspersoft.studio.data.sql.tables" value=""/>
+	<style name="Crosstab_CH" mode="Opaque" backcolor="#F0F8FF">
+		<box>
+			<pen lineWidth="0.5" lineColor="#FFFFFF"/>
+			<topPen lineWidth="0.5" lineColor="#FFFFFF"/>
+			<leftPen lineWidth="0.5" lineColor="#FFFFFF"/>
+			<bottomPen lineWidth="0.5" lineColor="#FFFFFF"/>
+			<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+		</box>
+	</style>
+	<style name="Crosstab_CG" mode="Opaque" backcolor="#BFE1FF">
+		<box>
+			<pen lineWidth="0.5" lineColor="#FFFFFF"/>
+			<topPen lineWidth="0.5" lineColor="#FFFFFF"/>
+			<leftPen lineWidth="0.5" lineColor="#FFFFFF"/>
+			<bottomPen lineWidth="0.5" lineColor="#FFFFFF"/>
+			<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+		</box>
+	</style>
+	<style name="Crosstab_CT" mode="Opaque" backcolor="#005FB3">
+		<box>
+			<pen lineWidth="0.5" lineColor="#FFFFFF"/>
+			<topPen lineWidth="0.5" lineColor="#FFFFFF"/>
+			<leftPen lineWidth="0.5" lineColor="#FFFFFF"/>
+			<bottomPen lineWidth="0.5" lineColor="#FFFFFF"/>
+			<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+		</box>
+	</style>
+	<style name="Crosstab_CD" mode="Opaque" backcolor="#FFFFFF">
+		<box>
+			<pen lineWidth="0.5" lineColor="#FFFFFF"/>
+			<topPen lineWidth="0.5" lineColor="#FFFFFF"/>
+			<leftPen lineWidth="0.5" lineColor="#FFFFFF"/>
+			<bottomPen lineWidth="0.5" lineColor="#FFFFFF"/>
+			<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+		</box>
+	</style>
+	<parameter name="contentHeader" class="java.lang.String"/>
+	<parameter name="contentBody" class="java.lang.String"/>
+	<parameter name="contentObject" class="java.lang.String"/>
+	<parameter name="contentFooter" class="java.lang.String"/>
+	<parameter name="signature" class="java.io.InputStream"/>
+	<parameter name="logo" class="java.io.InputStream"/>
+	<parameter name="clntNm" class="java.lang.String"/>
+	<parameter name="page" class="java.lang.Integer"/>
+	<parameter name="subPage" class="java.lang.Integer"/>
+	<parameter name="localPage" class="java.lang.Integer"/>
+	<parameter name="hrNm" class="java.lang.String"/>
+	<queryString>
+		<![CDATA[]]>
+	</queryString>
+	<pageHeader>
+		<band height="120">
+			<textField textAdjust="StretchHeight">
+				<reportElement stretchType="ContainerHeight" mode="Opaque" x="0" y="73" width="555" height="40" isPrintWhenDetailOverflows="true" uuid="405a4846-837e-45da-a9ca-bb6d3f0482a6">
+					<property name="com.jaspersoft.studio.unit.width" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="20" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{contentHeader}]]></textFieldExpression>
+			</textField>
+			<image>
+				<reportElement x="0" y="0" width="555" height="40" uuid="7cbad660-866c-4e6e-9f5a-f701980a99f2">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<imageExpression><![CDATA["classpath:/report/participation/hsePolicy/bg_header.png"]]></imageExpression>
+			</image>
+			<image scaleImage="RetainShape" hAlign="Left" vAlign="Middle">
+				<reportElement x="0" y="41" width="130" height="30" uuid="da75b326-471d-463c-bb40-327e6d87de5c">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<imageExpression><![CDATA[$P{logo}]]></imageExpression>
+			</image>
+			<textField>
+				<reportElement x="478" y="42" width="75" height="29" uuid="b5635316-597a-4a2b-830b-eb2cc3158785"/>
+				<textElement textAlignment="Right">
+					<font fontName="맑은 고딕" size="12" isBold="false"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{subPage} <= 0 ?  "" : $P{localPage} <= 0 ? "": $P{subPage} + " - " + ($P{localPage}+$V{PAGE_NUMBER}-1)]]></textFieldExpression>
+			</textField>
+		</band>
+	</pageHeader>
+	<detail>
+		<band height="160" splitType="Stretch">
+			<property name="com.jaspersoft.studio.unit.height" value="px"/>
+			<textField textAdjust="StretchHeight">
+				<reportElement stretchType="ContainerHeight" mode="Opaque" x="0" y="0" width="555" height="160" isPrintWhenDetailOverflows="true" uuid="b72f4ef4-90b1-4c83-bc71-d8ee276c0721"/>
+				<box padding="5"/>
+				<textElement>
+					<font size="12"/>
+					<paragraph lineSpacing="Fixed" lineSpacingSize="16.0"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{contentBody}]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+	<pageFooter>
+		<band height="75">
+			<textField>
+				<reportElement x="227" y="43" width="100" height="30" uuid="8aac79fe-0d52-4096-8714-de68bf304e6c"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="맑은 고딕" size="12"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{page} == null ? $V{PAGE_NUMBER} : $P{page}+$V{PAGE_NUMBER}-1]]></textFieldExpression>
+			</textField>
+			<image>
+				<reportElement x="0" y="0" width="555" height="40" uuid="ec4aaa74-cc67-4f82-ad08-d4a8d52b3f37">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+					<property name="com.jaspersoft.studio.unit.width" value="px"/>
+				</reportElement>
+				<imageExpression><![CDATA["classpath:/report/leaderShip/shManagePolicy/bg_footer.png"]]></imageExpression>
+			</image>
+		</band>
+	</pageFooter>
+	<lastPageFooter>
+		<band height="146">
+			<property name="com.jaspersoft.studio.unit.height" value="pixel"/>
+			<textField>
+				<reportElement x="227" y="116" width="100" height="30" uuid="e3d4f31d-eb1d-41cf-b808-ee98e0a5d43c"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="맑은 고딕" size="12"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{page} <= 0 ? $V{PAGE_NUMBER} > 1 ? ($V{PAGE_NUMBER} - 1) : "" : $P{page}+$V{PAGE_NUMBER} - 1]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement mode="Opaque" x="290" y="40" width="110" height="30" uuid="5ff9d4ef-28c7-4f08-b4b9-41086283e7ab"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="맑은 고딕" size="16"/>
+				</textElement>
+				<textFieldExpression><![CDATA["승인자: "]]></textFieldExpression>
+			</textField>
+			<textField textAdjust="StretchHeight">
+				<reportElement stretchType="ContainerHeight" mode="Opaque" x="170" y="0" width="385" height="40" uuid="afb23023-c2ae-481b-9890-7143a53f6b24">
+					<property name="com.jaspersoft.studio.unit.width" value="px"/>
+				</reportElement>
+				<box padding="5"/>
+				<textElement textAlignment="Right" verticalAlignment="Bottom">
+					<font size="14"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{contentFooter}]]></textFieldExpression>
+			</textField>
+			<image>
+				<reportElement x="0" y="74" width="555" height="40" uuid="11d615c2-e478-4471-889a-80b8a81c10f5">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+					<property name="com.jaspersoft.studio.unit.width" value="px"/>
+				</reportElement>
+				<imageExpression><![CDATA["classpath:/report/participation/hsePolicy/bg_footer.png"]]></imageExpression>
+			</image>
+			<textField>
+				<reportElement mode="Opaque" x="400" y="40" width="94" height="30" uuid="bcbd94d6-378d-4c04-8b02-70c38c126ad5"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="맑은 고딕" size="16"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{hrNm}]]></textFieldExpression>
+			</textField>
+			<image hAlign="Center" vAlign="Middle">
+				<reportElement x="494" y="40" width="58" height="30" uuid="3f0636eb-67d3-4731-8ed1-2e897e72742b">
+					<property name="com.jaspersoft.studio.unit.width" value="pixel"/>
+					<printWhenExpression><![CDATA[$P{signature} != null]]></printWhenExpression>
+				</reportElement>
+				<imageExpression><![CDATA[$P{signature}]]></imageExpression>
+			</image>
+			<textField>
+				<reportElement mode="Opaque" x="494" y="40" width="61" height="30" uuid="c20f01ee-cdf1-4a2c-98ed-75d57459a077">
+					<printWhenExpression><![CDATA[$P{signature} == null]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="맑은 고딕" size="16"/>
+				</textElement>
+				<textFieldExpression><![CDATA["(인)"]]></textFieldExpression>
+			</textField>
+		</band>
+	</lastPageFooter>
+</jasperReport>

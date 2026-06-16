@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.planning.dao.postgres.LegalMgmtAndComplianceEvaluationDAO">
+    <select id='getLegalMgmtAndComplianceEvaluation' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.planning.model.LegalMgmtAndComplianceEvaluationVO'>
+        SELECT
+            'legalManage' AS title
+            ,'/LegalManage' AS route
+            ,'legalManageDesc' AS description
+            , case when legalManage.exist then 'Y'
+            	else 'N'
+            	end as activeYn
+        FROM
+        (
+            SELECT EXISTS (
+                SELECT 1
+                FROM esg.tb_legal_manage A	
+                WHERE A.comp_id  = #{compId}
+                    AND A.confirmed_yn = 'Y'
+            ) as exist
+        ) AS legalManage
+        union all
+        SELECT
+            'legalReview' AS title
+            ,'/LegalReview' AS route
+            ,'legalReviewDesc' AS description
+            , case when legalReview.exist then 'Y'
+            	else 'N'
+            	end as activeYn
+        FROM
+        (
+            SELECT EXISTS (
+                SELECT 1
+                FROM esg.tb_legal_review A	
+                WHERE A.comp_id  = #{compId}
+                    AND A.write_year = #{searchText}
+            ) as exist
+        ) AS legalReview
+    </select>
+
+</mapper>

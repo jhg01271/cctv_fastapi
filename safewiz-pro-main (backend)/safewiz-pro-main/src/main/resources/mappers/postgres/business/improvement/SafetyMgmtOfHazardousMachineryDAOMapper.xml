@@ -1,0 +1,453 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.co.igns.business.improvement.dao.postgres.SafetyMgmtOfHazardousMachineryDAO">
+	<resultMap id="SafetyMgmtResultMap" type="kr.co.igns.business.improvement.model.SafetyMgmtOfHazardousMachineryRequestVO">
+		<id property="safetyMgmt.equipmentId" column="equipment_id" />
+		<result property="safetyMgmt.writeYear" column="write_year" />
+		<result property="safetyMgmt.docType" column="doc_type" />
+		<result property="safetyMgmt.docNo" column="doc_no" />
+		<result property="safetyMgmt.compId" column="comp_id" />
+		<result property="safetyMgmt.equipmentId" column="equipment_id" />
+		<result property="safetyMgmt.equipmentMgmtNum" column="equipment_mgmt_num" />
+		<result property="safetyMgmt.stdEqId" column="std_eq_id" />
+		<result property="safetyMgmt.stdEqNm" column="std_eq_nm" />
+		<result property="safetyMgmt.equipmentMfSpec" column="equipment_mf_spec" />
+		<result property="safetyMgmt.inspectionCycle" column="inspection_cycle" />
+		<result property="safetyMgmt.inspectionExpiryDate" column="inspection_expiry_date" />
+		<result property="safetyMgmt.useYn" column="use_yn" />
+		<result property="safetyMgmt.equipmentNm" column="equipment_nm" />
+		<result property="safetyMgmt.lastInspectionDate" column="last_inspection_date" />
+		<result property="safetyMgmt.lastNextInspectionDate" column="last_next_inspection_date" />
+
+		<collection property="safetyMgmtOrgnList" ofType="kr.co.igns.business.improvement.model.SafetyMgmtOfHazardousMachineryOrgnVO">
+			<result property="writeYear" column="o_write_year" />
+			<result property="docType" column="o_doc_type" />
+			<result property="docNo" column="o_doc_no" />
+			<result property="orgnId" column="orgn_id" />
+			<result property="orgnNm" column="orgn_nm" />
+			<result property="cardOrgnNm" column="card_orgn_nm" />
+		</collection>
+		
+		<collection property="safetyMgmtInspectionList" javaType="ArrayList" ofType="kr.co.igns.business.improvement.model.SafetyMgmtOfHazardousMachineryInspectionVO">
+			<result property="writeYear" column="i_write_year" />
+			<result property="docType" column="i_doc_type" />
+			<result property="docNo" column="i_doc_no" />
+			<result property="inspectionWriteYear" column="inspection_write_year" />
+			<result property="useYn" column="i_use_yn" />
+			<result property="docSeq" column="doc_seq" />
+			<result property="inspectionDate" column="inspection_date" />
+			<result property="inspectionValidFromDt" column="inspection_valid_from_dt" />
+			<result property="inspectionValidToDt" column="inspection_valid_to_dt" />
+			<result property="nextInspectionDate" column="next_inspection_date" />
+			<result property="useYn" column="i_use_yn" />
+			<result property="stdEqId" column="i_std_eq_id" />
+		</collection>
+	</resultMap>
+	
+	<select id="getSafetyMgmts" resultMap="SafetyMgmtResultMap" parameterType='kr.co.igns.system.common.model.SpSearchVO'>
+		select DISTINCT ON (a.equipment_id)
+		       a.write_year
+		     , a.doc_type
+		     , a.doc_no
+		     , a.comp_id
+		     , a.equipment_id
+		     , a.equipment_mgmt_num
+			 , a.equipment_mf_spec
+			 , a.inspection_cycle
+			 , a.inspection_expiry_date
+			 , a.use_yn
+			 , b.write_year as inspection_write_year
+			 , b.doc_seq
+			 , COALESCE(b.inspection_date, '') as inspection_date
+			 , COALESCE(b.next_inspection_date, '') as next_inspection_date
+			 , b.use_yn as i_use_yn
+			 , coalesce(
+			 nullif(
+			 (select string_agg(orgn_nm, ', ')
+			    from esg.tb_safety_mgmt_of_hazardous_machinery_orgn
+			   where write_year = a.write_year
+			     and doc_type = a.doc_type
+			     and doc_no = a.doc_no)
+			 , '')
+			 , '미설정') as card_orgn_nm
+			 , COALESCE(c.inspection_date, '') as last_inspection_date
+			 , COALESCE(c.next_inspection_date, '') as last_next_inspection_date
+			 , d.equipment_nm
+			 , e.orgn_id
+			 , e.orgn_nm
+			 , f.std_eq_nm
+			 , b.inspection_valid_from_dt
+			 , b.inspection_valid_to_dt
+			 , d.std_eq_id
+			 , d.std_eq_id as i_std_eq_id
+		from esg.tb_safety_mgmt_of_hazardous_machinery a
+		       left join esg.tb_safety_mgmt_of_hazardous_machinery_inspections b
+		              on b.write_year = a.write_year
+		              and b.doc_type = a.doc_type
+		              and b.doc_no = a.doc_no
+		       left join (select z.write_year, z.doc_type, z.doc_no, z.inspection_date, z.next_inspection_date
+						    from esg.tb_safety_mgmt_of_hazardous_machinery_inspections z
+						         inner join (select write_year, doc_type, doc_no, max(doc_seq) doc_seq
+											   from esg.tb_safety_mgmt_of_hazardous_machinery_inspections
+											  where use_yn = 'Y'
+											 group by write_year, doc_type, doc_no) zz
+								         on zz.write_year = z.write_year
+								         and zz.doc_type = z.doc_type
+								         and zz.doc_no = z.doc_no
+								         and zz.doc_seq = z.doc_seq) c
+		              on c.write_year = a.write_year
+		              and c.doc_type = a.doc_type
+		              and c.doc_no = a.doc_no
+		       left join esg.tb_equipment_info d
+					  on d.equipment_id = a.equipment_id
+			   left join esg.tb_safety_mgmt_of_hazardous_machinery_orgn e
+			          on e.write_year = a.write_year
+			          and e.doc_type = a.doc_type
+			          and e.doc_no = a.doc_no
+			   left join esg.tb_dataset_typeofequipment f
+					  on a.comp_id = f.comp_id
+					 and d.std_eq_id = f.std_eq_id
+		where a.comp_id = #{compId}
+		<![CDATA[
+		  and ((NULLIF(b.inspection_date,'') IS NOT NULL AND TO_CHAR(NULLIF(b.inspection_date,'')::date,'YYYY') <= #{writeYear})
+				OR NULLIF(b.inspection_date,'') IS NULL
+			   )
+		]]>
+		order by a.equipment_id asc, a.use_yn desc, b.use_yn desc, b.inspection_date desc, b.doc_seq, e.orgn_id
+
+--		select 
+--			A.write_year, A.doc_type, A.doc_no, A.comp_id, A.equipment_id, A.equipment_mgmt_num,
+--	        A.equipment_mf_spec, A.inspection_cycle, A.inspection_expiry_date, A.use_yn,
+--	        B.write_year as o_write_year, B.doc_type as o_doc_type, B.doc_no as o_doc_no, B.orgn_id, B.orgn_nm,
+--	        C.write_year as i_write_year, C.doc_type as i_doc_type, C.doc_no as i_doc_no, C.doc_seq, C.inspection_date,
+--			C.next_inspection_date, C.use_yn AS i_use_yn,
+--			D.equipment_nm
+--		 from esg.tb_safety_mgmt_of_hazardous_machinery A
+--		left join esg.tb_safety_mgmt_of_hazardous_machinery_orgn B
+--			on A.doc_no = B.doc_no and A.write_year = B.write_year
+--		left join esg.tb_safety_mgmt_of_hazardous_machinery_inspections C
+--			on A.doc_no = C.doc_no and A.write_year = C.write_year
+--		left join esg.tb_equipment_info D
+--			on A.equipment_id = D.equipment_id
+--		order by A.use_yn desc, C.doc_seq asc;
+	</select>
+
+	<select id="getSafetyMgmtsByDocNo" resultMap="SafetyMgmtResultMap" parameterType='kr.co.igns.system.common.model.SpSearchVO'>
+		select
+		a.write_year
+		, a.doc_type
+		, a.doc_no
+		, a.comp_id
+		, a.equipment_id
+		, a.equipment_mgmt_num
+		, a.equipment_mf_spec
+		, a.inspection_cycle
+		, a.inspection_expiry_date
+		, a.use_yn
+		, b.write_year as inspection_write_year
+		, b.doc_seq
+		, COALESCE(b.inspection_date, '') as inspection_date
+		, COALESCE(b.next_inspection_date, '') as next_inspection_date
+		, b.use_yn as i_use_yn
+		, coalesce(
+		nullif(
+		(select string_agg(orgn_nm, ', ')
+		from esg.tb_safety_mgmt_of_hazardous_machinery_orgn
+		where write_year = a.write_year
+		and doc_type = a.doc_type
+		and doc_no = a.doc_no)
+		, '')
+		, '미설정') as card_orgn_nm
+		, COALESCE(c.inspection_date, '') as last_inspection_date
+		, COALESCE(c.next_inspection_date, '') as last_next_inspection_date
+		, d.equipment_nm
+		, e.orgn_id
+		, e.orgn_nm
+		, f.std_eq_nm
+		, b.inspection_valid_from_dt
+		, b.inspection_valid_to_dt
+		from esg.tb_safety_mgmt_of_hazardous_machinery a
+		left join esg.tb_safety_mgmt_of_hazardous_machinery_inspections b
+		on b.write_year = a.write_year
+		and b.doc_type = a.doc_type
+		and b.doc_no = a.doc_no
+		left join (select z.write_year, z.doc_type, z.doc_no, z.inspection_date, z.next_inspection_date
+		from esg.tb_safety_mgmt_of_hazardous_machinery_inspections z
+		inner join (select write_year, doc_type, doc_no, max(doc_seq) doc_seq
+		from esg.tb_safety_mgmt_of_hazardous_machinery_inspections
+		where use_yn = 'Y'
+		group by write_year, doc_type, doc_no) zz
+		on zz.write_year = z.write_year
+		and zz.doc_type = z.doc_type
+		and zz.doc_no = z.doc_no
+		and zz.doc_seq = z.doc_seq) c
+		on c.write_year = a.write_year
+		and c.doc_type = a.doc_type
+		and c.doc_no = a.doc_no
+		left join esg.tb_equipment_info d
+		on d.equipment_id = a.equipment_id
+		left join esg.tb_safety_mgmt_of_hazardous_machinery_orgn e
+		on e.write_year = a.write_year
+		and e.doc_type = a.doc_type
+		and e.doc_no = a.doc_no
+		left join esg.tb_dataset_typeofequipment f
+		on a.comp_id = f.comp_id
+		and d.std_eq_id = f.std_eq_id
+		where a.comp_id = #{compId}
+		  and (b.use_yn is null or b.use_yn = 'Y')
+		  and a.doc_no IN
+		<foreach collection='docNoList' item='docNo' open="(" separator="," close=")">
+			#{docNo}
+		</foreach>
+		order by a.equipment_id asc, a.use_yn desc, b.use_yn desc, b.inspection_date desc, b.doc_seq, e.orgn_id
+	</select>
+	<!-- 메인 조회 -->
+	<select id='getSafetyMgmt' parameterType='kr.co.igns.business.improvement.model.SafetyMgmtOfHazardousMachineryVO' resultType="kr.co.igns.business.improvement.model.SafetyMgmtOfHazardousMachineryVO">
+  		SELECT 
+  			A.write_year,
+		  	A.doc_type,
+		   	A.doc_no,
+		   	A.comp_id,
+		   	A.equipment_id,
+		   	A.equipment_mgmt_num,
+		   	A.equipment_mf_spec,
+		   	A.inspection_cycle,
+		   	A.inspection_expiry_date,
+		   	A.use_yn,
+		   	B.equipment_nm
+	  	FROM esg.tb_safety_mgmt_of_hazardous_machinery A
+	  	LEFT JOIN esg.tb_equipment_info B
+	  	ON A.equipment_id = B.equipment_id
+	  	WHERE A.doc_type = #{docType}
+		AND	A.comp_id = #{compId}
+		AND	A.equipment_id = #{equipmentId};
+    </select>
+    
+    <select id="getSafetyMgmtOrgns" parameterType='kr.co.igns.business.improvement.model.SafetyMgmtOfHazardousMachineryVO' resultType="kr.co.igns.business.improvement.model.SafetyMgmtOfHazardousMachineryOrgnVO">
+    	SELECT 
+  			A.write_year,
+		  	A.doc_type,
+		   	A.doc_no,
+		   	A.orgn_id,
+			A.orgn_nm
+	  	FROM esg.tb_safety_mgmt_of_hazardous_machinery_orgn A
+	  	WHERE A.doc_type = #{docType}
+		AND	A.doc_no = #{docNo};
+    </select>
+    
+    <select id="getSafetyMgmtInspections" parameterType='kr.co.igns.business.improvement.model.SafetyMgmtOfHazardousMachineryVO' resultType="kr.co.igns.business.improvement.model.SafetyMgmtOfHazardousMachineryInspectionVO">
+    	SELECT 
+  			A.write_year,
+		  	A.doc_type,
+		   	A.doc_no,
+		   	A.doc_seq,
+			A.inspection_date,
+		    A.inspection_valid_from_dt,
+		    A.inspection_valid_to_dt,
+			A.next_inspection_date,
+			A.use_yn
+	  	FROM esg.tb_safety_mgmt_of_hazardous_machinery_inspections A
+	  	WHERE A.doc_type = #{docType}
+		AND	A.doc_no = #{docNo}
+		ORDER BY A.use_yn DESC, A.inspection_date DESC, A.inspection_valid_from_dt DESC, a.inspection_valid_to_dt DESC, a.doc_seq DESC;
+    </select>
+    
+	<insert id="insertSafetyMgmt" parameterType="kr.co.igns.business.improvement.model.SafetyMgmtOfHazardousMachineryVO">
+		<selectKey keyProperty="docNo" resultType="kr.co.igns.business.impl.model.ContractorInvestigationFormVO" order="BEFORE">
+			SELECT LPAD((COALESCE(MAX(doc_no)::INTEGER, 0) + 1)::TEXT,5,'0') AS docNo
+			FROM esg.tb_safety_mgmt_of_hazardous_machinery
+			WHERE write_year = #{writeYear}
+		</selectKey>
+
+	    INSERT INTO esg.tb_safety_mgmt_of_hazardous_machinery
+	    (
+	        write_year,
+	        doc_type,
+	        doc_no,
+	        comp_id,
+	        equipment_id,
+	        equipment_mgmt_num,
+	        equipment_mf_spec,
+	        inspection_cycle,
+	        inspection_expiry_date,
+	        use_yn,
+	        created_at,
+	        created_by
+	    )
+	    VALUES
+	    (
+	        #{writeYear},
+	        #{docType},
+	        #{docNo},
+	        #{compId},
+	        #{equipmentId},
+	        #{equipmentMgmtNum},
+	        #{equipmentMfSpec},
+	        #{inspectionCycle},
+	        #{inspectionExpiryDate},
+	        #{useYn},
+	        now(),
+	        #{createdBy}
+	    )
+	</insert>
+	
+	<update id="updateSafetyMgmt" parameterType="kr.co.igns.business.improvement.model.SafetyMgmtOfHazardousMachineryVO">
+		UPDATE esg.tb_safety_mgmt_of_hazardous_machinery
+		SET
+			write_year = #{writeYear},
+            doc_type = #{docType},
+            comp_id = #{compId},
+            equipment_id = #{equipmentId},
+            equipment_mgmt_num = #{equipmentMgmtNum},
+            equipment_mf_spec = #{equipmentMfSpec},
+            inspection_cycle = #{inspectionCycle},
+            inspection_expiry_date = #{inspectionExpiryDate},
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+    	WHERE 
+    		doc_no = #{docNo} 
+    	AND write_year = #{writeYear} 
+    	AND doc_type = #{docType}
+	</update>
+	
+	<insert id="insertSafetyMgmtOrgn" parameterType="kr.co.igns.business.improvement.model.SafetyMgmtOfHazardousMachineryOrgnVO">
+		INSERT INTO esg.tb_safety_mgmt_of_hazardous_machinery_orgn
+		(
+			write_year,
+			doc_type,
+			doc_no,
+			orgn_id,
+			orgn_nm,
+			created_at,
+			created_by
+		)
+		VALUES
+		(
+			#{writeYear},
+			#{docType},
+			#{docNo},
+			#{orgnId},
+			#{orgnNm},
+			now(),
+			#{createdBy}
+		)
+	</insert>
+	
+	<insert id="insertSafetyMgmtInspection" parameterType="kr.co.igns.business.improvement.model.SafetyMgmtOfHazardousMachineryInspectionVO">
+		<selectKey keyProperty="docSeq" resultType="string" order="BEFORE">
+    		SELECT LPAD((COALESCE(MAX(SUBSTRING(doc_seq, 1, 5)::INTEGER), 0) + 1)::TEXT, 5, '0') AS docSeq
+    		FROM esg.tb_safety_mgmt_of_hazardous_machinery_inspections
+    		WHERE 
+    			write_year = #{writeYear}
+			AND	doc_type = #{docType}
+			AND	doc_no = #{docNo}
+    	</selectKey>
+    	
+		INSERT INTO esg.tb_safety_mgmt_of_hazardous_machinery_inspections			
+		(
+			write_year,
+			doc_type,
+			doc_no,
+			doc_seq,
+			inspection_date,
+			inspection_valid_from_dt,
+			inspection_valid_to_dt,
+			next_inspection_date,
+			use_yn,
+			created_at,
+			created_by
+		)
+		VALUES
+		(
+			#{writeYear},
+			#{docType},
+			#{docNo},
+			#{docSeq},
+			#{inspectionDate},
+			#{inspectionValidFromDt},
+			#{inspectionValidToDt},
+			#{nextInspectionDate},
+			#{useYn},
+			now(),
+			#{createdBy}
+		)
+	</insert>
+	<update id="updateSafetyMgmtInspection">
+		UPDATE esg.tb_safety_mgmt_of_hazardous_machinery_inspections
+		SET
+            inspection_date = #{inspectionDate},
+			inspection_valid_from_dt = #{inspectionValidFromDt},
+			inspection_valid_to_dt = #{inspectionValidToDt},
+            next_inspection_date = #{nextInspectionDate},
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+            
+    	WHERE 
+    		doc_seq = #{docSeq}
+   		AND	doc_no = #{docNo}
+   		AND	doc_type = #{docType}
+   		AND write_year = #{writeYear};
+	</update>
+	
+	<select id='getDocNo' parameterType="kr.co.igns.business.improvement.model.SafetyMgmtOfHazardousMachineryVO" resultType="String">
+    	SELECT LPAD((COALESCE(MAX(CAST(A.doc_no AS INTEGER)), 0) + 1)::TEXT, 5, '0') AS docNo
+	  		FROM esg.tb_safety_mgmt_of_hazardous_machinery A
+	 	WHERE A.comp_id = #{compId}
+	   	  AND A.write_year = #{writeYear}
+	   	  AND A.doc_type = #{docType};
+    </select>
+    
+   	<select id="getSafetyMgmtOrgnByDocNo" parameterType="kr.co.igns.business.improvement.model.SafetyMgmtOfHazardousMachineryOrgnVO" resultType="kr.co.igns.business.improvement.model.SafetyMgmtOfHazardousMachineryOrgnVO">
+   		SELECT 
+   			A.write_year,
+			A.doc_type,
+			A.doc_no,
+			A.orgn_id,
+			A.orgn_nm,
+			A.created_at,
+			A.created_by,
+			A.updated_at,
+			A.updated_by
+ 		FROM esg.tb_safety_mgmt_of_hazardous_machinery_orgn A
+		WHERE 
+			A.doc_no = #{docNo}
+		AND A.write_year = #{writeYear}
+		AND A.doc_type = #{docType};
+		
+   	</select>
+   	
+   	<update id="deleteSafetyMgmt" parameterType="kr.co.igns.business.improvement.model.SafetyMgmtOfHazardousMachineryVO">
+   		UPDATE 
+   			esg.tb_safety_mgmt_of_hazardous_machinery
+   		SET
+   			use_yn = 'N'
+   		WHERE
+	   	 	write_year = #{writeYear}
+	   	AND doc_type = #{docType}
+		AND	doc_no = #{docNo};
+   	</update>
+   	
+   	<update id="deleteSafetyMgmtInspection" parameterType="kr.co.igns.business.improvement.model.SafetyMgmtOfHazardousMachineryInspectionVO">
+   		UPDATE
+   			esg.tb_safety_mgmt_of_hazardous_machinery_inspections
+ 		SET
+ 			use_yn = 'N'
+ 		WHERE
+ 			write_year = #{writeYear}
+ 		AND	doc_type = #{docType}
+ 		AND	doc_no = #{docNo}
+ 		AND doc_seq = #{docSeq};
+   	</update>
+    
+    <delete id="deleteSafetyMgmtOrgn" parameterType="String">
+    	DELETE FROM esg.tb_safety_mgmt_of_hazardous_machinery_orgn A
+    	WHERE 
+    		A.write_year = #{writeYear}
+   		AND	A.doc_type = #{docType}
+   		AND	A.doc_no = #{docNo}
+   		AND A.orgn_id = #{orgnId};
+    </delete>
+    
+</mapper>

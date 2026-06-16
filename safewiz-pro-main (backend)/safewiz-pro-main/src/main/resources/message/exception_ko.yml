@@ -1,0 +1,224 @@
+unKnown:
+  code: "9999"
+  msg: "알수 없는 오류가 발생하였습니다."
+#create
+createSuccess:
+  code: "0000"
+  msg: "등록에 성공하였습니다"
+createFail:
+  code: "2101"
+  msg: "등록에 실패하였습니다"
+#update
+updateSuccess:
+  code: "0000"
+  msg: "수정에 성공하였습니다"
+updateFail:
+  code: "2105"
+  msg: "수정에 실패하였습니다"
+#read
+readSuccess:
+  code: "0000"
+  msg: "조회에 성공하였습니다"
+readFail:
+  code: "2102"
+  msg: "조회에 실패하였습니다"
+#update
+updateSuccess:
+  code: "0000"
+  msg: "변경에 성공하였습니다"
+updateFail:
+  code: "2103"
+  msg: "변경에 실패하였습니다"
+#delete
+deleteSuccess:
+  code: "0000"
+  msg: "삭제에 성공하였습니다"
+deleteFail:
+  code: "2104"
+  msg: "삭제에 실패하였습니다"
+#cancel
+cancelSuccess:
+  code: "0000"
+  msg: "취소를 성공하였습니다"
+cancelFail:
+  code: "2104"
+  msg: "취소를 실패하였습니다"
+
+# sql error
+noResultFound:
+  code: "2000"
+  msg: "조회결과가 없습니다."
+codeDuplicateError:
+  code: "2001"
+  msg: "코드값이 중복되었습니다. 코드값을 확인해 주세요."
+dataDuplicateError:
+  code: "2002"
+  msg: "데이터 제약조건위반 오류입니다. "
+dbConnectError:
+  code: "2003"
+  msg: "데이터베이스 연결오류입니다."
+deadlockError:
+  code: "2004"
+  msg: "교착 상태로 인해 작업이 실패하였습니다."
+badSqlGrmmar:
+  code: "2005"
+  msg: "SQL문법오류입니다. "
+invaildResult:
+  code: "2006"
+  msg: "부적합한/잘못된 열. "
+invaildParameter:
+  code: "2007"
+  msg: "  필수 조건 파라메타가 null입니다. "
+noResultDatabase:
+  code: "2008"
+  msg: "  데이터베이스 정보가 일치하지 않습니다. "
+# mail
+emailValidation:
+  code: "3004"
+  msg: "이메일 형식이 올바르지 않습니다"
+eMailAuthentication:
+  code: "103001"
+  msg: "메일 서버 인증에 실패하였습니다"
+eMailParse:
+  code: "103002"
+  msg: "메일 파실 오류 발생"
+eMailPreparation:
+  code: "103003"
+  msg: "메일 서버 통신 오류 발생"
+eMailSend:
+  code: "103004"
+  msg: "메일 발송에 실패하였습니다"
+eMailMessaging:
+  code: "103005"
+  msg: "자바 메일 API 오류 발생"
+# data error
+eJsonSyntax:
+  code: "109513"
+  msg: "JSON 파싱 오류"
+eDataAccessFail:
+  code: "109514"
+  msg: "데이터 저장에 실패하였습니다. 관리자에 문의해주세요"
+eDataFormatFail:
+  code: "109515"
+  msg: "데이터 형식이 올바르지 않습니다"
+eDateTimeFormatFail:
+  code: "109515"
+  msg: "날짜 형식이 올바르지 않습니다"
+#io_exception
+eFileNotFound:
+  code: "104001"
+  msg: "파일을 찾을 수 없습니다"
+eEOF:
+  code: "104002"
+  msg: "파일을 읽을 수 없습니다"
+eInterruptedIO:
+  code: "104003"
+  msg: "입출력 작업 중 인터럽트 발생"
+eCharConversion:
+  code: "104004"
+  msg: "문자 변환 작업 중 문자 인코딩 또는 디코딩 오류"
+eUnsupportedEncoding:
+  code: "104005"
+  msg: "지원하지 않는 문자 인코딩 또는 디코딩 시도"
+eSyncFailed:
+  code: "104006"
+  msg: " 동기화 작업 중 오류 발생"
+eObjectStream:
+  code: "104007"
+  msg: "객체 직렬화 및 역직렬화 예외 발생"
+eZip:
+  code: "104008"
+  msg: "ZIP 파일 압축 또는 압축 해제 오류"
+eSocket:
+  code: "104009"
+  msg: "네트워크 소켓 통신 오류"
+eMalformedURL:
+  code: "104010"
+  msg: "URL 형식이 잘못되었음"
+eConnectError:
+  code: "104011"
+  msg: "URL 연결 실패"
+#exception
+eNotFound:
+  code: "109999"
+  msg: "해당 데이터를 찾을 수 없습니다"
+eNullPoint:
+  code: "108800"
+  msg: "존재하지 않는 주소입니다."
+eIndexOfBounding:
+  code: "109500"
+  msg: "자바 런타임 오류"  
+eBadSqlGrammar:
+  code: "109500"
+  msg: "잘못된 SQL문"
+eInvaildResult:
+  code: "109501"
+  msg: "데이터베이스 집합 처리 오류"
+eDuplicateKey:
+  code: "109502"
+  msg: "중복된 데이터가 존재합니다"
+eTransientDataAccess:
+  code: "109503"
+  msg: "일시적인 데이터 액세스 오류"
+eNonTransientDataAccess:
+  code: "109504"
+  msg: "데이터 액세스 오류 (데이터를 복구할 수 없음)"
+eDataRetrievalFailure:
+  code: "109505"
+  msg: "데이터베이스 데이터를 검색하지 못함"
+eConcurrencyFailure:
+  code: "109506"
+  msg: "트랜잭션 병행 처리 오류"
+ePermissionDeniedDataAccess:
+  code: "109507"
+  msg: "데이터 액세스 권한 부족"
+eDataIntegrityViolation:
+  code: "109508"
+  msg: "데이터 무결성 위반"
+eDataAccessResourceFailure:
+  code: "109509"
+  msg: "데이터베이스에 연결할 수 없음"
+eCannotAcquireLock:
+  code: "109510"
+  msg: "데이터베이스 Lock 획득 실패"
+eDeadlockLoserDataAccess:
+  code: "109511"
+  msg: "트랙잭션 오류 (데드락)"
+eCannotSerializeTransaction:
+  code: "109512"
+  msg: "직렬화 가능한 트랜잭션 실패"
+eOptimisticLockingFailureException:
+  code: "109513"
+  msg: "D"
+eJsonSyntax:
+  code: "109513"
+  msg: "JSON 파싱 오류"
+eDataAccessFail:
+  code: "109514"
+  msg: "데이터 저장에 실패하였습니다. 관리자에 문의해주세요"
+eDataFormatFail:
+  code: "109515"
+  msg: "데이터 형식이 올바르지 않습니다"
+eIllegalArgument:
+  code: "109600"
+  msg: "허용되지 않는 인자로 인한 런타임 오류"
+  
+#로그인 
+eLoginFailedException:
+  msg: "로그인할 수 없습니다.\n아이디 또는 비밀번호를 확인해주세요."
+
+#자산관리
+eDeptLocNotFoundException:
+  code: "4901"
+  msg: "부서 위치정보를 찾을 수 없습니다."
+CAssetNotFoundException:
+  code: "4902"
+  msg: "자산 정보를 찾을 수 없습니다."
+#print
+ePrintConnect:
+  code: "4895"
+  msg: "프린트 연결에 실패했습니다"
+
+eMsdsApiError:
+  code: "4990"
+  msg: "MSDS Open API 연결이 원활하지 않습니다."

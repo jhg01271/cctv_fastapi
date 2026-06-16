@@ -1,0 +1,234 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.planning.dao.postgres.MsdsDAO">
+    <select id='getMsds' parameterType='kr.co.igns.system.common.model.SpSearchVO'  resultType='kr.co.igns.business.planning.model.MsdsVO'>
+        SELECT
+            TEI.MSDS_ID,
+            TEI.COMP_ID,
+            TEI.MSDS_NM,
+            TEI.MSDS_SYNONYM,
+            TEI.CAS_NO,
+            TEI.DAILY_VOLUME,
+            TEI.DAILY_VOLUME_UNIT,
+            TEI.DAILY_TIME,
+            TEI."desc",
+            TEI.ORD_SEQ,
+            TEI.USE_YN,
+            TEI.CREATED_AT,
+            TEI.CREATED_BY,
+            TEI.UPDATED_AT,
+            TEI.UPDATED_BY,
+            SF.FILE_ID AS FILE_ID
+        FROM
+            ESG.TB_MSDS_INFO TEI
+                -- 파일
+                LEFT JOIN ESG.TB_SYS_FILE SF ON SF.TARGET_ID = TEI.MSDS_ID AND SF.TARGET_TYPE='msds'
+        WHERE 1=1
+          AND TEI.COMP_ID = #{compId}
+        ORDER BY TEI.USE_YN DESC, TEI.ORD_SEQ ASC, TEI.CREATED_AT ASC
+    </select>
+
+    <select id='getMsdsDetail' parameterType='kr.co.igns.system.common.model.SpSearchVO'  resultType='kr.co.igns.business.planning.model.MsdsVO'>
+        SELECT
+            TEI.MSDS_ID,
+            TEI.COMP_ID,
+            TEI.MSDS_NM,
+            TEI.MSDS_SYNONYM,
+            TEI.CAS_NO,
+            TEI.DAILY_VOLUME,
+            TEI.DAILY_VOLUME_UNIT,
+            TEI.DAILY_TIME,
+            TEI."desc",
+            TEI.ORD_SEQ,
+            TEI.USE_YN,
+            TEI.CREATED_AT,
+            TEI.CREATED_BY,
+            TEI.UPDATED_AT,
+            TEI.UPDATED_BY,
+            SF.FILE_ID AS FILE_ID
+        FROM ESG.TB_MSDS_INFO TEI
+                 -- 파일
+                 LEFT JOIN ESG.TB_SYS_FILE SF ON SF.TARGET_ID = TEI.MSDS_ID AND SF.TARGET_TYPE='msds'
+        WHERE TEI.MSDS_ID = #{searchText};
+    </select>
+    
+    <select id="getAct" parameterType='kr.co.igns.system.common.model.SpSearchVO'  resultType='kr.co.igns.business.planning.model.MsdsLawVO'>
+   		SELECT 
+   			MSDS_ID,
+   			MSDS_ITEM_CODE,
+   			MSDS_ITEM_NAME_KOR,
+   			ITEM_DETAIL,
+   			ITEM_DETAIL AS id,
+   			ITEM_DETAIL AS nm
+   		FROM 
+   			ESG.TB_MSDS_INFO_LAW
+   		WHERE MSDS_ID = #{searchText}
+   		AND MSDS_ITEM_CODE = #{searchCd} 
+   
+    </select>
+    
+    <select id="getHrList" parameterType='kr.co.igns.system.common.model.SpSearchVO'  resultType='kr.co.igns.business.planning.model.MsdsHrVO'>
+   		SELECT 
+   			MSDS_ID,
+   			HR_ID,
+   			HR_NM,
+   			ORGN_NM,
+   			JBRP_NM,
+   			HR_ID AS id,
+   			HR_NM AS nm
+   		FROM 
+   			ESG.TB_MSDS_INFO_HR
+   		WHERE MSDS_ID = #{searchText}
+   
+    </select>
+
+    <insert id="insertMsds" parameterType="kr.co.igns.business.planning.model.MsdsVO" useGeneratedKeys="true" keyColumn="msds_id" keyProperty="msdsId">
+
+        <selectKey keyProperty="msdsId" resultType="kr.co.igns.business.planning.model.MsdsVO" order="BEFORE">
+            SELECT
+                TO_CHAR(now(), 'YYYYMMDD') || LPAD((COALESCE(MAX(SUBSTRING(MSDS_ID, 9)::INTEGER), 0) + 1)::TEXT, 5, '0') as MSDS_ID
+            FROM ESG.TB_MSDS_INFO
+            WHERE
+                SUBSTRING(MSDS_ID,1,8) = TO_CHAR(now(), 'YYYYMMDD')
+        </selectKey>
+
+        INSERT INTO ESG.TB_MSDS_INFO (
+            MSDS_ID,
+            COMP_ID,
+            MSDS_NM,
+            MSDS_SYNONYM,
+            CAS_NO,
+            DAILY_VOLUME,
+            DAILY_VOLUME_UNIT,
+            DAILY_TIME,
+            "desc",
+            ORD_SEQ,
+            USE_YN,
+            CREATED_AT,
+            CREATED_BY
+        )
+        VALUES
+        (
+            #{msdsId},
+            #{compId},
+            #{msdsNm},
+            #{msdsSynonym},
+            #{casNo},
+            cast(#{dailyVolume} as float),
+            #{dailyVolumeUnit},
+            cast(#{dailyTime} as float),
+            #{desc},
+            #{ordSeq},
+            #{useYn},
+            now(),
+            #{createdBy}
+        )
+    </insert>
+
+    <update id="updateMsds" parameterType="kr.co.igns.business.planning.model.MsdsVO">
+
+        UPDATE ESG.TB_MSDS_INFO
+        SET
+            MSDS_NM = #{msdsNm},
+            MSDS_SYNONYM = #{msdsSynonym},
+            CAS_NO = #{casNo},
+            DAILY_VOLUME = cast(#{dailyVolume} as float),
+            DAILY_VOLUME_UNIT = #{dailyVolumeUnit},
+            DAILY_TIME = cast(#{dailyTime} as float),
+            "desc" = #{desc},
+            ORD_SEQ = #{ordSeq},
+            USE_YN = #{useYn},
+            UPDATED_AT = now(),
+            UPDATED_BY = #{updatedBy}
+        WHERE MSDS_ID = #{msdsId}
+
+    </update>
+
+    <select id='getMsdsById' parameterType='String' resultType='kr.co.igns.business.planning.model.MsdsVO'>
+        SELECT
+            MSDS_ID,
+            COMP_ID,
+            MSDS_NM,
+            MSDS_SYNONYM,
+            CAS_NO,
+            DAILY_VOLUME,
+            DAILY_VOLUME_UNIT,
+            DAILY_TIME,
+            "desc",
+            ORD_SEQ,
+            USE_YN,
+            CREATED_AT,
+            CREATED_BY,
+            UPDATED_AT,
+            UPDATED_BY
+        FROM ESG.TB_MSDS_INFO
+        WHERE 1=1
+          AND MSDS_ID = #{msdsId}
+
+    </select>
+
+    <delete id="deleteMsds" parameterType="kr.co.igns.business.planning.model.MsdsVO">
+        UPDATE ESG.TB_MSDS_INFO
+        SET
+            USE_YN = 'N',
+            UPDATED_AT = now(),
+            UPDATED_BY = #{updatedBy}
+        WHERE MSDS_ID = #{msdsId}
+
+    </delete>
+    
+    <insert id='insertMsdsLaw' parameterType="kr.co.igns.business.planning.model.MsdsLawVO">
+    	INSERT INTO ESG.TB_MSDS_INFO_LAW (
+			MSDS_ID,
+			MSDS_ITEM_CODE,
+			MSDS_ITEM_NAME_KOR,
+			ITEM_DETAIL,
+			CREATED_AT,
+            CREATED_BY
+		) VALUES (
+			#{msdsId},
+			#{msdsItemCode},
+			#{msdsItemNameKor},
+			#{itemDetail},
+			now(),
+            #{createdBy}
+		)
+    	
+    </insert>
+    
+    <delete id="deleteLaw" parameterType="java.lang.String">
+        DELETE FROM ESG.TB_MSDS_INFO_LAW
+        WHERE MSDS_ID = #{msdsId}
+
+    </delete>
+    
+    <insert id='insertMsdsHr' parameterType="kr.co.igns.business.planning.model.MsdsHrVO">
+    	INSERT INTO ESG.TB_MSDS_INFO_HR (
+			MSDS_ID,
+			HR_ID,
+			HR_NM,
+			ORGN_NM,
+			JBRP_NM,
+			CREATED_AT,
+            CREATED_BY
+		) VALUES (
+			#{msdsId},
+			#{hrId},
+			#{hrNm},
+			#{orgnNm},
+			#{jbrpNm},
+			now(),
+            #{createdBy}
+		)
+    	
+    </insert>
+    
+      <delete id="deleteHr" parameterType="java.lang.String">
+        DELETE FROM ESG.TB_MSDS_INFO_HR
+        WHERE MSDS_ID = #{msdsId}
+
+    </delete>
+
+</mapper>
+

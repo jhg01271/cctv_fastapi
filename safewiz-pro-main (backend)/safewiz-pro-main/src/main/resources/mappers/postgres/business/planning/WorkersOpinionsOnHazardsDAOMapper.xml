@@ -1,0 +1,395 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.planning.dao.postgres.WorkersOpinionsOnHazardsDAO">
+	
+	<select id='getWorkersOpinionsOnHazards' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.planning.model.WorkersOpinionsOnHazardsVO'>
+		 WITH DETAIL_DATA AS (
+			SELECT A.write_year 
+			 	 , A.doc_type 
+				 , A.doc_no
+				 , B.reg_dt
+				 , B.cnt
+				 , B.hr_id 
+			  FROM esg.tb_workers_opinions_on_hazards_info A
+				 , (SELECT MAX(reg_dt) reg_dt
+					  	 , COUNT(doc_no) cnt
+					  	 , hr_id 
+					  	 , MAX(created_at) created_at 
+					  FROM esg.tb_workers_opinions_on_hazards_info
+					  WHERE USE_YN = 'Y'
+					  AND write_year = #{writeYear}
+					 GROUP BY hr_id) B
+			 WHERE A.hr_id = B.hr_id 
+			   AND A.reg_dt = B.reg_dt
+			   and A.created_at = B.created_at 
+		),
+		HR_LIST as (
+			select A.write_year
+				 , A.doc_type
+				 , A.doc_no
+				 , A.comp_id
+				 , A.hr_id
+				 , A.created_at 
+				 , A.created_by 
+				 , A.updated_at 
+				 , A.updated_by
+				 , case when (select COUNT(*) 
+						 	    from esg.tb_workers_opinions_on_hazards_info B
+						 	   where B.use_yn = 'Y'
+						 	     AND B.write_year = #{writeYear}
+						 	     AND B.hr_id = A.hr_id ) > 0 then 'Y'
+						else 'N'
+				   end use_yn
+				 , A.reg_dt
+			  from (SELECT hr_id
+				 		 , created_at
+				 		 , ROW_NUMBER() OVER (PARTITION BY hr_id ORDER BY created_at DESC) AS rn
+				 		 , write_year
+				 		 , doc_type
+				 		 , doc_no
+				 		 , comp_id 
+				 		 , created_by 
+				 		 , updated_at 
+				 		 , updated_by
+						 , reg_dt
+				      FROM esg.tb_workers_opinions_on_hazards_info
+				      WHERE write_year = #{writeYear}) A
+			 where A.rn = 1
+		)
+		SELECT A.write_year
+			 , A.doc_type
+			 , A.doc_no
+			 , A.comp_id
+			 , A.hr_id
+			 , B.hr_nm
+			 , A.use_yn
+			 , C.reg_dt
+			 , COALESCE(C.cnt, 0) AS cnt
+			 , (SELECT COUNT(1)
+			  	  FROM esg.tb_approval_info T1
+				 WHERE T1.target_id IN (SELECT T2.write_year || T2.doc_no 
+				 					      FROM esg.tb_workers_opinions_on_hazards_info T2
+				 					     WHERE T2.hr_id = A.hr_id
+											AND t2.write_year = #{writeYear})
+				   AND T1.target_type = 'WOOHA'
+				   AND T1.signature IS NOT null
+				   AND T1.param = 'writer') writer_cnt
+			 , (SELECT COUNT(1)
+				  FROM esg.tb_approval_info T1
+				 WHERE T1.target_id IN (SELECT T2.write_year || T2.doc_no 
+				 					      FROM esg.tb_workers_opinions_on_hazards_info T2
+				 					     WHERE T2.hr_id = A.hr_id
+											AND t2.write_year = #{writeYear})
+				   AND T1.target_type = 'WOOHA'
+				   AND T1.signature IS NOT null
+				   AND T1.param = 'reviewer') reviewer_cnt
+			 , A.created_at
+			 , A.created_by
+			 , A.updated_at
+			 , A.updated_by
+			 , CASE WHEN E.signature IS NOT NULL THEN 'I'
+		            WHEN D.signature IS NOT NULL THEN 'W'
+		            ELSE 'C'
+		       END AS approval_status
+		  FROM HR_LIST A
+		  LEFT JOIN esg.tb_hr_info B ON A.hr_id = B.hr_id
+		  LEFT JOIN DETAIL_DATA C on a.hr_id = c.hr_id
+		  LEFT JOIN esg.tb_approval_info D
+                 ON D.target_type = C.doc_type
+	            AND D.target_id = C.write_year||C.doc_no
+	            AND D.param = 'writer'
+	      LEFT JOIN esg.tb_approval_info E
+                 ON E.target_type = C.doc_type
+	            AND E.target_id = C.write_year||C.doc_no
+	            AND E.param = 'reviewer' 
+		 WHERE A.write_year = #{writeYear}
+		   AND A.comp_id = #{compId}
+		 ORDER BY A.use_yn desc, C.reg_dt desc
+	</select>
+
+	<select id="getHrId" parameterType="kr.co.igns.system.common.model.SpSearchVO" resultType="String">
+		SELECT hr_id
+		FROM esg.tb_workers_opinions_on_hazards_info
+		WHERE write_year = #{writeYear}
+		  AND doc_type = #{docType}
+		  AND doc_no = #{docNo}
+	</select>
+
+	
+	<select id='getWorkersOpinionsOnHazardsDetail' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.planning.model.WorkersOpinionsOnHazardsVO'>
+		SELECT A.write_year
+			 , A.doc_type
+			 , A.doc_no
+			 , A.reg_dt ||
+			   CASE
+				   when A.use_yn = 'N'
+					   then
+					   ' - (미사용)'
+				   else
+					   ''
+				   END AS title_reg_dt
+			 , A.reg_dt
+			 , A.hr_id
+			 , A.worker_opinion
+			 , A.reviewer_opinion
+			 , A.workplace_id
+			 , C.workplace_nm
+			 , A.use_yn
+			 , A.created_at
+			 , A.created_by
+			 , A.updated_at
+			 , A.updated_by
+			 , B.experience_no
+			 , B.content
+			 , 'U'        cmd
+		FROM esg.tb_workers_opinions_on_hazards_info A
+				 LEFT JOIN esg.tb_workers_opinions_on_hazards_experience B
+						   ON A.write_year = B.write_year
+							   AND A.doc_type = B.doc_type
+							   AND A.doc_no = B.doc_no
+							   AND A.reg_dt = B.reg_dt
+				 LEFT JOIN esg.tb_workplace_info C
+						   ON A.workplace_id = C.workplace_id
+		WHERE A.write_year = #{writeYear} 
+		  AND A.hr_id = #{hrId}
+		ORDER BY A.USE_YN = 'Y' DESC, A.reg_dt desc, A.created_at desc, A.updated_at desc
+	</select>
+	
+	<!-- 특정 인물 id 정보 가져오기 -->
+	<select id='getWorkerHr' parameterType='kr.co.igns.business.planning.model.SafetyAndHealthInfoSurveyVO' resultType='kr.co.igns.business.planning.model.WorkersOpinionsOnHazardsVO'>
+		SELECT A.write_year
+			 , A.doc_type
+			 , A.doc_no
+			 , A.reg_dt ||
+			   CASE
+				   when A.use_yn = 'N'
+					   then
+					   ' - (미사용)'
+				   else
+					   ''
+				   END AS title_reg_dt
+			 , A.reg_dt
+			 , A.hr_id
+			 , A.worker_opinion
+			 , A.reviewer_opinion
+			 , A.workplace_id
+			 , C.workplace_nm
+			 , A.use_yn
+			 , A.created_at
+			 , A.created_by
+			 , A.updated_at
+			 , A.updated_by
+			 , B.experience_no
+			 , B.content
+			 , 'U'                                                          cmd
+		FROM esg.tb_workers_opinions_on_hazards_info A
+				 LEFT JOIN esg.tb_workers_opinions_on_hazards_experience B
+						   ON A.write_year = B.write_year
+							   AND A.doc_type = B.doc_type
+							   AND A.doc_no = B.doc_no
+							   AND A.reg_dt = B.reg_dt
+				 LEFT JOIN esg.tb_workplace_info C
+						   ON A.workplace_id = C.workplace_id
+		WHERE A.hr_id = #{hrId}
+		  AND TO_CHAR(TO_DATE(A.reg_dt, 'YYYYMMDD'), 'YYYY') = #{writeYear}
+		ORDER BY A.USE_YN = 'Y' DESC,A.reg_dt desc
+	</select>
+
+	<!-- 유해요인 근로자 리포트 파일명을 위해 인원 이름 가져오기 -->
+	<select id="getWorkerHrName" parameterType="String" resultType='String'>
+		SELECT
+		    HR_NM
+		FROM ESG.TB_HR_INFO
+		WHERE
+		    HR_ID = #{hrId}
+	</select>
+	
+	<!-- 유해요인 근로자 리포트 리스트 조회 -->
+	<select id='getWorkerReportHrList' parameterType='kr.co.igns.business.planning.model.SafetyAndHealthInfoSurveyVO' resultType='kr.co.igns.business.planning.model.WorkersOpinionsOnHazardsVO'>
+		SELECT write_year
+			 , doc_type
+			 , doc_no
+			 , reg_dt
+		FROM esg.tb_workers_opinions_on_hazards_info
+		WHERE comp_id = #{compId}
+		  AND hr_id = #{hrId}
+		  AND reg_dt = #{regDt}
+		  AND USE_YN = 'Y'
+		ORDER BY reg_dt DESC
+	</select>
+	
+	<!-- 유해요인 근로자 리포트 리스트 조회 -->
+	<select id='getWorkerReportDetail' parameterType='kr.co.igns.business.planning.model.SafetyAndHealthInfoSurveyVO' resultType='kr.co.igns.business.planning.model.WorkersOpinionsOnHazardsVO'>
+		SELECT A.reg_dt
+			 , A.hr_id
+			 , '○ 유해·위험 경험의 원인과 반성할 점' || E'\n' || A.worker_opinion AS worker_opinion
+			 , '○ 경험에 대한 조언' || E'\n' || A.reviewer_opinion         AS reviewer_opinion
+			 , B1.hr_id as writer_id
+			 , B1.hr_nm as writer_nm
+			 , B2.hr_id as reviewer_id
+			 , B2.hr_nm as reviewer_nm
+			 , C.workplace_nm
+		FROM esg.tb_workers_opinions_on_hazards_info A
+		LEFT JOIN esg.tb_approval_info B1
+				ON B1.target_type = A.doc_type
+				AND B1.target_id = A.write_year || A.doc_no
+				AND B1.param = 'writer'
+		LEFT JOIN esg.tb_approval_info B2
+				ON B2.target_type = A.doc_type
+				AND B2.target_id = A.write_year || A.doc_no
+				AND B2.param = 'reviewer'
+		LEFT JOIN esg.tb_workplace_info C
+				ON A.workplace_id = C.workplace_id
+		WHERE A.write_year = #{writeYear}
+		  AND A.doc_type = #{docType}
+		  AND A.doc_no = #{docNo}
+		  AND A.reg_dt = #{regDt}
+		  		 
+	</select>
+	
+	<!-- 유해요인 근로자 리포트 경험담 조회 -->
+	<select id='getWorkerReportDetailExp' parameterType='kr.co.igns.business.planning.model.SafetyAndHealthInfoSurveyVO' resultType='kr.co.igns.business.planning.model.WorkersOpinionsOnHazardsVO'>
+		SELECT '경험담' || ROW_NUMBER() OVER (ORDER BY experience_no) || E'\n' || content as content
+		  FROM esg.tb_workers_opinions_on_hazards_experience
+		 WHERE write_year = #{writeYear}
+		   AND doc_type = #{docType}
+		   AND doc_no = #{docNo}
+		   AND reg_dt = #{regDt}
+	</select>
+	
+	<!-- 유해위험요인 근로자 상세 저장 -->
+	<insert id="insertWorkersOpinionsOnHazardsDetail" parameterType="kr.co.igns.business.planning.model.WorkersOpinionsOnHazardsVO" useGeneratedKeys="true" keyProperty="docNo">
+		INSERT INTO esg.tb_workers_opinions_on_hazards_info
+		(
+			write_year, 
+			doc_type, 
+			doc_no, 
+			reg_dt,
+			comp_id, 
+			hr_id, 
+			workplace_id,
+			worker_opinion, 
+			reviewer_opinion, 
+			use_yn, 
+			created_at, 
+			created_by 
+		)
+		VALUES
+		(
+			#{writeYear},
+			'WOOHA', 
+			(select COALESCE(LPAD(TRIM(TO_CHAR(MAX(doc_no)::INTEGER + 1, '99999')), 5, '0'), '00001') 
+			   from esg.tb_workers_opinions_on_hazards_info 
+			  WHERE write_year = #{writeYear}	  
+			    AND doc_type = 'WOOHA'), 
+			#{regDt}, 
+			#{compId},
+			#{hrId},
+			#{workplaceId},
+			#{workerOpinion},
+			#{reviewerOpinion}, 
+			#{useYn},
+			now(), 
+			#{createdBy}
+		)
+		RETURNING doc_no
+	</insert>
+	
+	<!-- 유해위험요인 근로자  경험담 저장 -->
+	<insert id="insertWorkersOpinionsOnHazardsExp" parameterType="kr.co.igns.business.planning.model.WorkersOpinionsOnHazardsVO">
+		<selectKey keyProperty="experienceNo" resultType="kr.co.igns.business.planning.model.WorkersOpinionsOnHazardsVO" order="BEFORE">
+			SELECT LPAD((COALESCE(MAX(SUBSTRING(experience_no, 1, 5)::INTEGER), 0) + 1)::TEXT, 5, '0') AS experienceNo
+			FROM esg.tb_workers_opinions_on_hazards_experience
+			WHERE write_year = #{writeYear}
+			and doc_type = #{docType}
+			and doc_no = #{docNo}
+		</selectKey>
+
+		INSERT INTO esg.tb_workers_opinions_on_hazards_experience
+		(
+			write_year,
+			doc_type, 
+			doc_no, 
+			reg_dt,
+			experience_no, 
+			content, 
+			use_yn, 
+			created_at, 
+			created_by 
+		)
+		VALUES
+		(
+			#{writeYear},
+			#{docType}, 
+			#{docNo}, 
+			#{regDt}, 
+			#{experienceNo},
+			#{content}, 
+			'Y', 
+			now(), 
+			#{createdBy}
+		)
+	</insert>
+
+	<!-- 유해위험 상세 데이터 변경 -->
+	<update id="changeWorkersOpinionsOnHazardsDetail" parameterType="kr.co.igns.business.planning.model.WorkersOpinionsOnHazardsVO">
+		UPDATE esg.tb_workers_opinions_on_hazards_info
+		   SET worker_opinion = #{workerOpinion}
+		     , reg_dt = #{regDt}
+		     , reviewer_opinion = #{reviewerOpinion}
+		     , workplace_id = #{workplaceId}
+		     , use_yn = #{useYn}
+		     , updated_at = now()
+		     , updated_by = #{updatedBy}
+		 WHERE write_year = #{writeYear}
+		   AND doc_type = #{docType}
+		   AND doc_no = #{docNo}
+	</update>
+	
+	<!-- 유해위험 경험담 데이터 변경 -->
+	<update id="changeWorkersOpinionsOnHazardsExp" parameterType="kr.co.igns.business.planning.model.WorkersOpinionsOnHazardsVO">
+		UPDATE esg.tb_workers_opinions_on_hazards_experience
+		   SET content = #{content}
+		     , reg_dt = #{regDt}
+		     , updated_at = now()
+		     , updated_by = #{updatedBy}
+		 WHERE write_year = #{writeYear}
+		   AND doc_type = #{docType}
+		   AND doc_no = #{docNo}
+		   AND experience_no = #{experienceNo}
+	</update>
+	
+	<!-- 유해위험 마스터 데이터 사용안함 -->
+	<update id="changeWorkersOpinionsOnHazardsUseN" parameterType="kr.co.igns.business.planning.model.WorkersOpinionsOnHazardsVO">
+	
+		UPDATE esg.tb_workers_opinions_on_hazards_info
+		   SET use_yn = 'N'
+		   	 , updated_at = now()
+		     , updated_by = #{updatedBy}
+		 WHERE write_year = #{writeYear}
+		   AND hr_id = #{hrId}
+	</update>
+	
+	<!-- 유해요인 상세 삭제 ( 미사용 변경 ) -->
+	<delete id="deleteWorkerOpinonsOnHarzardsDetail" parameterType="kr.co.igns.business.planning.model.WorkersOpinionsOnHazardsVO">
+		UPDATE esg.tb_workers_opinions_on_hazards_info
+		SET use_yn = 'N'
+		  , updated_at = now()
+		  , updated_by = #{updatedBy}
+		WHERE write_year = #{writeYear}
+		  AND doc_type = #{docType}
+		  AND doc_no = #{docNo}
+		  AND hr_id = #{hrId}
+	</delete>
+	
+	<!-- 유해요인 경험담 데이터 삭제 -->
+	<delete id="deleteWorkerOpinonsOnHarzardsExp" parameterType="kr.co.igns.business.planning.model.WorkersOpinionsOnHazardsVO">
+		DELETE 
+		  FROM esg.tb_workers_opinions_on_hazards_experience
+		 WHERE write_year = #{writeYear}
+		   AND doc_type = #{docType}
+		   AND doc_no = #{docNo}
+		   AND experience_no = #{experienceNo}
+	</delete>
+</mapper>

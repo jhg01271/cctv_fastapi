@@ -1,0 +1,1147 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.planning.dao.postgres.ImplementationOfRiskAseessmentOrocessDAO">
+	<resultMap type="kr.co.igns.business.planning.model.RiskAssessmentPlanVO" id="riskImplListMap">
+		<id column="write_year" property="writeYear" />
+		<id column="doc_type" property="docType" />
+		<id column="doc_no" property="docNo" />
+		<result column="plan_nm" property="planNm" />
+		<result column="risk_assessment_standards" property="riskAssessmentStandards" />
+		<result column="risk_allowance_standards" property="riskAllowanceStandards" />
+		<result column="cpem_write_year" property="cpemWriteYear" />
+		<result column="cpem_doc_no" property="cpemDocNo" />
+		<result column="cpem_confirm_write_year" property="cpemConfirmWriteYear" />
+		<result column="cpem_confirm_doc_no" property="cpemConfirmDocNo" />
+		<result column="confirm_yn" property="confirmYn" />
+		<result column="orgn_id" property="orgnId" />
+		<collection property="classPrcsList" ofType="kr.co.igns.business.planning.model.ClassificationProcessEquipMsdsAnalysisVO" >
+			<id column="process_id" property="processId" />
+			<result column="process_nm" property="processNm" />
+			<result column="rev_no" property="revNo" />
+			<collection property="processList" ofType="kr.co.igns.business.planning.model.ImplementationOfRiskAseessmentProcessVO">
+				<id column="prcs_work_id" property="prcsWorkId" />
+				<result column="prcs_cnfm_id" property="prcsCnfmId" />
+				<result column="work_content" property="workContent" />
+				<result column="registerCount" property="registerCount" />
+				<result column="completedCount" property="completedCount" />
+			</collection>
+		</collection>
+	</resultMap>
+
+	<resultMap type="kr.co.igns.business.planning.model.ClassificationOfHazardsVO" id="hazardsMap">
+		<id column="hazards_type" property="hazardsType" />
+		<result column="hazards_classification" property="hazardsClassification" />
+		<result column="hazards_title" property="hazardsTitle" />
+		<collection property="implRiskAssList" ofType="kr.co.igns.business.planning.model.ImplementationOfRiskAseessmentVO">
+			<id column="doc_no" property="docNo" />
+			<id column="doc_seq" property="docSeq" />
+			<id column="doc_type" property="docType" />
+			<result column="plan_write_year" property="planWriteYear" />
+			<result column="cpem_write_year" property="cpemWriteYear" />
+			<result column="cpem_doc_no" property="cpemDocNo" />
+			<result column="impl_write_year" property="implWriteYear" />
+			<result column="impl_doc_no" property="implDocNo" />
+			<result column="impl_doc_seq" property="implDocSeq" />
+			<result column="impl_hazards_classification" property="hazardsClassification" />
+			<result column="hazards_cause" property="hazardsCause" />
+			<result column="hazards_factor" property="hazardsFactor" />
+			<result column="hazards_type" property="hazardsType" />
+			<result column="implementationNm" property="implementationNm" />
+			<result column="legal_id" property="legalId" />
+			<result column="legal_nm" property="legalNm" />
+			<result column="related_evidence" property="relatedEvidence" />
+			<result column="impl_use_yn" property="useYn" />
+			<result column="prcs_work_id" property="prcsWorkId" />
+			<result column="frequency_score" property="frequencyScore" />
+			<result column="impact_score" property="impactScore" />
+			<result column="risk_score" property="riskScore" />
+			<result column="after_frequency_score" property="afterFrequencyScore" />
+			<result column="after_impact_score" property="afterImpactScore" />
+			<result column="after_risk_score" property="afterRiskScore" />
+			<result column="current_safety_measures" property="currentSafetyMeasures" />
+			<result column="created_at" property="createdAt" />
+			<result column="work_content" property="workContent" />
+			<result column="process_id" property="processId" />
+			<result column="process_nm" property="processNm" />
+			<result column="risk_assessment_standards" property="riskAssessmentStandards" />
+			<result column="risk_allowance_standards" property="riskAllowanceStandards" />
+			<collection property="implementReduList" ofType="kr.co.igns.business.planning.model.ImplementationOfRiskAseessmentReductionVO">
+				<id column="doc_seq_detail" property="docSeqDetail" />
+				<id column="reduction_doc_type" property="reductionDocType" />
+				<result column="reduction_measures" property="reductionMeasures" />
+				<result column="expected_date" property="expectedDate" />
+				<result column="completed_date" property="completedDate" />
+				<result column="impl_content" property="implContent" />
+				<result column="reduction_use_yn" property="useYn" />
+				<result column="prevFileId" property="prevFileId" />
+				<result column="afterFileId" property="afterFileId" />
+				<result column="redcution_created_at" property="reductionCreatedAt" />
+				<collection property="hrList" ofType="kr.co.igns.business.planning.model.ImplementationOfRiskAseessmentReductionHrVO">
+					<id column="doc_seq_detail2" property="docSeqDetail2" />
+					<result column="hr_id" property="hrId" />
+					<result column="hr_nm" property="hrNm" />
+				</collection>
+			</collection>
+		</collection>
+	</resultMap>
+
+    <select id="selectRiskImplList" resultMap="riskImplListMap">
+	    SELECT a.write_year,										-- 위험성평가 계획
+		       a.doc_type,
+		       a.doc_no,
+			   CONCAT(a.plan_nm, ' (', h.orgn_nm, ')') as plan_nm,
+			   a.risk_assessment_standards,
+		       a.risk_allowance_standards,
+			   a.cpem_write_year,
+			   a.cpem_doc_no,
+			   a.orgn_id,
+			   b2.write_year as cpem_confirm_write_year,
+			   b2.doc_no as cpem_confirm_doc_no,
+			   b.confirm_yn,
+			   c.rev_no,
+			   coalesce(c.process_id, null) AS process_id,			-- 공정 정보
+			   c.process_nm,
+			   coalesce(e.prcs_work_id, 0) AS prcs_work_id,			-- 작업 정보 
+			   e.prcs_cnfm_id, 
+			   e.work_content,
+			   e.ord_seq,
+			   (
+			   	SELECT COUNT(doc_seq)
+			  	  FROM esg.tb_risk_assessment_implementation a
+				 WHERE a.prcs_work_id = e.prcs_work_id
+				   AND a.use_yn = 'Y'
+				   AND a.doc_no = #{docNo}
+				   AND a.write_year = #{writeYear}
+			   ) AS registerCount,
+			   -- 완료된 평가 건수
+			   (
+			   SELECT COUNT(DISTINCT rai.doc_seq)
+			  	 FROM esg.tb_risk_assessment_implementation rai
+		    LEFT JOIN esg.tb_risk_assessment_implementation_reduction rair
+			  	   ON rair.write_year = rai.write_year
+			  	  AND rair.doc_type = rai.doc_type
+			  	  AND rair.doc_no = rai.doc_no
+			  	  AND rair.doc_seq = rai.doc_seq
+		        WHERE rai.prcs_work_id = e.prcs_work_id
+			  	  AND rai.use_yn = 'Y'
+			  	  AND rai.doc_no = #{docNo}
+			  	  AND rai.write_year = #{writeYear}
+			  	  AND (
+			   -- 조건 1: rair가 모두 완료된 경우
+			   EXISTS (
+		 	     	   SELECT 1
+		 	     	     FROM esg.tb_risk_assessment_implementation_reduction r2
+		 	     	    WHERE r2.write_year = rai.write_year
+		 	     	      AND r2.doc_type = rai.doc_type
+		 	     	      AND r2.doc_no = rai.doc_no
+		 	     	      AND rai.use_yn = 'Y'
+		 	     	      AND r2.doc_seq = rai.doc_seq
+		 	     	      AND r2.write_year = #{writeYear}
+		             GROUP BY r2.doc_seq
+		 	     	   HAVING SUM(CASE WHEN r2.use_yn = 'Y' AND r2.completed_date IS NOT NULL THEN 1 ELSE 0 END) = COUNT(r2.doc_seq)
+		 	     	   )
+		 	     	   OR
+		 	     	   -- 조건 2: 기준 비교
+		 	     	   (
+		 	     	   rai.risk_score IS NOT NULL
+		 	     	   AND a.risk_allowance_standards IS NOT NULL
+		 	     	   AND SPLIT_PART(rai.risk_score, '_', 1) = SPLIT_PART(a.risk_allowance_standards, '_', 1)
+		 	     	   AND
+		              CASE SPLIT_PART(rai.risk_score, '_', 2)
+		              	WHEN 'l' THEN 1
+		              	WHEN 'm' THEN 2
+		              	WHEN 'h' THEN 3
+		              	ELSE CAST(SPLIT_PART(rai.risk_score, '_', 2) AS INTEGER)
+		 	     	  END <![CDATA[<= CASE SPLIT_PART(a.risk_allowance_standards, '_', 2)]]>
+		              	WHEN 'l' THEN 1
+		              	WHEN 'm' THEN 2
+		              	WHEN 'h' THEN 3
+		              	ELSE CAST(SPLIT_PART(a.risk_allowance_standards, '_', 2) AS INTEGER)
+		 	     	   END
+                        -- 추가 조건: 아직 완료되지 않은 항목이 하나라도 있으면 제외
+                        AND NOT EXISTS (
+                        SELECT 1
+                        FROM esg.tb_risk_assessment_implementation_reduction r3
+                        WHERE r3.write_year = rai.write_year
+                        AND r3.doc_type  = rai.doc_type
+                        AND r3.doc_no    = rai.doc_no
+                        AND r3.doc_seq   = rai.doc_seq
+                        AND r3.completed_date IS NULL
+                        AND r3.use_yn = 'Y'
+                        )
+					  )
+				   )
+			   ) AS completedCount
+		  FROM esg.tb_risk_assessment_plan a
+		  LEFT JOIN esg.tb_classification_process_equip_msds b
+		    ON b.comp_id = a.comp_id 
+		   AND b.orgn_id = a.orgn_id
+		   AND b.use_yn = 'Y'
+		<if test="searchText != null and searchText != ''">
+			AND b.write_year = a.cpem_write_year
+			AND b.doc_no = a.cpem_doc_no
+		</if>
+		<if test="searchText == null or searchText == ''">
+			AND b.confirm_yn = 'Y'
+		</if>
+		  LEFT JOIN esg.tb_classification_process_equip_msds b2
+		    ON b2.comp_id = a.comp_id
+		   AND b2.orgn_id = a.orgn_id
+		   AND b2.use_yn = 'Y'
+		   AND b2.confirm_yn = 'Y'
+		  LEFT JOIN esg.tb_classification_process_equip_msds_analysis c
+		    ON c.write_year = b.write_year
+		   AND c.doc_type = b.doc_type
+		   AND c.doc_no = b.doc_no
+		  LEFT JOIN esg.tb_process_work_cnfm d
+		    ON d.rev_no = c.rev_no
+           AND d.cnfm_yn = 'Y'
+   		   AND d.process_id = c.process_id 
+		  LEFT JOIN esg.tb_process_work e
+		    ON e.prcs_cnfm_id = d.prcs_cnfm_id
+		  LEFT JOIN ESG.tb_classification_hazards f
+		    ON f.process_id = c.process_id
+		   AND f.write_year = #{writeYear}
+		  LEFT JOIN esg.tb_classification_hazards_detail g
+		    ON g.write_year = f.write_year
+		   AND g.doc_type = f.doc_type
+		   AND g.doc_no = f.doc_no
+		 INNER JOIN esg.tb_orgn_info h
+		    ON h.orgn_id = a.orgn_id 
+		 WHERE a.write_year = #{writeYear}
+		   AND a.doc_type = 'RAP'
+		   AND a.comp_id = #{compId}
+		   AND a.use_yn = 'Y'
+		<if test="docNo != null and docNo != ''">
+		   AND a.doc_no = #{docNo}
+		</if>
+		 ORDER BY a.plan_nm asc, c.process_nm asc, e.work_content asc
+    </select>
+
+    <select id="selectHazardsDetail" resultMap="hazardsMap">
+		SELECT CASE WHEN a.hazards_type = 'factor_1' THEN '기계적 요인'
+		            WHEN a.hazards_type = 'factor_2' THEN '전기적 요인'
+		            WHEN a.hazards_type = 'factor_3' THEN '화학(물질)적 요인'
+		            WHEN a.hazards_type = 'factor_4' THEN '생물학적요인'
+		            WHEN a.hazards_type = 'factor_5' THEN '작업특성 요인'
+		            WHEN a.hazards_type = 'factor_6' THEN '작업환경 요인'
+		        END AS hazards_title,
+			   a.hazards_type,
+			   'RAP' AS doc_type,
+			   b.doc_no,
+			   b.doc_seq,
+			   i.class_nm  as implementationNm,
+			   b.hazards_classification AS impl_hazards_classification,
+			   b.hazards_cause,
+			   b.hazards_factor,
+			   tlm.legal_id,
+			   tlm.legal_nm,
+			   b.related_evidence,
+			   b.use_yn AS impl_use_yn,
+			   coalesce(b.prcs_work_id, 0) AS prcs_work_id,
+			   b.frequency_score,
+			   b.impact_score,
+			   b.risk_score,
+			   b.after_frequency_score,
+			   b.after_impact_score,
+			   b.after_risk_score,
+			   b.current_safety_measures,
+			   b.created_at,
+			   -- 감소대책 정보
+		       'RAP' as reduction_doc_type,
+			   f.doc_no,
+			   f.doc_seq,
+			   f.doc_seq_detail,
+			   f.reduction_measures,
+			   f.expected_date,
+			   f.completed_date,
+			   f.impl_content,
+			   f.use_yn AS reduction_use_yn,
+			   f.created_at AS redcution_created_at,
+			   -- 담당자 정보
+			   g.doc_seq_detail2,
+			   g.hr_id,
+			   h.hr_nm,
+			   -- 감소대책 이미지 targetId
+			   j.file_id AS prevFileId,
+			   k.file_id AS afterFileId
+		  FROM (
+				SELECT hazards_type
+				  from esg.tb_risk_assessment_implementation
+				 where write_year = #{writeYear}
+				   AND doc_type = 'RAP'
+				   AND doc_no = #{docNo}
+				   AND prcs_work_id = #{prcsWorkId}
+				 UNION
+				SELECT b.hazards_type
+				  FROM ESG.tb_classification_hazards a
+				  LEFT JOIN esg.tb_classification_hazards_detail b
+				    ON a.write_year = b.write_year
+				   AND a.doc_type = b.doc_type
+				   AND a.doc_no = b.doc_no
+				 WHERE a.use_yn = 'Y'
+				   AND a.process_id = #{processId}
+				   AND a.process_work_rev_no = #{revNo}
+				   AND a.comp_id = #{compId}
+				   AND a.write_year = #{writeYear}
+				) a
+		  LEFT JOIN esg.tb_risk_assessment_implementation b
+		    ON b.hazards_type = a.hazards_type
+		   AND write_year = #{writeYear}
+		   AND doc_type = 'RAP'
+		   AND doc_no = #{docNo}
+		   AND prcs_work_id = #{prcsWorkId}
+		  LEFT JOIN esg.tb_legal_manage tlm
+		    ON b.legal_id = tlm.legal_id
+		   AND comp_id = #{compId}
+	  	  LEFT JOIN esg.tb_risk_assessment_implementation_reduction f
+	  	    ON f.write_year = b.write_year
+	  	   AND f.doc_type = b.doc_type
+	  	   AND f.doc_no = b.doc_no
+	  	   AND f.doc_seq = b.doc_seq
+		  LEFT JOIN esg.tb_risk_assessment_implementation_reduction_hr g
+		    ON g.write_year = f.write_year
+		   AND g.doc_type = f.doc_type
+		   AND g.doc_no = f.doc_no
+		   AND g.doc_seq = f.doc_seq
+		   AND g.doc_seq_detail = f.doc_seq_detail
+		  LEFT JOIN esg.tb_hr_info h
+		    ON h.hr_id = g.hr_id
+		  LEFT JOIN esg.tb_classification_hazards_factor_mgmt i
+	  	    ON i.factor_id = b.hazards_type
+	  	   AND i.class_id = b.hazards_classification
+	  	  LEFT JOIN esg.tb_sys_file j
+		    ON j.target_type = 'RAP'
+		   AND j.target_id = CONCAT(f.write_year, f.doc_no, f.doc_seq, f.doc_seq_detail,'A')
+		  LEFT JOIN esg.tb_sys_file k
+		    ON k.target_type = 'RAP'
+		   AND k.target_id = CONCAT(f.write_year, f.doc_no, f.doc_seq, f.doc_seq_detail,'B')
+		 ORDER BY a.hazards_type ASC, b.doc_seq ASC, f.doc_seq_detail ASC
+    </select>
+
+	<select id="selectHazardsDetailAll" resultMap="hazardsMap">
+		SELECT
+		CASE WHEN a.hazards_type = 'factor_1' THEN '기계적 요인'
+		WHEN a.hazards_type = 'factor_2' THEN '전기적 요인'
+		WHEN a.hazards_type = 'factor_3' THEN '화학(물질)적 요인'
+		WHEN a.hazards_type = 'factor_4' THEN '생물학적요인'
+		WHEN a.hazards_type = 'factor_5' THEN '작업특성 요인'
+		WHEN a.hazards_type = 'factor_6' THEN '작업환경 요인'
+		END AS hazards_title,
+		a.hazards_type,
+		'RAP' AS doc_type,
+		b.doc_no,
+		b.doc_seq,
+		b.process_id,
+		o.process_nm,
+		i.class_nm  as implementationNm,
+		b.hazards_classification AS impl_hazards_classification,
+		b.hazards_cause,
+		b.hazards_factor,
+		tlm.legal_id,
+		tlm.legal_nm,
+		b.related_evidence,
+		b.use_yn AS impl_use_yn,
+		coalesce(b.prcs_work_id, 0) AS prcs_work_id,
+		m.work_content,
+		b.frequency_score,
+		b.impact_score,
+		b.risk_score,
+		b.after_frequency_score,
+		b.after_impact_score,
+		b.after_risk_score,
+		b.current_safety_measures,
+		b.created_at,
+		-- 감소대책 정보
+		'RAP' as reduction_doc_type,
+		f.doc_no,
+		f.doc_seq,
+		f.doc_seq_detail,
+		f.reduction_measures,
+		f.expected_date,
+		f.completed_date,
+		f.impl_content,
+		f.use_yn AS reduction_use_yn,
+		f.created_at AS redcution_created_at,
+		-- 담당자 정보
+		g.doc_seq_detail2,
+		g.hr_id,
+		h.hr_nm,
+		-- 감소대책 이미지 targetId
+		j.file_id AS prevFileId,
+		k.file_id AS afterFileId
+		FROM (
+		SELECT hazards_type
+		from esg.tb_risk_assessment_implementation
+		where write_year = #{writeYear}
+		AND doc_type = 'RAP'
+		AND doc_no = #{docNo}
+		AND process_id in <foreach collection="processIds" item="item" index="index" open="(" close=")" separator=",">#{item}</foreach>
+		UNION
+		SELECT b.hazards_type
+		FROM ESG.tb_classification_hazards a
+		LEFT JOIN esg.tb_classification_hazards_detail b
+		ON a.write_year = b.write_year
+		AND a.doc_type = b.doc_type
+		AND a.doc_no = b.doc_no
+		WHERE a.use_yn = 'Y'
+		AND a.write_year = #{writeYear}
+		AND a.process_id in <foreach collection="processIds" item="item" index="index" open="(" close=")" separator=",">#{item}</foreach>
+		AND a.process_work_rev_no = #{revNo}
+		AND a.comp_id = #{compId}
+		) a
+		LEFT JOIN esg.tb_risk_assessment_implementation b
+		ON b.hazards_type = a.hazards_type
+		AND write_year = #{writeYear}
+		AND doc_type = 'RAP'
+		AND doc_no = #{docNo}
+		AND b.use_yn = 'Y'
+		AND process_id in <foreach collection="processIds" item="item" index="index" open="(" close=")" separator=",">#{item}</foreach>
+		LEFT JOIN esg.tb_legal_manage tlm
+		ON b.legal_id = tlm.legal_id
+		AND comp_id = #{compId}
+		LEFT JOIN esg.tb_classification_hazards c
+		ON c.use_yn = 'Y'
+		AND c.process_id in <foreach collection="processIds" item="item" index="index" open="(" close=")" separator=",">#{item}</foreach>
+		AND c.process_work_rev_no = #{revNo}
+		AND c.comp_id = #{compId}
+		AND c.write_year = #{writeYear}
+		LEFT JOIN esg.tb_risk_assessment_implementation_reduction f
+		ON f.write_year = b.write_year
+		AND f.doc_type = b.doc_type
+		AND f.doc_no = b.doc_no
+		AND f.doc_seq = b.doc_seq
+		AND f.use_yn = 'Y'
+		LEFT JOIN esg.tb_risk_assessment_implementation_reduction_hr g
+		ON g.write_year = f.write_year
+		AND g.doc_type = f.doc_type
+		AND g.doc_no = f.doc_no
+		AND g.doc_seq = f.doc_seq
+		AND g.doc_seq_detail = f.doc_seq_detail
+		LEFT JOIN esg.tb_hr_info h
+		ON h.hr_id = g.hr_id
+		LEFT JOIN esg.tb_classification_hazards_factor_mgmt i
+		ON i.factor_id = b.hazards_type
+		AND i.class_id = b.hazards_classification
+		LEFT JOIN esg.tb_sys_file j
+		ON j.target_type = 'RAP'
+		AND j.target_id = CONCAT(f.write_year, f.doc_no, f.doc_seq, f.doc_seq_detail,'A')
+		LEFT JOIN esg.tb_sys_file k
+		ON k.target_type = 'RAP'
+		AND k.target_id = CONCAT(f.write_year, f.doc_no, f.doc_seq, f.doc_seq_detail,'B')
+		LEFT JOIN esg.tb_classification_process_equip_msds_analysis n
+		ON c.process_id = n.process_id and g.doc_seq = n.doc_seq
+		left join esg.tb_process_work m
+		on b.prcs_work_id = m.prcs_work_id
+		left join esg.tb_classification_process_equip_msds_analysis o
+		on b.process_id = o.process_id
+		ORDER BY a.hazards_type ASC, b.doc_seq ASC, f.doc_seq_detail ASC, b.process_id ASC, m.work_content ASC
+	</select>
+
+	<select id="selectHazardsDetailPopupAll" resultMap="hazardsMap">
+		SELECT
+		  CASE WHEN a.hazards_type = 'factor_1' THEN '기계적 요인'
+			WHEN a.hazards_type = 'factor_2' THEN '전기적 요인'
+			WHEN a.hazards_type = 'factor_3' THEN '화학(물질)적 요인'
+			WHEN a.hazards_type = 'factor_4' THEN '생물학적요인'
+			WHEN a.hazards_type = 'factor_5' THEN '작업특성 요인'
+			WHEN a.hazards_type = 'factor_6' THEN '작업환경 요인'
+		  END AS hazards_title,
+		    a.hazards_type,
+		-- hazards_type에 따른 분류 정보
+		-- 요인 정보
+		    'RAP' AS doc_type,
+		    b.doc_no,
+		    b.doc_seq,
+		    b.write_year AS plan_write_year,
+		    b.impl_write_year,
+		    b.impl_doc_no,
+		    b.impl_doc_seq,
+		    tlm.legal_id,
+		    tlm.legal_nm,
+		    b.process_id,
+		    o.process_nm,
+		    i.class_nm  as implementationNm,
+		    b.hazards_classification AS impl_hazards_classification,
+		    b.hazards_cause,
+		    b.hazards_factor,
+		    b.related_evidence,
+		    b.use_yn AS impl_use_yn,
+		    coalesce(b.prcs_work_id, 0) AS prcs_work_id,
+		    m.work_content,
+		    b.frequency_score,
+		    b.impact_score,
+		    b.risk_score,
+		    b.after_frequency_score,
+		    b.after_impact_score,
+		    b.after_risk_score,
+		    b.current_safety_measures,
+		    b.created_at,
+		    rap.risk_assessment_standards,
+		    rap.risk_allowance_standards,
+		-- 감소대책 정보
+		    'RAP' as reduction_doc_type,
+		    f.doc_no,
+		    f.doc_seq,
+		    f.doc_seq_detail,
+		    f.reduction_measures,
+		    f.expected_date,
+		    f.completed_date,
+		    f.impl_content,
+		    f.use_yn AS reduction_use_yn,
+		    f.created_at AS redcution_created_at,
+		-- 담당자 정보
+		    g.doc_seq_detail2,
+		    g.hr_id,
+		    h.hr_nm,
+		-- 감소대책 이미지 targetId
+		    j.file_id AS prevFileId,
+		    k.file_id AS afterFileId
+		FROM (
+				SELECT hazards_type
+				  FROM esg.tb_risk_assessment_implementation
+				 WHERE write_year = #{writeYear}
+				   AND doc_type = 'RAP'
+				   AND doc_no = #{docNo}
+				 UNION
+				SELECT b.hazards_type
+				  FROM ESG.tb_classification_hazards a
+			      LEFT JOIN esg.tb_classification_hazards_detail b
+				    ON a.write_year = b.write_year
+				   AND a.doc_type = b.doc_type
+				   AND a.doc_no = b.doc_no
+				-- 위험성평가 계획과 연결하여 revNo 가져오기
+			     INNER JOIN esg.tb_risk_assessment_plan rap
+				    ON rap.write_year = #{writeYear}
+				   AND rap.doc_type = 'RAP'
+				   AND rap.doc_no = #{docNo}
+			     INNER JOIN esg.tb_process_work_cnfm pwc
+				    ON pwc.process_id = a.process_id
+				   AND pwc.cnfm_yn = 'Y'
+				 WHERE a.use_yn = 'Y'
+				   AND a.process_work_rev_no = pwc.rev_no
+				   AND a.comp_id = #{compId}
+				   AND a.write_year = #{writeYear}
+			) a
+		LEFT JOIN esg.tb_risk_assessment_implementation b
+		  ON b.hazards_type = a.hazards_type
+		 AND b.write_year = #{writeYear}
+		 AND doc_type = 'RAP'
+		 AND doc_no = #{docNo}
+		 AND b.use_yn = 'Y'
+		LEFT JOIN esg.tb_legal_manage tlm
+		  ON b.legal_id = tlm.legal_id
+		 AND comp_id = #{compId}
+		-- 위험성평가 계획 테이블 조인
+		INNER JOIN esg.tb_risk_assessment_plan rap
+		  ON rap.write_year = b.write_year
+		 AND rap.doc_type = b.doc_type
+		 AND rap.doc_no = b.doc_no
+		-- 공정 작업 확정 테이블 조인하여 revNo 가져오기
+		LEFT JOIN esg.tb_process_work_cnfm pwc
+		  ON pwc.process_id = b.process_id
+		 AND pwc.cnfm_yn = 'Y'
+		-- 공정 작업 테이블 조인
+		LEFT JOIN esg.tb_process_work m
+		  ON m.prcs_work_id = b.prcs_work_id
+		 AND m.prcs_cnfm_id = pwc.prcs_cnfm_id
+		LEFT JOIN esg.tb_classification_hazards c
+		  ON c.use_yn = 'Y'
+		 AND c.process_work_rev_no = pwc.rev_no
+		 AND c.comp_id = #{compId}
+		 AND c.write_year = #{writeYear}
+		LEFT JOIN esg.tb_risk_assessment_implementation_reduction f
+		  ON f.write_year = b.write_year
+		 AND f.doc_type = b.doc_type
+		 AND f.doc_no = b.doc_no
+		 AND f.doc_seq = b.doc_seq
+		 AND f.use_yn = 'Y'
+		LEFT JOIN esg.tb_risk_assessment_implementation_reduction_hr g
+		  ON g.write_year = f.write_year
+		 AND g.doc_type = f.doc_type
+		 AND g.doc_no = f.doc_no
+		 AND g.doc_seq = f.doc_seq
+		 AND g.doc_seq_detail = f.doc_seq_detail
+		LEFT JOIN esg.tb_hr_info h
+		  ON h.hr_id = g.hr_id
+		LEFT JOIN esg.tb_classification_hazards_factor_mgmt i
+		  ON i.factor_id = b.hazards_type
+		 AND i.class_id = b.hazards_classification
+		LEFT JOIN esg.tb_sys_file j
+		  ON j.target_type = 'RAP'
+		 AND j.target_id = CONCAT(f.write_year, f.doc_no, f.doc_seq, f.doc_seq_detail,'A')
+		LEFT JOIN esg.tb_sys_file k
+		  ON k.target_type = 'RAP'
+		 AND k.target_id = CONCAT(f.write_year, f.doc_no, f.doc_seq, f.doc_seq_detail,'B')
+		LEFT JOIN esg.tb_classification_process_equip_msds_analysis n
+		  ON c.process_id = n.process_id and g.doc_seq = n.doc_seq
+		LEFT JOIN esg.tb_classification_process_equip_msds_analysis o
+		  ON b.process_id = o.process_id
+		ORDER BY a.hazards_type ASC, b.doc_seq ASC, f.doc_seq_detail ASC, b.process_id ASC, m.work_content ASC
+	</select>
+
+	<select id="selectReferenceRiskImplList" parameterType="kr.co.igns.system.common.model.SpSearchVO" resultType="kr.co.igns.business.planning.model.ImplementationOfRiskAseessmentVO">
+		SELECT trai.write_year, trai.doc_no, trai.doc_seq, trai.impl_write_year, trai.impl_doc_no, trai.impl_doc_seq
+		  FROM esg.tb_risk_assessment_plan trap
+		  LEFT JOIN esg.tb_risk_assessment_implementation trai
+		    ON trai.write_year = trap.write_year
+		   AND trai.doc_no = trap.doc_no
+		 WHERE trap.write_year = #{writeYear}
+		   AND trap.doc_no = #{docNo}
+		   AND trai.impl_write_year IS NOT NULL
+		   AND trap.comp_id = #{compId}
+	</select>
+
+	<select id="selectHazardsDetailReport" resultType="Map">
+    	SELECT CASE WHEN a.hazards_type = 'factor_1' THEN '기계적 요인'
+		            WHEN a.hazards_type = 'factor_2' THEN '전기적 요인'
+		            WHEN a.hazards_type = 'factor_3' THEN '화학(물질)적 요인'
+		            WHEN a.hazards_type = 'factor_4' THEN '생물학적요인'
+		            WHEN a.hazards_type = 'factor_5' THEN '작업특성 요인'
+		            WHEN a.hazards_type = 'factor_6' THEN '작업환경 요인'
+		        END AS hazards_title,
+			   a.hazards_type,
+			   j.plan_nm,
+		       j.risk_assessment_standards,
+			   d.hazards_classification,
+			   -- hazards_type에 따른 분류 정보
+			   -- 요인 정보
+			   'RAP' AS doc_type,
+			   b.doc_no,
+			   b.doc_seq,
+		       b.write_year,
+			   i.class_nm,
+			   b.hazards_classification AS impl_hazards_classification,
+			   b.hazards_cause,
+			   b.hazards_factor,
+			   b.related_evidence,
+			   b.use_yn AS impl_use_yn,
+			   b.process_id,
+			   coalesce(b.prcs_work_id, 0) AS prcs_work_id,
+			   d1.minor_nm as frequency_score,
+			   d2.minor_nm as impact_score,
+			   d3.minor_nm as risk_score,
+			   b.current_safety_measures,
+			   b.created_at,
+			   d4.minor_nm as after_frequency_score,
+			   d5.minor_nm as after_impact_score,
+			   d6.minor_nm as after_risk_score,
+			   -- 감소대책 정보
+		       'RAP' as reduction_doc_type,
+		       case when f.DOC_SEQ_DETAIL is null then null
+			        else (DENSE_RANK() OVER (
+						        PARTITION BY c.doc_no, d.doc_seq
+								    ORDER BY d.write_year, e.class_id DESC, f.doc_seq_detail
+						    ))
+			   END AS resultCnt,
+			   f.doc_no,
+			   f.doc_seq,
+			   f.doc_seq_detail,
+			   f.reduction_measures,
+			   f.expected_date,
+			   f.completed_date,
+			   f.impl_content,
+			   f.use_yn AS reduction_use_yn,
+			   f.created_at AS redcution_created_at,
+			   -- 담당자 정보
+			   g.doc_seq_detail2,
+			   g.hr_id,
+			   h.hr_nm
+		  FROM (
+				SELECT hazards_type
+				  from esg.tb_risk_assessment_implementation
+				 where write_year = #{writeYear}
+				   AND doc_type = 'RAP'
+				   AND doc_no = #{docNo}
+				   AND prcs_work_id = #{prcsWorkId}
+				 UNION
+				SELECT b.hazards_type
+				  FROM ESG.tb_classification_hazards a
+				  LEFT JOIN esg.tb_classification_hazards_detail b
+				    ON a.write_year = b.write_year
+				   AND a.doc_type = b.doc_type
+				   AND a.doc_no = b.doc_no
+				 WHERE a.use_yn = 'Y'
+				   AND a.process_id = #{processId}
+				   AND a.process_work_rev_no = #{revNo}
+				   AND a.comp_id = #{compId}
+				   AND a.write_year = #{writeYear}
+				) a
+		  LEFT JOIN esg.tb_risk_assessment_implementation b
+		    ON b.hazards_type = a.hazards_type
+		   AND write_year = #{writeYear}
+		   AND doc_type = 'RAP'
+		   AND doc_no = #{docNo}
+		<if test="isAllPrint == true">
+		   AND prcs_work_id = #{prcsWorkId}
+		   </if>
+		  LEFT JOIN esg.tb_classification_hazards c
+		    ON c.use_yn = 'Y'
+		   AND c.process_id = #{processId}
+		   AND c.write_year = #{writeYear}
+		<if test="isAllPrint == true">
+		   AND c.process_work_rev_no = #{revNo}
+		   AND c.comp_id = #{compId}
+		   </if>
+		  LEFT JOIN esg.tb_classification_hazards_detail d
+	        ON d.write_year = c.write_year
+		   AND d.doc_type = c.doc_type
+		   AND d.doc_no = c.doc_no
+		   AND d.hazards_type = a.hazards_type
+		  LEFT JOIN esg.tb_classification_hazards_factor_mgmt  e
+			ON e.factor_id = d.hazards_type
+	  	   AND e.class_id = d.hazards_classification
+	  	  LEFT JOIN esg.tb_risk_assessment_implementation_reduction f
+	  	    ON f.write_year = b.write_year
+	  	   AND f.doc_type = b.doc_type
+	  	   AND f.doc_no = b.doc_no
+	  	   AND f.doc_seq = b.doc_seq
+		  LEFT JOIN esg.tb_risk_assessment_implementation_reduction_hr g
+		    ON g.write_year = f.write_year
+		   AND g.doc_type = f.doc_type
+		   AND g.doc_no = f.doc_no
+		   AND g.doc_seq = f.doc_seq
+		   AND g.doc_seq_detail = f.doc_seq_detail
+		  LEFT JOIN esg.tb_hr_info h
+		    ON h.hr_id = g.hr_id
+		  LEFT JOIN esg.tb_classification_hazards_factor_mgmt  i
+	  	    ON i.factor_id = b.hazards_type
+	  	   AND i.class_id = b.hazards_classification
+	  	  LEFT JOIN esg.tb_risk_assessment_plan j
+	  	    ON j.doc_no = #{docNo}
+		   AND j.write_year = #{writeYear}
+		   AND j.comp_id = #{compId}
+	  	  LEFT JOIN esg.tb_common_d d1
+		    ON d1.major_cd = 'C0038'
+		   AND d1.minor_cd = b.frequency_score
+	  	  LEFT JOIN esg.tb_common_d d2
+		    ON d2.major_cd = 'C0039'
+		   AND d2.minor_cd = b.impact_score
+	  	  LEFT JOIN esg.tb_common_d d3
+		    ON d3.major_cd = 'C0040'
+		   AND d3.minor_cd = b.risk_score
+	  	  LEFT JOIN esg.tb_common_d d4
+		    ON d4.major_cd = 'C0038'
+		   AND d4.minor_cd = b.after_frequency_score
+	  	  LEFT JOIN esg.tb_common_d d5
+		    ON d5.major_cd = 'C0039'
+		   AND d5.minor_cd = b.after_impact_score
+	  	  LEFT JOIN esg.tb_common_d d6
+		    ON d6.major_cd = 'C0040'
+		   AND d6.minor_cd = b.after_risk_score
+		 ORDER BY a.hazards_type ASC, e.class_id DESC, b.doc_seq ASC, f.doc_seq_detail ASC
+    </select>
+
+	<select id="selectAllHazardsDetailReport" resultType="map">
+		SELECT CASE WHEN a.hazards_type = 'factor_1' THEN '기계적 요인'
+					WHEN a.hazards_type = 'factor_2' THEN '전기적 요인'
+					WHEN a.hazards_type = 'factor_3' THEN '화학(물질)적 요인'
+					WHEN a.hazards_type = 'factor_4' THEN '생물학적요인'
+					WHEN a.hazards_type = 'factor_5' THEN '작업특성 요인'
+					WHEN a.hazards_type = 'factor_6' THEN '작업환경 요인'
+				END AS hazards_title,
+					a.hazards_type,
+					j.plan_nm,
+					j.risk_assessment_standards,
+					d.hazards_classification,
+					-- hazards_type에 따른 분류 정보
+					-- 요인 정보
+					'RAP' AS doc_type,
+					b.doc_no,
+					b.doc_seq,
+					b.write_year,
+					i.class_nm,
+					b.hazards_classification AS impl_hazards_classification,
+					b.hazards_cause,
+					b.hazards_factor,
+					b.related_evidence,
+					b.use_yn AS impl_use_yn,
+					b.process_id,
+					coalesce(b.prcs_work_id, 0) AS prcs_work_id,
+					d1.minor_nm as frequency_score,
+					d2.minor_nm as impact_score,
+					d3.minor_nm as risk_score,
+					b.current_safety_measures,
+					b.created_at,
+					d4.minor_nm as after_frequency_score,
+					d5.minor_nm as after_impact_score,
+					d6.minor_nm as after_risk_score,
+					-- 감소대책 정보
+					'RAP' as reduction_doc_type,
+			   CASE WHEN f.DOC_SEQ_DETAIL is null then null
+			   ELSE (DENSE_RANK() OVER (
+						PARTITION BY c.doc_no, d.doc_seq
+						ORDER BY d.write_year, e.class_id DESC, f.doc_seq_detail
+					))
+			    END AS resultCnt,
+					f.doc_no,
+					f.doc_seq,
+					f.doc_seq_detail,
+					f.reduction_measures,
+					f.expected_date,
+					f.completed_date,
+					f.impl_content,
+					f.use_yn AS reduction_use_yn,
+					f.created_at AS redcution_created_at,
+					-- 담당자 정보
+					g.doc_seq_detail2,
+					g.hr_id,
+					h.hr_nm
+			  FROM (
+					SELECT hazards_type
+					  FROM esg.tb_risk_assessment_implementation
+					 WHERE write_year = #{writeYear}
+					   AND doc_type = 'RAP'
+					   AND doc_no = #{docNo}
+					 UNION
+					SELECT b.hazards_type
+		  			  FROM ESG.tb_classification_hazards a
+					  LEFT JOIN esg.tb_classification_hazards_detail b
+					    ON a.write_year = b.write_year
+					   AND a.doc_type = b.doc_type
+					   AND a.doc_no = b.doc_no
+					 WHERE a.use_yn = 'Y'
+					   AND a.process_id = #{processId}
+					   AND a.process_work_rev_no = #{revNo}
+					   AND a.comp_id = #{compId}
+					   AND a.write_year = #{writeYear}
+			  ) a
+			  LEFT JOIN esg.tb_risk_assessment_implementation b
+			    ON b.hazards_type = a.hazards_type
+			   AND write_year = #{writeYear}
+			   AND doc_type = 'RAP'
+			   AND doc_no = #{docNo}
+		 	  LEFT JOIN esg.tb_classification_hazards c
+				ON c.use_yn = 'Y'
+			   AND c.process_id = #{processId}
+			   AND c.write_year = #{writeYear}
+			  LEFT JOIN esg.tb_classification_hazards_detail d
+				ON d.write_year = c.write_year
+			   AND d.doc_type = c.doc_type
+			   AND d.doc_no = c.doc_no
+			   AND d.hazards_type = a.hazards_type
+			  LEFT JOIN esg.tb_classification_hazards_factor_mgmt  e
+				ON e.factor_id = d.hazards_type
+			   AND e.class_id = d.hazards_classification
+			  LEFT JOIN esg.tb_risk_assessment_implementation_reduction f
+			    ON f.write_year = b.write_year
+			   AND f.doc_type = b.doc_type
+			   AND f.doc_no = b.doc_no
+			   AND f.doc_seq = b.doc_seq
+			  LEFT JOIN esg.tb_risk_assessment_implementation_reduction_hr g
+			    ON g.write_year = f.write_year
+			   AND g.doc_type = f.doc_type
+			   AND g.doc_no = f.doc_no
+			   AND g.doc_seq = f.doc_seq
+			   AND g.doc_seq_detail = f.doc_seq_detail
+			  LEFT JOIN esg.tb_hr_info h
+			 	ON h.hr_id = g.hr_id
+			  LEFT JOIN esg.tb_classification_hazards_factor_mgmt  i
+				ON i.factor_id = b.hazards_type
+			   AND i.class_id = b.hazards_classification
+			  LEFT JOIN esg.tb_risk_assessment_plan j
+				ON j.doc_no = #{docNo}
+			   AND j.write_year = #{writeYear}
+			   AND j.comp_id = #{compId}
+			  LEFT JOIN esg.tb_common_d d1
+			  	ON d1.major_cd = 'C0038'
+			   AND d1.minor_cd = b.frequency_score
+			  LEFT JOIN esg.tb_common_d d2
+			  	ON d2.major_cd = 'C0039'
+			   AND d2.minor_cd = b.impact_score
+			  LEFT JOIN esg.tb_common_d d3
+			    ON d3.major_cd = 'C0040'
+			   AND d3.minor_cd = b.risk_score
+			  LEFT JOIN esg.tb_common_d d4
+				ON d4.major_cd = 'C0038'
+			   AND d4.minor_cd = b.after_frequency_score
+			  LEFT JOIN esg.tb_common_d d5
+				ON d5.major_cd = 'C0039'
+			   AND d5.minor_cd = b.after_impact_score
+			  LEFT JOIN esg.tb_common_d d6
+				ON d6.major_cd = 'C0040'
+			   AND d6.minor_cd = b.after_risk_score
+			 ORDER BY a.hazards_type ASC, e.class_id DESC, b.doc_seq ASC, f.doc_seq_detail ASC
+	</select>
+
+	<select id="selectRiskImplFileList" parameterType="kr.co.igns.system.common.model.SpSearchVO" resultType="String">
+		SELECT file_id
+		  FROM esg.tb_sys_file f
+		 WHERE comp_id = #{compId}
+		   AND target_type = #{docType}
+		   AND target_id like CONCAT(#{searchText}, '%')
+		   AND use_yn = 'Y'
+		 ORDER BY file_seq ASC
+	</select>
+
+	<select id="checkRemoveRiskImplList" parameterType="kr.co.igns.system.common.model.SpSearchVO" resultType="kr.co.igns.business.planning.model.ImplementationOfRiskAseessmentVO">
+		SELECT
+			curr.process_nm,
+			curr.work_content,
+			curr.process_id,
+			COUNT(rai.doc_seq) as risk_impl_remove_count
+		  FROM (
+				SELECT DISTINCT c.process_id, e.prcs_work_id, c.process_nm, e.work_content
+				  FROM esg.tb_risk_assessment_plan rap
+				  JOIN esg.tb_classification_process_equip_msds b
+				    ON b.write_year = rap.cpem_write_year
+				   AND b.doc_no = rap.cpem_doc_no
+				   AND b.comp_id = rap.comp_id
+				   AND b.use_yn = 'Y'
+				   AND b.orgn_id = #{orgnId}
+				  JOIN esg.tb_classification_process_equip_msds_analysis c
+				    ON c.write_year = b.write_year
+			       AND c.doc_type = b.doc_type
+				   AND c.doc_no = b.doc_no
+				  JOIN esg.tb_process_work_cnfm d
+				    ON d.rev_no = c.rev_no
+				   AND d.cnfm_yn = 'Y'
+				   AND d.process_id = c.process_id
+				  JOIN esg.tb_process_work e
+				    ON e.prcs_cnfm_id = d.prcs_cnfm_id
+				 WHERE rap.write_year = #{writeYear}
+				   AND rap.doc_no = #{docNo}
+			       AND rap.comp_id = #{compId}
+				   AND rap.doc_type = #{docType}
+			   ) curr
+		  LEFT JOIN (
+				SELECT DISTINCT c.process_id, e.prcs_work_id
+				  FROM esg.tb_risk_assessment_plan rap
+				  JOIN esg.tb_classification_process_equip_msds b
+				    ON b.comp_id = rap.comp_id
+				   AND b.confirm_yn = 'Y'
+				   AND b.use_yn = 'Y'
+				   AND b.orgn_id = #{orgnId}
+				  JOIN esg.tb_classification_process_equip_msds_analysis c
+				    ON c.write_year = b.write_year
+				   AND c.doc_type = b.doc_type
+				   AND c.doc_no = b.doc_no
+				  JOIN esg.tb_process_work_cnfm d
+				    ON d.rev_no = c.rev_no
+				   AND d.cnfm_yn = 'Y'
+				   AND d.process_id = c.process_id
+				  JOIN esg.tb_process_work e
+				    ON e.prcs_cnfm_id = d.prcs_cnfm_id
+				 WHERE rap.write_year = #{writeYear}
+				   AND rap.doc_no = #{docNo}
+				   AND rap.comp_id = #{compId}
+				   AND rap.doc_type = #{docType}
+				) conf
+		    ON curr.process_id = conf.process_id
+		   AND curr.prcs_work_id = conf.prcs_work_id
+		  JOIN esg.tb_risk_assessment_implementation rai
+		    ON rai.write_year = #{writeYear}
+		   AND rai.doc_no = #{docNo}
+		   AND rai.doc_type = #{docType}
+		   AND rai.prcs_work_id = curr.prcs_work_id
+		   AND rai.use_yn = 'Y'
+		  WHERE conf.process_id IS NULL
+		  GROUP BY curr.process_nm, curr.work_content, curr.process_id, curr.prcs_work_id
+		  ORDER BY curr.process_id, curr.prcs_work_id, curr.process_nm;
+	</select>
+
+    <insert id="insertRiskAssImpl" parameterType="kr.co.igns.business.planning.model.ImplementationOfRiskAseessmentVO">
+	    <selectKey keyProperty="docSeq" resultType="string" order="BEFORE">
+			SELECT coalesce(#{docSeq}, LPAD((COALESCE(MAX(doc_seq::INTEGER), 0) + 1)::TEXT, 5, '0')) AS docSeq
+		      FROM ESG.TB_RISK_ASSESSMENT_IMPLEMENTATION
+			 WHERE write_year = #{writeYear}
+			   AND doc_type = #{docType}
+			   AND doc_no = #{docNo}
+		</selectKey>
+		<if test="cmd != null and cmd != ''">
+	    	INSERT INTO ESG.TB_RISK_ASSESSMENT_IMPLEMENTATION (
+				WRITE_YEAR,
+				DOC_TYPE,
+				DOC_NO,
+				DOC_SEQ,
+				HAZARDS_CLASSIFICATION,
+				HAZARDS_CAUSE,
+				HAZARDS_FACTOR,
+				LEGAL_ID,
+				RELATED_EVIDENCE,
+				FREQUENCY_SCORE,
+				IMPACT_SCORE,
+				RISK_SCORE,
+				USE_YN,
+				HAZARDS_TYPE,
+				PROCESS_ID,
+				PRCS_WORK_ID,
+				CURRENT_SAFETY_MEASURES,
+				CREATED_AT,
+				CREATED_BY,
+				IMPL_WRITE_YEAR,
+				IMPL_DOC_NO,
+				IMPL_DOC_SEQ,
+				AFTER_FREQUENCY_SCORE,
+				AFTER_IMPACT_SCORE,
+				AFTER_RISK_SCORE
+			) VALUES (
+				#{writeYear},
+				#{docType},
+				#{docNo},
+				#{docSeq},
+				#{hazardsClassification},
+				#{hazardsCause},
+				#{hazardsFactor},
+				#{legalId},
+				#{relatedEvidence},
+				#{frequencyScore},
+				#{impactScore},
+				#{riskScore},
+				#{useYn},
+				#{hazardsType},
+				#{processId},
+				#{prcsWorkId},
+				#{currentSafetyMeasures},
+				NOW(),
+				#{createdBy},
+				#{implWriteYear},
+				#{implDocNo},
+				#{implDocSeq},
+				#{afterFrequencyScore},
+				#{afterImpactScore},
+				#{afterRiskScore}
+			) ON CONFLICT (WRITE_YEAR, DOC_TYPE, DOC_NO, DOC_SEQ) 
+			  DO UPDATE SET 
+				HAZARDS_CLASSIFICATION = #{hazardsClassification},
+				HAZARDS_CAUSE = #{hazardsCause},
+				HAZARDS_FACTOR = #{hazardsFactor},
+				LEGAL_ID = #{legalId},
+				RELATED_EVIDENCE = #{relatedEvidence},
+				FREQUENCY_SCORE = #{frequencyScore},
+				IMPACT_SCORE = #{impactScore},
+				RISK_SCORE = #{riskScore},
+				AFTER_FREQUENCY_SCORE = #{afterFrequencyScore},
+				AFTER_IMPACT_SCORE = #{afterImpactScore},
+				AFTER_RISK_SCORE = #{afterRiskScore},
+				USE_YN = #{useYn},
+				HAZARDS_TYPE = #{hazardsType},
+				PROCESS_ID = #{processId},
+				PRCS_WORK_ID = #{prcsWorkId},
+				CURRENT_SAFETY_MEASURES = #{currentSafetyMeasures},
+				UPDATED_AT = NOW(),
+				UPDATED_BY = #{updatedBy}
+		</if>
+    </insert>
+    
+    <insert id="insertRiskAssImplReduction" parameterType="kr.co.igns.business.planning.model.ImplementationOfRiskAseessmentVO">
+    	<selectKey keyProperty="docSeqDetail" resultType="string" order="BEFORE">
+			SELECT coalesce(#{docSeqDetail}, LPAD((COALESCE(MAX(doc_seq_detail::INTEGER), 0) + 1)::TEXT, 5, '0')) AS docSeqDetail
+		      FROM ESG.TB_RISK_ASSESSMENT_IMPLEMENTATION_REDUCTION
+			 WHERE write_year = #{writeYear}
+			   AND doc_type = #{docType}
+			   AND doc_no = #{docNo}
+			   AND doc_seq = #{docSeq}
+		</selectKey>
+    	INSERT INTO ESG.TB_RISK_ASSESSMENT_IMPLEMENTATION_REDUCTION (
+			WRITE_YEAR,
+			DOC_TYPE,
+			DOC_NO,
+			DOC_SEQ,
+			DOC_SEQ_DETAIL,
+			REDUCTION_MEASURES,
+			EXPECTED_DATE,
+			COMPLETED_DATE,
+			IMPL_CONTENT,
+			USE_YN,
+			CREATED_AT,
+			CREATED_BY
+		) VALUES (
+			#{writeYear},
+			#{docType},
+			#{docNo},
+			#{docSeq},
+			#{docSeqDetail},
+			#{reductionMeasures},
+			#{expectedDate},
+			#{completedDate},
+			#{implContent},
+			#{useYn},
+			NOW(),
+			#{createdBy}
+		) ON CONFLICT (WRITE_YEAR, DOC_TYPE, DOC_NO, DOC_SEQ, DOC_SEQ_DETAIL) 
+		  DO UPDATE SET 
+		  	REDUCTION_MEASURES = #{reductionMeasures},
+			EXPECTED_DATE = #{expectedDate},
+			COMPLETED_DATE = #{completedDate},
+			IMPL_CONTENT = #{implContent}, 
+			USE_YN = #{useYn},
+			UPDATED_AT = NOW(),
+			UPDATED_BY = #{updatedBy}
+    </insert>
+    
+    <insert id="insertRiskAssImplReductionHr" parameterType="kr.co.igns.business.planning.model.ImplementationOfRiskAseessmentReductionVO">
+    	<foreach collection="hrList" item="item" separator=";">
+	    	INSERT INTO ESG.TB_RISK_ASSESSMENT_IMPLEMENTATION_REDUCTION_HR (
+				WRITE_YEAR,
+				DOC_TYPE,
+				DOC_NO,
+				DOC_SEQ,
+				DOC_SEQ_DETAIL,
+				DOC_SEQ_DETAIL2,
+				HR_ID,
+				CREATED_AT,
+				CREATED_BY
+			) VALUES (
+				#{writeYear},
+				#{docType},
+				#{docNo},
+				#{docSeq},
+				#{docSeqDetail},
+				(
+					SELECT LPAD((COALESCE(MAX(doc_seq_detail2::INTEGER), 0) + 1)::TEXT, 5, '0') AS docSeqDetail2
+				      FROM ESG.TB_RISK_ASSESSMENT_IMPLEMENTATION_REDUCTION_HR
+					 WHERE write_year = #{writeYear}
+					   AND doc_type = #{docType}
+					   AND doc_no = #{docNo}
+					   AND doc_seq = #{docSeq}
+					   AND doc_seq_detail = #{docSeqDetail} 
+				),
+				#{item.hrId},
+				NOW(),
+				#{createdBy}
+			)
+		</foreach>
+    </insert>
+
+	<delete id="deleteAllRiskAssImpl">
+		DELETE FROM ESG.TB_RISK_ASSESSMENT_IMPLEMENTATION
+		WHERE WRITE_YEAR = #{writeYear}
+		AND DOC_TYPE = #{docType}
+		AND DOC_NO = #{docNo}
+	</delete>
+
+	<delete id="deleteAllRiskAssImplReduction">
+		DELETE FROM ESG.TB_RISK_ASSESSMENT_IMPLEMENTATION_REDUCTION
+		WHERE WRITE_YEAR = #{writeYear}
+		AND DOC_TYPE = #{docType}
+		AND DOC_NO = #{docNo}
+	</delete>
+
+	<delete id="deleteAllRiskAssImplReductionHr">
+		DELETE FROM ESG.TB_RISK_ASSESSMENT_IMPLEMENTATION_REDUCTION_HR
+		WHERE WRITE_YEAR = #{writeYear}
+		AND DOC_TYPE = #{docType}
+		AND DOC_NO = #{docNo}
+	</delete>
+
+    <delete id="deleteRiskAssImplReductionHr">
+    	DELETE FROM ESG.TB_RISK_ASSESSMENT_IMPLEMENTATION_REDUCTION_HR
+         WHERE WRITE_YEAR = #{writeYear}
+           AND DOC_TYPE = #{docType}
+           AND DOC_NO = #{docNo}
+           AND DOC_SEQ = #{docSeq}
+           AND DOC_SEQ_DETAIL = #{docSeqDetail}
+    </delete>
+
+	<delete id="deleteWorkerApprovalInfoAll" parameterType="kr.co.igns.business.utils.model.UtilsVO">
+		DELETE FROM esg.tb_approval_info
+		 WHERE target_type = #{targetType}
+		 AND target_id = #{targetId}
+		 AND type = 'worker'
+	</delete>
+
+
+</mapper>
+

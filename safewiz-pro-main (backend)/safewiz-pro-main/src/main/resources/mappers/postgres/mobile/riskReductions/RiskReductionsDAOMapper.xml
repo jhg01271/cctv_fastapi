@@ -1,0 +1,445 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.mobile.riskReductions.dao.postgres.V1RiskReductionsDAO">
+    <resultMap id="RiskReductionsResultMap" type="kr.co.igns.mobile.riskReductions.model.RiskReductionsVO">
+        <id property="id" column="id"/>
+        <result property="content" column="content"/>
+        <result property="expectedAt" column="expectedat"/>
+        <result property="completedAt" column="completedat"/>
+        <result property="createdAt" column="createdat"/>
+        <!-- Use custom JsonTypeHandler -->
+        <result property="riskAssessment" column="riskassessment"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+        <result property="hazardFactor" column="hazardfactor"
+            typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>           
+        <result property="process" column="process"
+            typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>     
+        <result property="work" column="work"
+            typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>   
+        <result property="assignees" column="assignees"
+            typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>                                                     
+    </resultMap>
+    
+    <resultMap id="RiskReductionsDetailResultMap" type="kr.co.igns.mobile.riskReductions.model.RiskReductionsDetailVO">
+        <id property="id" column="id"/>
+        <result property="content" column="content"/>
+        <result property="beforeRiskLevel" column="beforerisklevel"/>
+        <result property="afterRiskLevel" column="afterrisklevel"/>
+        <result property="implementation" column="implementation"/>
+        <result property="expectedAt" column="expectedat"/>
+        <result property="completedAt" column="completedat"/>
+        <result property="createdAt" column="createdat"/>
+        <!-- Use custom JsonTypeHandler -->
+        <result property="assignees" column="assignees"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+        <result property="hazardFactor" column="hazardfactor"
+            typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>  
+        <result property="riskAssessment" column="riskassessment"
+            typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>                      
+        <result property="process" column="process"
+            typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>     
+        <result property="work" column="work"
+            typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>   
+        <result property="beforeFiles" column="beforefiles"
+            typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>    
+         <result property="afterFiles" column="afterfiles"
+            typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>                                                              
+    </resultMap>    
+    
+    <!-- 위험성 평가 목록 조회 -->
+    <select id="getRiskAssessments" parameterType="kr.co.igns.mobile.riskReductions.model.RiskReductionsSearchVO" resultType="kr.co.igns.mobile.riskReductions.model.RiskAssessmentVO">
+		SELECT 
+		        CONCAT(write_year, '-', doc_type, '-', doc_no) AS id,
+		        plan_nm AS name,
+		        created_at
+		FROM esg.tb_risk_assessment_plan
+		WHERE
+		        comp_id = #{compId}
+		        AND use_yn = 'Y'
+		ORDER BY
+		        created_at DESC    
+    </select>
+	<!-- 감소대책 목록 조회 -->
+	<select id="getRiskReductions" parameterType="kr.co.igns.mobile.riskReductions.model.RiskReductionsSearchVO" resultMap="RiskReductionsResultMap">
+		WITH plans AS ( -- 위험성 평가
+		    SELECT
+		        write_year,
+		        doc_type,
+		        doc_no,
+		        comp_id,
+		        plan_nm AS plan_name
+		    FROM esg.tb_risk_assessment_plan
+		    WHERE comp_id = #{compId} -- :comp_id
+	        <if test="riskAssessmentId != null">
+		        AND write_year = #{writeYear} -- :write_year
+		        AND doc_type = #{docType} -- :doc_type
+		        AND doc_no = #{docNo} -- :doc_no
+	        </if>
+		        AND use_yn = 'Y'
+		),
+		implementations AS ( -- 유해위험요인
+		    SELECT 
+		        p.write_year,
+		        p.doc_type,
+		        p.doc_no,
+		        i.doc_seq AS impl_doc_seq,
+		        p.comp_id,
+		        p.plan_name,
+		        i.hazards_type, -- 구분 (대분류) ID
+		        i.hazards_classification, -- 분류 (중분류) ID
+		        i.process_id, -- 공정 ID
+		        pi.process_nm AS process_name, -- 공정명
+		        i.prcs_work_id AS work_id, -- 작업 ID
+		        w.work_content AS work_name, -- 작업명
+		        i.hazards_factor, -- 유해위험요인 내용
+		        i.hazards_cause, -- 원인
+		        i.related_evidence, -- 관련 근거
+		        i.risk_score, -- 현재 위험성 점수
+		        i.created_at
+		    FROM esg.tb_risk_assessment_implementation i
+		    JOIN plans p ON p.write_year = i.write_year AND p.doc_type = i.doc_type AND p.doc_no = i.doc_no
+		    LEFT JOIN esg.tb_process_info pi ON pi.process_id = i.process_id AND pi.comp_id = p.comp_id /* AND pi.use_yn = 'Y' */
+		    LEFT JOIN esg.tb_process_work w ON w.prcs_work_id = i.prcs_work_id /* AND w.use_yn = 'Y' */
+		    WHERE i.use_yn = 'Y'
+		        /* 특정 공정에 대한 조회시 주석 해제 */
+        <if test="processId != null">
+		      AND i.process_id = #{processId} -- :process_id
+        </if>
+		),
+		reductions AS (
+		    SELECT 
+		        r.write_year, -- 위험성평가 작성연도
+		        r.doc_type, -- 위험성평가 문서타입
+		        r.doc_no, -- 위험성평가 문서번호
+		        r.doc_seq, -- 위험성평가 이행 문서번호
+		        r.doc_seq_detail, -- 감소대책 문서번호
+		        i.comp_id,
+		        i.hazards_factor, -- 유해위험요인 내용
+		        i.plan_name, -- 위험성평가 제목
+		        i.process_id, -- 공정 ID
+		        i.process_name, -- 공정명
+		        i.work_id, -- 작업 ID
+		        i.work_name, -- 작업명
+		        r.reduction_measures, -- 감소대책 내용
+		        r.impl_content, -- 개선 조치사항
+		        r.expected_date, -- 개선 예정일
+		        r.completed_date, -- 개선 완료일
+		        r.after_risk_score, -- 개선후 위험성 점수
+		        r.created_at
+		    FROM implementations i 
+		    JOIN esg.tb_risk_assessment_implementation_reduction r 
+		        ON i.write_year = r.write_year 
+		            AND i.doc_type = r.doc_type 
+		            AND i.doc_no = r.doc_no 
+		            AND i.impl_doc_seq = r.doc_seq
+		    LEFT JOIN esg.tb_risk_assessment_implementation_reduction_hr rh 
+		        ON rh.write_year = r.write_year
+		            AND rh.doc_type = r.doc_type
+		            AND rh.doc_no = r.doc_no
+		            AND rh.doc_seq = r.doc_seq
+		            AND rh.doc_seq_detail = r.doc_seq_detail
+		    WHERE r.use_yn = 'Y'
+		        /* :only_undone; 미완료만 조회시 주석 해제 */
+	        <if test="onlyUndone == true">        
+		      AND r.completed_date IS NULL
+	        </if>
+		        /* :only_mine: 내 담당만 조회시 주석 해제 */
+            <if test="onlyMine == true">
+		      AND rh.hr_id = #{hrId}
+	        </if>
+		    GROUP BY r.write_year, -- 위험성평가 작성연도
+		        r.doc_type, -- 위험성평가 문서타입
+		        r.doc_no, -- 위험성평가 문서번호
+		        r.doc_seq, -- 위험성평가 이행 문서번호
+		        r.doc_seq_detail, -- 감소대책 문서번호
+		        i.comp_id,
+		        i.hazards_factor, -- 유해위험요인 내용
+		        i.plan_name, -- 위험성평가 제목
+		        i.process_id, -- 공정 ID
+		        i.process_name, -- 공정명
+		        i.work_id, -- 작업 ID
+		        i.work_name, -- 작업명
+		        r.reduction_measures, -- 감소대책 내용
+		        r.impl_content, -- 개선 조치사항
+		        r.expected_date, -- 개선 예정일
+		        r.completed_date, -- 개선 완료일
+		        r.after_risk_score, -- 개선후 위험성 점수
+		        r.created_at
+		
+		),
+		 reduction_assignees AS (
+		    SELECT
+		        r.write_year,
+		        r.doc_type,
+		        r.doc_no,
+		        r.doc_seq, 
+		        r.doc_seq_detail,
+		        json_agg(
+		            json_build_object(
+		                'hrId', rh.hr_id,
+		                'hrNm', h.hr_nm,
+		                'jobTitle', jbrp.jbrp_nm,
+		                'orgName', o.orgn_nm,
+		                'profileImageId', f.file_id
+		            )
+		        ) AS assignees
+		    FROM reductions r 
+		    LEFT JOIN esg.tb_risk_assessment_implementation_reduction_hr rh 
+		        ON rh.write_year = r.write_year
+		            AND rh.doc_type = r.doc_type
+		            AND rh.doc_no = r.doc_no
+		            AND rh.doc_seq = r.doc_seq
+		            AND rh.doc_seq_detail = r.doc_seq_detail
+		    LEFT JOIN esg.v_hr_info h ON rh.hr_id = h.hr_id
+		    LEFT JOIN esg.tb_sys_file f ON f.target_type = 'hrImg' AND f.target_id = h.hr_id AND f.comp_id = r.comp_id AND f.del_yn = 'N'
+		    LEFT JOIN esg.tb_orgn_info o ON h.orgn_id = o.orgn_id AND o.comp_id = r.comp_id AND o.use_yn = 'Y'
+		    left join esg.tb_hr_info_jbrp jbrp
+				on jbrp.jbrp_id = h.jbrp
+				AND jbrp.use_yn = 'Y'
+		    WHERE rh.hr_id IS NOT NULL AND rh.hr_id != ''
+		    GROUP BY r.write_year, r.doc_type, r.doc_no, r.doc_seq, r.doc_seq_detail
+		)
+		SELECT 
+		    CONCAT(r.write_year, '-', r.doc_type, '-', r.doc_no, '-', r.doc_seq, '-', r.doc_seq_detail) AS id,
+		    r.reduction_measures AS content,
+		    json_build_object(
+		        'id', CONCAT(r.write_year, '-', r.doc_type, '-', r.doc_no),
+		        'name', r.plan_name
+		    ) AS riskAssessment,
+		    json_build_object(
+		        'id', CONCAT(r.write_year, '-', r.doc_type, '-', r.doc_no, '-', r.doc_seq),
+		        'content', r.hazards_factor
+		    ) AS hazardFactor,
+		    json_build_object(
+		        'id', r.process_id,
+		        'name', r.process_name
+		    ) AS process,
+		    json_build_object(
+		        'id', r.work_id,
+		        'name', r.work_name
+		    ) AS work,
+		    ra.assignees,
+		    CASE 
+		        WHEN COALESCE(r.expected_date, '') != '' THEN
+		            TO_TIMESTAMP(r.expected_date, 'yyyyMMdd')::timestamp
+		        ELSE NULL
+		    END AS expectedAt,
+		    CASE
+		        WHEN COALESCE(r.completed_date, '') != '' THEN 
+		            TO_TIMESTAMP(r.completed_date, 'yyyyMMdd')::timestamp
+		        ELSE NULL
+		    END AS completedAt,
+		    r.created_at AS createdAt
+		FROM reductions r
+		LEFT JOIN reduction_assignees ra  
+		    ON r.write_year = ra.write_year
+		        AND r.doc_type = ra.doc_type
+		        AND r.doc_no = ra.doc_no
+		        AND r.doc_seq = ra.doc_seq
+		        AND r.doc_seq_detail = ra.doc_seq_detail
+	</select>    
+	
+	<!-- 감소대책 상세 조회 -->
+	<select id="getRiskReductionsDetail" parameterType="kr.co.igns.mobile.riskReductions.model.RiskReductionsSearchVO" resultMap="RiskReductionsDetailResultMap">
+		WITH reduction AS (
+		    SELECT 
+		        r.write_year,
+		        r.doc_type,
+		        r.doc_no,
+		        r.doc_seq,
+		        r.doc_seq_detail,
+		        p.plan_nm AS plan_name,
+		        r.reduction_measures, 
+		        r.impl_content,
+		        r.expected_date,
+		        r.completed_date,
+		        r.after_risk_score,
+		        r.created_at
+		    FROM esg.tb_risk_assessment_implementation_reduction r
+		    LEFT JOIN esg.tb_risk_assessment_plan p 
+		        ON p.write_year = r.write_year 
+		            AND p.doc_type = r.doc_type 
+		            AND p.doc_no = r.doc_no 
+		            AND p.comp_id = #{compId} -- :comp_id
+		            AND p.use_yn = 'Y'
+		    WHERE r.use_yn = 'Y'
+		        AND r.write_year = #{writeYear} -- :write_year
+		        AND r.doc_type = #{docType} -- :doc_type
+		        AND r.doc_no = #{docNo} -- :doc_no
+		        AND r.doc_seq = #{docSeq} -- :doc_seq
+		        AND r.doc_seq_detail = #{docSeqDetail} -- :doc_seq_detail
+		    LIMIT 1
+		), 
+		assignees AS (
+		    SELECT
+		        r.write_year,
+		        r.doc_type,
+		        r.doc_no,
+		        r.doc_seq, 
+		        r.doc_seq_detail,
+		        json_agg(
+		            json_build_object(
+		                'hrId', rh.hr_id,
+		                'name', h.hr_nm,
+		                'jobTitle', jbrp.jbrp_nm,
+		                'orgName', o.orgn_nm,
+		                'profileImageId', f.file_id
+		            )
+		        ) AS assignees
+		    FROM reduction r 
+		    LEFT JOIN esg.tb_risk_assessment_implementation_reduction_hr rh 
+		        ON rh.write_year = r.write_year
+		            AND rh.doc_type = r.doc_type
+		            AND rh.doc_no = r.doc_no
+		            AND rh.doc_seq = r.doc_seq
+		            AND rh.doc_seq_detail = r.doc_seq_detail
+		    LEFT JOIN esg.v_hr_info h 
+		        ON rh.hr_id = h.hr_id
+		    LEFT JOIN esg.tb_sys_file f 
+		        ON f.target_type = 'hrImg' 
+		            AND f.target_id = h.hr_id 
+		            AND f.comp_id = #{compId} -- :comp_id
+		            AND f.del_yn = 'N'
+		    LEFT JOIN esg.tb_orgn_info o 
+		        ON h.orgn_id = o.orgn_id 
+		            AND o.comp_id = #{compId}  -- :comp_id
+		            AND o.use_yn = 'Y'
+		    left join esg.tb_hr_info_jbrp jbrp
+            	on jbrp.jbrp_id = h.jbrp
+				AND jbrp.use_yn = 'Y'
+		    WHERE rh.hr_id IS NOT NULL AND rh.hr_id != ''
+		    GROUP BY r.write_year, r.doc_type, r.doc_no, r.doc_seq, r.doc_seq_detail
+		),
+		implementation AS (
+		    SELECT 
+		        i.hazards_type,
+		        type.minor_nm AS type_name,
+		        i.hazards_classification,
+		        classification.minor_nm AS classification_name,
+		        i.process_id, -- 공정 ID
+		        pi.process_nm AS process_name, -- 공정명
+		        i.prcs_work_id AS work_id, -- 작업 ID
+		        w.work_content AS work_name, -- 작업명
+		        i.hazards_factor, -- 유해위험요인 내용
+		        i.hazards_cause, -- 원인
+		        i.related_evidence, -- 관련 근거
+		        i.risk_score -- 현재 위험성 점수
+		    FROM esg.tb_risk_assessment_implementation i
+		    RIGHT JOIN reduction r
+		        ON i.write_year = r.write_year 
+		            AND i.doc_type = r.doc_type 
+		            AND i.doc_no = r.doc_no 
+		            AND i.doc_seq = r.doc_seq
+		            AND i.use_yn = 'Y'
+		    LEFT JOIN esg.tb_process_info pi 
+		        ON pi.process_id = i.process_id 
+		            AND pi.comp_id = #{compId} -- :comp_id
+		            /* AND pi.use_yn = 'Y' */
+		    LEFT JOIN esg.tb_process_work w 
+		        ON w.prcs_work_id = i.prcs_work_id 
+		            /* AND w.use_yn = 'Y' */
+		    LEFT JOIN esg.tb_common_d type
+		        ON i.hazards_type = type.minor_cd 
+		            AND type.major_cd = 'C0022' 
+		            /* AND type.use_yn = 'Y' */
+		    LEFT JOIN esg.tb_common_d classification
+		        ON classification.major_cd = i.hazards_type
+		            AND classification.minor_cd = i.hazards_classification
+		            /* AND classification.use_yn = 'Y' */
+		
+		),
+		before_files AS (
+		    SELECT 
+		        json_agg(
+		            json_build_object(
+		                'fileId', file_id, 
+		                'fileName', file_nm, 
+		                'fileExt', extension, 
+		                'fileType', file_type, 
+		                'fileSize', file_size  
+		            )
+		        ) AS file_arr
+		    FROM esg.tb_sys_file 
+		    WHERE target_type = 'RAP'
+		        AND target_id = CONCAT(#{writeYear}, #{docNo}, #{docSeq}, #{docSeqDetail}, 'B') -- :write_year, :doc_no, :doc_seq, :doc_seq_detail
+		        AND use_yn = 'Y' 
+		), 
+		after_files AS (
+		    SELECT 
+		        json_agg(
+		            json_build_object(
+		                'fileId', file_id, 
+		                'fileName', file_nm, 
+		                'fileExt', extension, 
+		                'fileType', file_type, 
+		                'fileSize', file_size  
+		            )
+		        ) AS file_arr
+		    FROM esg.tb_sys_file 
+		    WHERE target_type = 'RAP'
+		        AND target_id = CONCAT(#{writeYear}, #{docNo}, #{docSeq}, #{docSeqDetail}, 'A') -- :write_year, :doc_no, :doc_seq, :doc_seq_detail
+		        AND use_yn = 'Y' 
+		)
+		SELECT 
+		    CONCAT(r.write_year, '-', r.doc_type, '-', r.doc_no, '-', r.doc_seq, '-', r.doc_seq_detail) AS id,
+		    r.reduction_measures AS content,
+		    a.assignees,
+		    i.risk_score AS beforeRiskLevel,
+		    r.after_risk_score AS afterRiskLevel,
+		    json_build_object(
+		        'id', CONCAT(r.write_year, '-', r.doc_type, '-', r.doc_no, '-', r.doc_seq),
+		        'cause', i.hazards_cause,
+		        'content', i.hazards_factor,
+		        'relatedEvidence', i.related_evidence,
+		        'riskLevel', i.risk_score,
+		        'classification', i.classification_name,
+		        'type', i.type_name
+		    ) AS hazardFactor,
+		    json_build_object(
+		        'id', CONCAT(r.write_year, '-', r.doc_type, '-', r.doc_no),
+		        'name', r.plan_name
+		    ) AS riskAssessment,
+		    json_build_object(
+		        'id', i.process_id,
+		        'name', i.process_name
+		    ) AS process,
+		    json_build_object(
+		        'id', i.work_id,
+		        'name', i.work_name
+		    ) AS work,
+		    r.impl_content AS implementation,
+		    COALESCE(bf.file_arr, '[]'::json) AS beforeFiles, 
+		    COALESCE(af.file_arr, '[]'::json) AS afterFiles,
+		    CASE 
+		        WHEN COALESCE(r.expected_date, '') != ''  THEN
+		            TO_TIMESTAMP(r.expected_date, 'yyyyMMdd')::timestamp
+		        ELSE NULL
+		    END AS expectedAt,
+		    CASE 
+		        WHEN COALESCE(r.completed_date, '') != '' THEN
+		            TO_TIMESTAMP(r.completed_date, 'yyyyMMdd')::timestamp
+		        ELSE NULL
+		    END AS completedAt,
+		    r.created_at AS createdAt
+		FROM reduction r 
+		LEFT JOIN assignees a ON TRUE
+		LEFT JOIN implementation i ON TRUE
+		LEFT JOIN before_files bf ON TRUE
+		LEFT JOIN after_files af ON TRUE	
+	</select>
+	
+	<!-- 감소대책 개선조치 등록/변경 -->
+	<update id="saveRiskReductionsDetail" parameterType="kr.co.igns.mobile.riskReductions.model.RiskReductionsSaveVO">
+		UPDATE esg.tb_risk_assessment_implementation_reduction
+		SET impl_content = #{content},
+	        completed_date = TO_CHAR(NOW(), 'YYYYMMDD'), 
+		    updated_at = NOW(),
+		    updated_by = #{updatedBy}
+		WHERE write_year = #{writeYear}
+		  AND doc_type = #{docType}
+		  AND doc_no = #{docNo}
+		  AND doc_seq = #{docSeq}
+		  AND doc_seq_detail = #{docSeqDetail}
+	</update>
+</mapper>

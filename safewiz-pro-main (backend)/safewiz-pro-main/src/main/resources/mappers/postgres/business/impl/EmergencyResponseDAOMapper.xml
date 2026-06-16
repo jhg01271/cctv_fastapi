@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.impl.dao.postgres.EmergencyResponseDAO">
+    <select id='getEmergencyResponse' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.EmergencyResponseVO'>
+        SELECT
+            'emergencyControlOrganChart' AS title
+            ,'/EmergencyControlOrganChart' AS route
+            ,'emergencyControlOrganChartDesc' AS description
+            , case when emergencyControlOrganChart.exist then 'Y'
+            	else 'N'
+            	end as activeYn
+        FROM
+        (
+            SELECT EXISTS (
+                SELECT 1
+                FROM esg.tb_emergency_control_org_chart tecoc
+                WHERE tecoc.comp_id  = #{compId}
+                    AND tecoc.write_year = #{searchText}
+                    AND tecoc.confirm_yn = 'Y'
+            ) as exist
+        ) AS emergencyControlOrganChart
+        UNION ALL
+        SELECT
+            'emergencyControlTaskAsgmt' AS title
+            ,'/EmergencyControlTaskAsgmt' AS route
+            ,'emergencyControlTaskAsgmtDesc' AS description
+            , CASE WHEN emergencyControlTaskAsgmt.exist THEN 'Y'
+            	ELSE 'N'
+            	END AS activeYn
+        FROM
+        (
+            SELECT EXISTS (
+                SELECT 1
+                FROM esg.tb_emergency_control_task_asgmt tecta
+                WHERE tecta.comp_id  = #{compId}
+                    AND tecta.write_year = #{searchText}
+                    AND tecta.use_yn = 'Y'
+            ) as exist
+        ) AS emergencyControlTaskAsgmt
+        UNION ALL
+        SELECT
+            'emergencyResponseTraining' AS title
+            ,'/EmergencyResponseTraining' AS route
+            ,'emergencyResponseTrainingDesc' AS description
+            , CASE WHEN emergencyResponseTraining.exist THEN 'Y'
+            	ELSE 'N'
+            	END AS activeYn
+        FROM
+        (
+            SELECT EXISTS (
+                SELECT 1
+                FROM esg.tb_emergency_response_training_result t1
+                LEFT JOIN esg.tb_approval_info a
+		            ON a.target_type = t1.doc_type
+		            AND a.target_id = t1.write_year||t1.doc_no||t1.doc_seq
+		            AND a.param = 'writer'
+		        LEFT JOIN esg.tb_approval_info b
+		            ON b.target_type = t1.doc_type
+		            AND b.target_id = t1.write_year||t1.doc_no||t1.doc_seq
+		            AND b.param = 'reviewer'
+                WHERE t1.comp_id  = #{compId}
+                    AND t1.write_year = #{searchText}
+                    AND t1.use_yn = 'Y'
+                    and a.signature is NOT NULL
+                    AND b.signature is NOT NULL
+            ) as exist
+        ) AS emergencyResponseTraining
+        UNION ALL
+        SELECT
+            'facilityEquipStatusTable' AS title
+            ,'/facilityEquipStatusTable' AS route
+            ,'facilityEquipStatusTableDesc' AS description
+            , CASE WHEN facilityEquipStatusTable.exist THEN 'Y'
+            	ELSE 'N'
+            	END AS activeYn
+        FROM
+        (
+            SELECT EXISTS (
+                SELECT 1
+                   FROM esg.tb_facility_equipment_info tfei 
+                  WHERE tfei.comp_id  = #{compId}
+                    AND tfei.use_yn = 'Y'
+
+            ) as exist
+        ) AS facilityEquipStatusTable
+    </select>
+
+</mapper>

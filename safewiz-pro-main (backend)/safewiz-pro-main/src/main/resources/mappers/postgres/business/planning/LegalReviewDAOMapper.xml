@@ -1,0 +1,406 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.planning.dao.postgres.LegalReviewDAO">
+    <select id='getLegalReviewList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.planning.model.LegalReviewVO'>
+        select a.write_year ,a.doc_type ,a.doc_no ,a.comp_id ,a.legal_review_nm ,a.use_yn ,a.created_at
+		,  count(b.doc_seq) as cnt, 'U' as cmd, esg.fn_getapprovalstatus('LGR', a.write_year || a.doc_no) as approval_status
+		from esg.tb_legal_review a
+		left join esg.tb_legal_review_detail b
+			on a.write_year = b.write_year 
+			and a.doc_type = b.doc_type 
+			and a.doc_no = b.doc_no
+			and b.use_yn = 'Y'
+	  	where A.comp_id = #{compId}
+	  	
+	  	<if test="docType != null">
+	  		and A.doc_type = #{docType}
+	  	</if>
+	  	
+	  	<if test="docNo != null">
+	  		and A.doc_no = #{docNo}
+	  	</if>
+        group by a.write_year ,a.doc_type ,a.doc_no ,a.comp_id ,a.use_yn ,a.created_at
+		order by A.write_year DESC, A.use_yn DESC, a.created_at desc
+        
+    </select>
+    
+    <select id='getLegalReviewDetailMasterList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.planning.model.LegalReviewVO'>
+        select  A.write_year 
+        	,	A.doc_no 
+        	,	A.doc_type 
+        	,	A.comp_id
+			,   A.legal_review_nm
+        	,	A.use_yn 
+        	,	created_at 
+        	,	created_by 
+        	,	updated_at 
+        	,	updated_by 
+        	,   'U' as cmd 
+        from esg.tb_legal_review A
+        where A.write_year = #{writeYear}
+	  	  and A.comp_id = #{compId}
+	  	
+	  	<if test="docNo != null">
+	  		and A.doc_no = #{docNo}
+	  	</if>
+	  	
+	  	<if test="docType != null">
+	  		and A.doc_type = #{docType}
+	  	</if>
+	  	
+        ORDER BY A.use_yn DESC, A.created_at desc
+        
+    </select>
+    
+    
+    
+    <select id='getLegalReviewDetailList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.planning.model.LegalReviewDetailVO'>
+        select  A.write_year 
+		  		,	A.doc_type 
+		  		,	A.doc_no 
+		  		,	A.doc_seq 
+		  		,	coalesce(A.legal_write_year,'') as legal_write_year
+		  		,	coalesce(A.legal_doc_type,'') as legal_doc_type
+		  		,	coalesce(A.legal_doc_no,'') as legal_doc_no
+		  		,   coalesce(A.legal_doc_seq ,'') as legal_doc_seq
+		  		,   coalesce(D.legal_nm ,'') as legal_nm
+		  		,	coalesce(C.article_title,'') as legal_article_nm
+		  		,	A.revision_at
+		  		,	coalesce(A.currentlaws,'') as currentlaws
+		  		,	coalesce(A.facility,'') as facility
+		  		,	coalesce(A.remark_dc,'') as remark_dc 
+		  		,	A.use_yn
+		  		,	A.created_at 
+		  		,	A.created_by 
+		  		,	A.updated_at 
+		  		,	A.updated_by 
+		  		,   'U' as cmd
+		        ,   B.legal_review_nm
+		  	from esg.tb_legal_review_detail A
+			left join esg.tb_legal_review B on a.write_year = b.write_year and a.doc_type = b.doc_type and a.doc_no = b.doc_no and b.comp_id = #{compId}
+		  	left join esg.tb_legal_manage_detail C on a.legal_write_year = c.write_year and a.legal_doc_type =c.doc_type and a.legal_doc_no = c.doc_no and a.legal_doc_seq = c.doc_seq
+		  	left join esg.tb_legal_manage D on c.write_year =d.write_year and c.doc_type = d.doc_type and c.doc_no = d.doc_no
+		  			  	
+		  	where A.write_year = #{writeYear} and D.comp_Id = #{compId}
+			
+			<if test="docNo != null">
+		  		and A.doc_no = #{docNo}
+		  	</if>
+			
+			<if test="docType != null">
+	  			and A.doc_type = #{docType}
+		  	</if>
+		  	
+		 
+		  	ORDER BY A.use_yn DESC, CAST(a.doc_seq AS INTEGER) desc
+			
+    </select>
+
+	<select id='getLegalReviewDetailOrgnList' parameterType='kr.co.igns.business.planning.model.LegalReviewDetailVO' resultType='kr.co.igns.business.planning.model.LegalReviewDetailOrgnVO'>
+		SELECT
+			tlrdo.write_year
+			,	tlrdo.doc_type
+			,	tlrdo.doc_no
+			,	tlrdo.doc_seq
+			,	tlrdo.orgn_id
+			,	tlrdo.orgn_nm
+		FROM esg.tb_legal_review_detail_orgn tlrdo
+		LEFT JOIN esg.tb_legal_review_detail tlrd
+		ON tlrd.write_year = tlrdo.write_year and tlrd.doc_type = tlrdo.doc_type and tlrd.doc_no = tlrdo.doc_no and tlrd.doc_seq = tlrdo.doc_seq
+		WHERE tlrdo.write_year = #{writeYear}
+		<if test="docNo != null">
+			AND tlrdo.doc_no = #{docNo}
+		</if>
+
+		<if test="docType != null">
+			AND tlrdo.doc_type = #{docType}
+		</if>
+
+		<if test="docSeq != null">
+			AND tlrdo.doc_seq = #{docSeq}
+		</if>
+
+		ORDER BY CAST(tlrdo.doc_seq AS INTEGER) DESC, tlrdo.orgn_id ASC
+	</select>
+    
+    <select id='getDocNo' parameterType='kr.co.igns.business.planning.model.LegalReviewVO' resultType='java.lang.String'>
+        SELECT
+			LPAD((COALESCE(MAX(doc_no::INTEGER), 0) + 1)::TEXT, 5, '0') AS docNo
+	    FROM esg.tb_legal_review
+		WHERE write_year = #{writeYear}
+			AND doc_type = #{docType}
+    </select>
+    
+    
+    <insert id="insertLegalReview" parameterType="kr.co.igns.business.planning.model.LegalReviewVO">
+    	    	
+    		insert into esg.tb_legal_review (write_year , doc_type, doc_no, comp_id, legal_review_nm, use_yn, created_at, created_by, updated_at, updated_by)
+          							  values(#{writeYear} , #{docType}, #{docNo},
+          							  #{compId}, #{legalReviewNm}, #{useYn}, now(), #{createdBy}, now(), #{updatedBy})
+    
+    </insert>
+   
+    
+     <update id="updateLegalReview" parameterType="kr.co.igns.business.planning.model.LegalReviewVO">
+        
+    		<!-- update -->
+    		update esg.tb_legal_review
+    		set
+		 		legal_review_nm = #{legalReviewNm},
+    			use_yn = #{useYn},
+    			updated_at = now(),
+    			updated_by = #{updatedBy}
+   			WHERE comp_id = #{compId}
+	            AND write_year = #{writeYear}
+	            AND doc_type = #{docType}
+	            AND doc_no = #{docNo}
+    	
+    </update>
+    
+    
+    <insert id="insertLegalReviewDetail" parameterType="map">
+			<selectKey keyProperty="docSeq" resultType="kr.co.igns.business.planning.model.LegalReviewDetailVO" order="BEFORE">
+				SELECT LPAD((COALESCE(SUBSTRING(MAX(doc_seq), 5)::INTEGER, 0) + 1)::TEXT, 5, '0') AS docSeq
+				FROM esg.tb_legal_review_detail
+				WHERE write_year = #{writeYear}
+				and doc_type = #{docType}
+				and doc_no = #{docNo}
+			</selectKey>
+
+    		insert into esg.tb_legal_review_detail (write_year, doc_type, doc_no, doc_seq, legal_write_year, legal_doc_type, legal_doc_no, legal_doc_seq,
+													revision_at, currentLaws, facility, remark_dc, use_yn, created_at, created_by, updated_at, updated_by)
+								 values(#{writeYear} , #{docType}, #{docNo}, #{docSeq},
+								 #{legalWriteYear}, #{legalDocType}, #{legalDocNo}, #{legalDocSeq},
+		                        #{revisionAt}, #{currentlaws}, #{facility}, #{remarkDc}, #{useYn},
+								 now(), #{createdBy}, now(), #{updatedBy})
+		
+					
+    
+    </insert>
+    
+  
+    
+    <update id="updateLegalReviewDetail" parameterType="map">
+    	
+    		<!-- update -->
+    		update esg.tb_legal_review_detail
+    		set
+    			legal_write_year = #{legalWriteYear},
+    			legal_doc_type = #{legalDocType},
+    			legal_doc_no = #{legalDocNo},
+    			legal_doc_seq = #{legalDocSeq},
+				revision_at = #{revisionAt},
+    			currentLaws = #{currentlaws},
+    			facility = #{facility},
+    			remark_dc = #{remarkDc},
+    			use_yn = #{useYn},
+    			updated_at = now(),
+    			updated_by = #{updatedBy}
+   			WHERE write_year = #{writeYear}
+	            AND doc_type = #{docType}
+	            AND doc_no = #{docNo}
+	            AND doc_seq = #{docSeq}
+	    
+    </update>
+
+	<insert id="insertLegalReviewDetailOrgn" parameterType="kr.co.igns.business.planning.model.LegalReviewDetailOrgnVO">
+		INSERT INTO esg.tb_legal_review_detail_orgn(
+			write_year,
+			doc_no,
+			doc_type,
+			doc_seq,
+			orgn_id,
+			orgn_nm,
+			created_by
+		)
+		VALUES (
+			#{writeYear},
+			#{docNo},
+			#{docType},
+			#{docSeq},
+			#{orgnId},
+			#{orgnNm},
+			#{createdBy}
+		)
+
+	</insert>
+
+    <update id="deleteLegalReview" parameterType="kr.co.igns.business.planning.model.LegalReviewVO">
+        UPDATE esg.tb_legal_review
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+            AND write_year = #{writeYear}
+            AND doc_type = #{docType}
+            AND doc_no = #{docNo}
+    </update>
+    
+    <update id="deleteLegalReviewDetail" parameterType="kr.co.igns.business.planning.model.LegalReviewDetailVO">
+        UPDATE esg.tb_legal_review_detail
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE doc_no = #{docNo}
+            AND write_year = #{writeYear}
+            AND doc_type = #{docType}
+            And doc_seq = #{docSeq}
+    </update>
+
+	<delete id="deleteLegalReviewDetailOrgn" parameterType="kr.co.igns.business.planning.model.LegalReviewDetailOrgnVO">
+
+		DELETE FROM esg.tb_legal_review_detail_orgn
+		WHERE write_year = #{writeYear}
+		AND doc_no = #{docNo}
+		AND doc_type = #{docType}
+		and doc_seq = #{docSeq}
+
+	</delete>
+
+    <select id='getReportData' parameterType='kr.co.igns.business.planning.model.LegalReviewVO' resultType='kr.co.igns.business.planning.model.LegalReviewVO'>
+       	
+
+		select  a.write_year,
+				a.doc_type ,
+				a.doc_no ,
+			    a.created_at ,
+				a.created_by ,
+				a.updated_at ,
+				a.updated_by 
+			from esg.tb_legal_review a
+			where a.comp_id = #{compId}
+		    and   a.write_year = #{writeYear}
+		    and   a.doc_type = #{docType}
+		    and   a.doc_no = #{docNo}
+			
+    </select>
+    
+    <select id='getReportGridData' parameterType='kr.co.igns.business.planning.model.LegalReviewVO' resultType='kr.co.igns.business.planning.model.LegalReviewDetailVO'>
+
+		 	<![CDATA[
+		 		WITH original_data AS (
+				    SELECT  c.article_title as legalArticleNm
+						,	b.revision_at
+						,	b.currentlaws
+						,	b.facility
+						,	b.remark_dc
+						,   b.doc_no
+						,	row_number() OVER (ORDER BY b.doc_no, b.doc_seq DESC)::text AS doc_seq
+						,	STRING_AGG(d.orgn_nm, E'\n' ORDER BY d.orgn_id) AS orgn_nm
+						,   e.legal_nm
+				    FROM esg.tb_legal_review a
+				    LEFT JOIN esg.tb_legal_review_detail b 
+						   ON a.write_year = b.write_year
+						  AND a.doc_type = b.doc_type
+						  AND a.doc_no = b.doc_no
+				    LEFT JOIN esg.tb_legal_manage_detail c
+						   ON b.legal_write_year = c.write_year
+						  AND b.legal_doc_type = c.doc_type
+						  AND b.legal_doc_no = c.doc_no
+						  AND b.legal_doc_seq = c.doc_seq
+				    LEFT JOIN esg.tb_legal_review_detail_orgn D on a.doc_no  = d.doc_no and b.doc_seq = d.doc_seq
+				    LEFT JOIN esg.tb_legal_manage E on e.doc_no  = c.doc_no and e.comp_id = a.comp_id
+				    WHERE a.comp_id = #{compId}
+				      AND   a.write_year = #{writeYear}
+				      AND   a.doc_type = #{docType}
+				      AND   a.doc_no = #{docNo}
+				      AND   b.doc_seq IN    ]]>
+				    <foreach item="gridValue" index="index" collection="gridValue" open="(" separator="," close=")">
+				        #{gridValue}
+				    </foreach>
+					GROUP BY
+							c.article_title,
+							b.revision_at,
+							b.currentlaws,
+							b.facility,
+							b.remark_dc,
+							b.doc_no,
+							b.doc_seq,
+							e.legal_nm
+				    <if test='checkedYn != null and checkedYn == "N"'>
+    					<![CDATA[
+    					AND b.use_yn = 'Y'
+    					]]>
+					</if>
+				<![CDATA[
+				),
+			
+				data_count AS (
+				    SELECT COUNT(*) AS row_count FROM original_data
+				)
+				
+				SELECT * FROM original_data
+				UNION ALL
+				SELECT '' AS article_title, 
+				       '' AS revision_at,
+				       '' AS currentLaws,
+				       '' AS facility,
+				       '' AS remark_dc,
+					   '' AS doc_no,
+				       '' AS doc_seq,
+				       '' AS orgn_nm,
+				       '' as legal_nm
+				FROM generate_series(1, 0 - ((SELECT row_count FROM data_count)%20))
+				WHERE ((SELECT row_count FROM data_count)%20) < 20
+				order by doc_no, doc_seq ASC;
+		 	
+		 	]]>
+		
+   </select>
+   
+   <select id='getReportGridDataAll' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.planning.model.LegalReviewDetailVO'>
+	   SELECT
+		   t1.legal_review_nm,
+		   row_number() OVER (ORDER BY t2.doc_no, t2.doc_seq ASC)::text AS doc_seq,
+		   t2.write_year,
+		   t3.article_title AS legalArticleNm,
+	   	   t2.revision_at,
+		   t2.currentlaws,
+		   t2.facility,
+		   t2.remark_dc,
+		   STRING_AGG(t4.orgn_nm, E'\n' ORDER BY t4.orgn_id) AS orgn_nm,
+		   t5.legal_nm
+	   FROM esg.tb_legal_review t1
+	   LEFT JOIN esg.tb_legal_review_detail t2
+	   		ON t1.write_year = t2.write_year
+	     	AND t1.doc_no = t2.doc_no
+	   LEFT JOIN esg.tb_legal_manage_detail t3
+	   		ON t2.legal_write_year = t3.write_year
+	   		AND t2.legal_doc_type = t3.doc_type
+	   		AND t2.legal_doc_no = t3.doc_no
+	   		AND t2.legal_doc_seq = t3.doc_seq
+	   LEFT JOIN esg.tb_legal_review_detail_orgn t4
+	   		ON t2.doc_seq = t4.doc_seq
+	   		AND t1.doc_no = t4.doc_no
+	   LEFT JOIN esg.tb_legal_manage t5
+	   		ON t3.doc_no = t5.doc_no
+	   		AND t1.comp_id = t5.comp_id
+	   WHERE t1.write_year = #{writeYear}
+	   		AND t1.doc_no = #{docNo}
+	   GROUP BY
+		   t1.legal_review_nm,
+		   t2.write_year,
+		   t2.doc_no,
+		   t2.doc_seq,
+		   t3.article_title,
+		   t2.revision_at,
+		   t2.currentlaws,
+		   t2.facility,
+		   t2.remark_dc,
+		   t5.legal_nm
+	   ORDER BY t2.doc_no, t2.doc_seq ASC;
+   </select>
+    
+	<select id='getAllReport' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.common.model.SpSearchVO'>
+	    select t1.*
+		from esg.tb_legal_review t1
+		where t1.write_year = #{writeYear}
+			and t1.comp_id = #{compId}
+			and t1.use_yn = 'Y'
+		order by t1.doc_no asc
+   </select>
+</mapper>
+
