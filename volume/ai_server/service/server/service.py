@@ -38,7 +38,7 @@ def save_server(db: Session, data: dict) -> AiServer:
         return upsert_server(db, existing)
 
     server = AiServer(
-        ai_server_id=data.get("ai_server_id", f"SI{now.strftime('%H%M%S')}"),
+        ai_server_id=data.get("ai_server_id") or f"SI{now.strftime('%H%M%S')}",
         comp_id=data["comp_id"],
         server_nm=data["server_nm"],
         server_host=data["server_host"],

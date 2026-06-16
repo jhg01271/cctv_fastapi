@@ -1,8 +1,20 @@
-"""안전관리 DB 저장 워커.
+"""AI가 확정한 이벤트를 DB에 저장하고 저장 성공 후 알림을 보내는 파일.
 
-safety_process가 event_queue에 넣은 이벤트를
-백그라운드 스레드에서 읽어 SQLAlchemy로 DB에 저장한다.
+흐름에서의 위치:
+  1. service/safety/processor.py가 E001~E004 확정 이벤트를 event_queue에 넣는다.
+  2. 이 파일의 SafetyDBWorker가 백그라운드 스레드에서 event_queue를 계속 읽는다.
+  3. 먼저 service/safety/repository.py의 save_event()로 tb_camera_event_hist에 저장한다.
+  4. DB 저장이 성공하면 service/telegram/service.py로 텔레그램 알림을 보낸다.
+
+중요한 점:
+  - /safety/debug에 보이는 실시간 bbox와 별개로, History에 남는 이벤트는 이 워커를 통과한 것뿐이다.
+  - 현재 텔레그램은 "DB 저장 후 알림" 구조다.
+
+다음에 볼 파일:
+  - service/safety/repository.py: 이벤트를 실제 DB 테이블에 insert한다.
+  - service/telegram/service.py: 저장된 이벤트에 대한 텔레그램 메시지/파일을 전송한다.
 """
+
 
 from __future__ import annotations
 

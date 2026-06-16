@@ -111,10 +111,13 @@ class EventRead(BaseModel):
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
-    event_time: datetime
-    camera_id: str = Field(serialization_alias="cctv_id")
+    event_time: str
+    camera_id: str
+    cctv_id: str
     event_type: str | None = None
     event_type_name: str | None = None
     event_desc: str
     file_path: str | None = None
+    isread: bool = False
+    isRead: bool = False
     remark: str | None = None

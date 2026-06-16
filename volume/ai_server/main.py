@@ -11,7 +11,7 @@ from config.config import settings
 from core.ai.process_manager import init_manager
 from service.safety.processor import safety_process
 from service.safety.worker import SafetyDBWorker
-from service.progress.worker import ProgressWorker
+# from service.progress.worker import ProgressWorker
 from core.ai.ws_bridge import ws_bridge
 from core.database.session import initialize_database
 from core.exception.handlers import register_exception_handlers
@@ -75,14 +75,20 @@ async def lifespan(app: FastAPI):
     ).start()
     logger.info("Camera restore task started.")
 
-    # 공정률 워커 시작 (스냅샷 추론 + result_queue → SQLAlchemy 저장)
-    progress_worker: ProgressWorker | None = None
-    if Path(settings.MODEL_PROGRESS_PT).exists():
-        progress_worker = ProgressWorker()
-        progress_worker.start()
-        logger.info("Progress worker started.")
-    else:
-        logger.warning("Progress model not found (%s). Progress worker skipped.", settings.MODEL_PROGRESS_PT)
+    # 서버 기동 시 이미지 캐시를 백그라운드에서 동기화 초기화하는 배치 실행
+    from core.database.session import SessionLocal
+    from service.roi.service import initialize_all_camera_captures_background
+    initialize_all_camera_captures_background(SessionLocal)
+    logger.info("Image cache initialization background task started.")
+
+    # 공정률 워커 시작 (성동조선 미사용으로 주석 처리)
+    # progress_worker: ProgressWorker | None = None
+    # if Path(settings.MODEL_PROGRESS_PT).exists():
+    #     progress_worker = ProgressWorker()
+    #     progress_worker.start()
+    #     logger.info("Progress worker started.")
+    # else:
+    #     logger.warning("Progress model not found (%s). Progress worker skipped.", settings.MODEL_PROGRESS_PT)
 
     try:
         logger.info("Application startup completed.")
@@ -91,8 +97,8 @@ async def lifespan(app: FastAPI):
         logger.info("Application shutdown initiated.")
         manager.stop()
         safety_db_worker.stop()
-        if progress_worker:
-            progress_worker.stop()
+        # if progress_worker:
+        #     progress_worker.stop()
         ws_bridge.stop()
         await http_client.shutdown()
         logger.info("Application shutdown completed.")
@@ -134,3 +140,22 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
+
+
+from fastapi.responses import FileResponse
+from fastapi import HTTPException
+import os
+
+@app.get("/cctv/process/video", summary="이벤트 비디오 스트리밍")
+def stream_video(path: str):
+    """지정된 경로의 mp4 비디오 파일을 스트리밍한다."""
+    if not path or not os.path.exists(path):
+        raise HTTPException(status_code=404, detail=f"비디오 파일을 찾을 수 없습니다. path={path}")
+    return FileResponse(
+        path=path,
+        media_type="video/mp4",
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+        },
+    )

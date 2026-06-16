@@ -1,4 +1,16 @@
-"""안전관리 DB 접근 로직."""
+"""Safety AI가 필요로 하는 DB 읽기/쓰기만 담당하는 파일.
+
+흐름에서의 위치:
+  1. service/remote/service.py가 카메라 시작 시 fetch_roi(), fetch_detection_flags(), fetch_safety_grid()를 호출한다.
+  2. service/safety/processor.py는 전달받은 ROI/모델 플래그/안전 격자로 이벤트를 판단한다.
+  3. service/safety/worker.py가 확정 이벤트를 받으면 save_event()를 호출한다.
+  4. save_event()는 event_key를 E001~E004 코드로 바꿔 tb_camera_event_hist에 저장한다.
+
+다음에 볼 파일:
+  - service/safety/processor.py: 여기서 읽은 ROI/플래그/격자를 실제 이벤트 판단에 사용한다.
+  - service/event/repository.py: 저장된 tb_camera_event_hist를 History 화면 조회용으로 다시 읽는다.
+"""
+
 
 from __future__ import annotations
 

@@ -1,16 +1,21 @@
-"""안전관리 AI 처리 프로세스 진입점.
+"""CCTV 프레임에 모델을 돌려 실시간 결과와 확정 이벤트를 만드는 핵심 파일.
 
-CameraProcessManager의 ai_target으로 등록된다.
-RTSP 리더가 공급하는 frame_queue에서 프레임을 꺼내
-YOLO 추론 → 이벤트 감지 → WebSocket 결과 전송 → event_queue 전달을 수행한다.
-
-DB 저장은 부모 프로세스의 SafetyDBWorker가 event_queue를 읽어서 처리한다.
+흐름에서의 위치:
+  1. core/ai/process_manager.py가 카메라별 AI 프로세스로 safety_process()를 실행한다.
+  2. core/ai/rtsp_reader.py가 넣어둔 frame_queue에서 프레임을 꺼낸다.
+  3. AI_POSE_MODE에 따라 crop 방식 또는 full 방식으로 Detection/Pose 모델을 돌린다.
+  4. 현재 프레임의 bbox/keypoints/events는 ws_bridge로 보내 /safety/debug에서 즉시 보이게 한다.
+  5. DB에 남겨야 하는 확정 이벤트는 event_queue에 넣고, SafetyDBWorker가 나중에 저장한다.
 
 이벤트 정의:
-  E001 안전모 미착용   — no_helmet, conf≥0.80, cooldown 600s, jpg, relay 20s
-  E002 위험구역 출입   — person in ROI polygon, cooldown 600s, jpg, relay 20s
-  E003 작업자 쓰러짐   — collapse 15초 지속, cooldown 600s, mp4
-  E004 위험체 접근 감지 — 안전 격자 기반 이동벡터 → 2초 후 예측 격자 → person 존재 시 발화
+  E001 안전모 미착용: no_helmet 감지, JPG 저장, 즉시 relay, DB 저장 후 Telegram
+  E002 위험구역 출입: person 중심점이 ROI 내부, JPG 저장, 즉시 relay, DB 저장 후 Telegram
+  E003 작업자 쓰러짐: collapse가 설정 시간 이상 지속, MP4 저장, DB 저장 후 Telegram
+  E004 위험체 접근 감지: 안전 격자 이동 예측 구역에 person 존재, JPG 저장, 즉시 relay, DB 저장 후 Telegram
+
+다음에 볼 파일:
+  - core/ai/ws_bridge.py: _send_result()로 보낸 실시간 결과를 WebSocket 구독자에게 전달한다.
+  - service/safety/worker.py: _put_event()로 넣은 확정 이벤트를 DB에 저장하고 알림을 보낸다.
 """
 
 from __future__ import annotations
@@ -69,15 +74,27 @@ def safety_process(
         pose_is_run: YOLO Pose 모델 실행 여부
         safety_grid_arr: 안전 격자 좌표 (E004 격자 기반 감지용)
     """
+    # 여러 카메라를 동시에 복구할 때 모델 로딩이 CPU를 선점하면 다른 RTSP reader가 첫 프레임을 못 받을 수 있다.
+    # 그래서 프로세스는 먼저 뜨되, 모델 로딩은 잠깐 늦춰 모든 reader가 붙을 시간을 준다.
+    time.sleep(settings.AI_STARTUP_DELAY)
+
     # ── 모델 로드
     model_safety = load_model(ModelType.SAFETY, settings.MODEL_SAFETY_PT)
-    model_pose   = load_model(ModelType.POSE,   settings.MODEL_POSE_PT)
+    
+    # AI_POSE_MODE 설정(crop vs full)에 따라 크롭 모델 또는 풀프레임 모델을 분기하여 로드
+    pose_model_path = (
+        settings.MODEL_POSE_CROP_PT 
+        if settings.AI_POSE_MODE == "crop" 
+        else settings.MODEL_POSE_FULL_PT
+    )
+    model_pose   = load_model(ModelType.POSE,   pose_model_path)
 
     FRAME_SKIP          = max(1, settings.AI_FRAME_SKIP)
     CONF_THR            = settings.AI_CONFIDENCE_THRESHOLD
     COOLDOWN_SEC        = float(settings.AI_EVENT_COOLDOWN_SEC)
     COLLAPSE_SUSTAIN    = settings.AI_COLLAPSE_SUSTAIN_SEC
     E003_BUFFER_MAX     = settings.AI_E003_BUFFER_MAX
+    POSE_MAX_CROPS      = max(1, settings.AI_POSE_MAX_CROPS)
 
     # ── 안전 격자 → 4차 좌표 변환 (OpenCV 5차 중첩 → 일반 2D)
     safety_grid: list = _convert_grid_coords(safety_grid_arr) if safety_grid_arr else []
@@ -88,6 +105,7 @@ def safety_process(
     # ── E003: collapse 추적
     collapse_start_time: Optional[float] = None
     frame_buffer: deque[np.ndarray] = deque(maxlen=E003_BUFFER_MAX)
+    frame_times: deque[float] = deque(maxlen=E003_BUFFER_MAX)
 
     # ── E004: 안전 격자 기반 위험체 추적 상태
     # key: "{row}_{col}_{class}" → list of tracked items
@@ -96,7 +114,7 @@ def safety_process(
     # ── 루프 상태
     last_frame: Optional[np.ndarray] = None
     frame_count = 0
-    switch = True  # True=Detection, False=Pose
+    switch = True  # True=Detection, False=Pose (full 모드에서 교차 구동 시 사용)
 
     logger.info(
         "[SafetyAI:%s] Process started. detection=%s pose=%s roi_count=%d grid_cells=%s",
@@ -104,8 +122,6 @@ def safety_process(
         len(roi_arr) if roi_arr else 0,
         f"{len(safety_grid)}rows" if safety_grid else "none",
     )
-
-    time.sleep(settings.AI_STARTUP_DELAY)
 
     while not stop_event.is_set():
         # ── 프레임 취득
@@ -131,114 +147,166 @@ def safety_process(
 
         # E003 프레임 버퍼 (스킵 후 적재)
         frame_buffer.append(frame.copy())
+        frame_times.append(now)
+
+        person_boxes: list[list[int]] = []
+        h_frame, w_frame = frame.shape[:2]
 
         # ══════════════════════════════════════════════════════════════════════
-        # [A] Detection 모델 (switch = True)
+        # [A] AI 추론 실행 (AI_POSE_MODE == "crop" vs "full")
         # ══════════════════════════════════════════════════════════════════════
-        if detection_is_run and switch:
-            results = model_safety.track(frame, persist=True, verbose=False)
+        if settings.AI_POSE_MODE == "crop":
+            # ── [crop 모드] Cascade Crop 방식
+            # 1. Detection 실행
+            if detection_is_run:
+                results = model_safety.track(frame, persist=True, verbose=False)
+                hazard_items: list[dict] = []
 
-            person_boxes: list[list[int]] = []
-            hazard_items: list[dict] = []
-
-            for result in results:
-                boxes = result.boxes
-                if boxes is None:
-                    continue
-
-                for i, (box, cls, conf) in enumerate(
-                    zip(boxes.xyxy, boxes.cls, boxes.conf)
-                ):
-                    x1, y1, x2, y2 = map(int, box)
-                    cls_idx  = int(cls)
-                    conf_val = float(conf)
-                    cls_name = get_class_name(ModelType.SAFETY, cls_idx) or "unknown"
-
-                    detections.append({
-                        "class": cls_name,
-                        "bbox":  [x1, y1, x2, y2],
-                        "conf":  round(conf_val, 3),
-                    })
-
-                    cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
-
-                    # ── E001: 안전모 미착용
-                    if cls_name == "no_helmet" and conf_val >= CONF_THR:
-                        if _can_fire(last_fire, "E001", now, COOLDOWN_SEC):
-                            img_path = save_event_image(frame, camera_id, "no_helmet")
-                            _put_event(event_queue, camera_id, "no_helmet", img_path, timestamp)
-                            _set_fire(last_fire, "E001", now)
-                            trigger_relay()
-                            events.append({"type": "E001", "message": "안전모 미착용 감지"})
-                            logger.info("[SafetyAI:%s] E001 안전모 미착용 감지 conf=%.3f", camera_id, conf_val)
-
-                    # ── E002: 위험구역 출입
-                    elif cls_name == "person" and conf_val >= CONF_THR:
-                        person_boxes.append([x1, y1, x2, y2])
-                        if roi_arr and check_roi((cx, cy), roi_arr):
-                            if _can_fire(last_fire, "E002", now, COOLDOWN_SEC):
-                                img_path = save_event_image(frame, camera_id, "person")
-                                _put_event(event_queue, camera_id, "person", img_path, timestamp)
-                                _set_fire(last_fire, "E002", now)
-                                trigger_relay()
-                                events.append({"type": "E002", "message": "위험구역 출입 감지"})
-                                logger.info("[SafetyAI:%s] E002 위험구역 출입 감지 conf=%.3f", camera_id, conf_val)
-
-                    # ── E004: 위험체 수집 (격자 기반 추적용)
-                    elif cls_name in ("forklift", "hoist") and conf_val >= CONF_THR:
-                        hazard_items.append({
-                            "class":  cls_name,
-                            "center": (cx, cy),
-                        })
-
-            # ── E004: 안전 격자 기반 위험체 접근 감지
-            if safety_grid and hazard_items:
-                _update_grid_state(grid_st, hazard_items, safety_grid, now_ms)
-                _detect_e004_grid(
-                    grid_st=grid_st,
-                    person_boxes=person_boxes,
-                    safety_grid=safety_grid,
-                    frame=frame,
-                    camera_id=camera_id,
-                    timestamp=timestamp,
-                    now=now,
-                    now_ms=now_ms,
-                    event_queue=event_queue,
-                    last_fire=last_fire,
-                    events=events,
-                    cooldown_sec=COOLDOWN_SEC,
-                )
-            elif safety_grid and not hazard_items:
-                # 위험체 미검출 시 stale 항목 정리
-                _cleanup_stale(grid_st, now_ms)
-
-            if pose_is_run:
-                switch = False
-
-        # ══════════════════════════════════════════════════════════════════════
-        # [B] Pose 모델 (switch = False)
-        # ══════════════════════════════════════════════════════════════════════
-        elif not switch:
-            if pose_is_run:
-                collapse_in_frame = False
-
-                pose_results = model_pose(frame, verbose=False)
-                for result in pose_results:
-                    if result.boxes is None:
+                for result in results:
+                    boxes = result.boxes
+                    if boxes is None:
                         continue
-                    for box in result.boxes:
-                        cls_id   = int(box.cls[0])
-                        conf_v   = float(box.conf[0])
-                        cls_name = get_class_name(ModelType.POSE, cls_id) or "unknown"
+
+                    for box, cls, conf in zip(boxes.xyxy, boxes.cls, boxes.conf):
+                        x1, y1, x2, y2 = map(int, box)
+                        cls_idx  = int(cls)
+                        conf_val = float(conf)
+                        cls_name = get_class_name(ModelType.SAFETY, cls_idx) or "unknown"
 
                         detections.append({
                             "class": cls_name,
-                            "bbox":  list(map(int, box.xyxy[0])),
-                            "conf":  round(conf_v, 3),
+                            "bbox":  [x1, y1, x2, y2],
+                            "conf":  round(conf_val, 3),
                         })
 
-                        if cls_name == "collapse" and conf_v >= CONF_THR:
-                            collapse_in_frame = True
+                        cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+
+                        # ── E001: 안전모 미착용
+                        if cls_name == "no_helmet" and conf_val >= CONF_THR:
+                            if _can_fire(last_fire, "E001", now, COOLDOWN_SEC):
+                                img_path = save_event_image(frame, camera_id, "no_helmet")
+                                _put_event(event_queue, camera_id, "no_helmet", img_path, timestamp)
+                                _set_fire(last_fire, "E001", now)
+                                trigger_relay()
+                                events.append({"type": "E001", "message": "안전모 미착용 감지"})
+                                logger.info("[SafetyAI:%s] E001 안전모 미착용 감지 conf=%.3f", camera_id, conf_val)
+
+                        # ── E002: 위험구역 출입
+                        elif cls_name == "person" and conf_val >= CONF_THR:
+                            person_boxes.append([x1, y1, x2, y2])
+                            if roi_arr and check_roi((cx, cy), roi_arr):
+                                if _can_fire(last_fire, "E002", now, COOLDOWN_SEC):
+                                    img_path = save_event_image(frame, camera_id, "person")
+                                    _put_event(event_queue, camera_id, "person", img_path, timestamp)
+                                    _set_fire(last_fire, "E002", now)
+                                    trigger_relay()
+                                    events.append({"type": "E002", "message": "위험구역 출입 감지"})
+                                    logger.info("[SafetyAI:%s] E002 위험구역 출입 감지 conf=%.3f", camera_id, conf_val)
+
+                        # ── E004: 위험체 수집
+                        elif cls_name in ("forklift", "hoist") and conf_val >= CONF_THR:
+                            hazard_items.append({
+                                "class":  cls_name,
+                                "center": (cx, cy),
+                            })
+
+                # ── E004: 안전 격자 기반 위험체 접근 감지
+                if safety_grid and hazard_items:
+                    _update_grid_state(grid_st, hazard_items, safety_grid, now_ms)
+                    _detect_e004_grid(
+                        grid_st=grid_st,
+                        person_boxes=person_boxes,
+                        safety_grid=safety_grid,
+                        frame=frame,
+                        camera_id=camera_id,
+                        timestamp=timestamp,
+                        now=now,
+                        now_ms=now_ms,
+                        event_queue=event_queue,
+                        last_fire=last_fire,
+                        events=events,
+                        cooldown_sec=COOLDOWN_SEC,
+                    )
+                elif safety_grid and not hazard_items:
+                    _cleanup_stale(grid_st, now_ms)
+
+            # 2. Pose 실행 (Cascade Crop 방식)
+            if pose_is_run:
+                collapse_in_frame = False
+
+                # Case 1: Detection이 켜져 있고 person이 검출된 경우 -> 각 person마다 crop 추론 실행
+                if detection_is_run:
+                    pose_targets = sorted(
+                        person_boxes,
+                        key=lambda b: max(0, b[2] - b[0]) * max(0, b[3] - b[1]),
+                        reverse=True,
+                    )[:POSE_MAX_CROPS]
+
+                    for px1, py1, px2, py2 in pose_targets:
+                        p_w = px2 - px1
+                        p_h = py2 - py1
+                        pad_w = int(p_w * 0.3)
+                        pad_h = int(p_h * 0.3)
+
+                        crop_x1 = max(0, px1 - pad_w)
+                        crop_y1 = max(0, py1 - pad_h)
+                        crop_x2 = min(w_frame, px2 + pad_w)
+                        crop_y2 = min(h_frame, py2 + pad_h)
+
+                        person_crop = frame[crop_y1:crop_y2, crop_x1:crop_x2]
+                        if person_crop.size == 0:
+                            continue
+
+                        pose_results = model_pose(person_crop, verbose=False)
+                        for result in pose_results:
+                            if result.boxes is None:
+                                continue
+                            for box_idx, box in enumerate(result.boxes):
+                                cls_id   = int(box.cls[0])
+                                conf_v   = float(box.conf[0])
+                                cls_name = get_class_name(ModelType.POSE, cls_id) or "unknown"
+
+                                cx1, cy1, cx2, cy2 = map(int, box.xyxy[0])
+                                abs_x1 = crop_x1 + cx1
+                                abs_y1 = crop_y1 + cy1
+                                abs_x2 = crop_x1 + cx2
+                                abs_y2 = crop_y1 + cy2
+
+                                detections.append({
+                                    "class": cls_name,
+                                    "bbox":  [abs_x1, abs_y1, abs_x2, abs_y2],
+                                    "conf":  round(conf_v, 3),
+                                    "keypoints": _extract_keypoints(
+                                        result,
+                                        box_idx,
+                                        offset_x=crop_x1,
+                                        offset_y=crop_y1,
+                                    ),
+                                })
+
+                                if cls_name == "collapse" and conf_v >= CONF_THR:
+                                    collapse_in_frame = True
+
+                # Case 2: Detection이 꺼져 있는 경우 -> 전체 화면 대상으로 추론 실행 (Full-frame fallback)
+                else:
+                    pose_results = model_pose(frame, verbose=False)
+                    for result in pose_results:
+                        if result.boxes is None:
+                            continue
+                        for box_idx, box in enumerate(result.boxes):
+                            cls_id   = int(box.cls[0])
+                            conf_v   = float(box.conf[0])
+                            cls_name = get_class_name(ModelType.POSE, cls_id) or "unknown"
+
+                            detections.append({
+                                "class": cls_name,
+                                "bbox":  list(map(int, box.xyxy[0])),
+                                "conf":  round(conf_v, 3),
+                                "keypoints": _extract_keypoints(result, box_idx),
+                            })
+
+                            if cls_name == "collapse" and conf_v >= CONF_THR:
+                                collapse_in_frame = True
 
                 # ── E003: collapse 지속 시간 판정
                 if collapse_in_frame:
@@ -246,20 +314,160 @@ def safety_process(
                         collapse_start_time = now
                     elif now - collapse_start_time >= COLLAPSE_SUSTAIN:
                         if _can_fire(last_fire, "E003", now, COOLDOWN_SEC):
-                            clip_path = save_event_clip(list(frame_buffer), camera_id)
+                            # 실제 캡처 속도(FPS) 동적 계산
+                            actual_fps = 10.0
+                            if len(frame_times) >= 2:
+                                intervals = [frame_times[i] - frame_times[i-1] for i in range(1, len(frame_times))]
+                                avg_interval = sum(intervals) / len(intervals)
+                                if avg_interval > 0:
+                                    actual_fps = 1.0 / avg_interval
+                            clip_path = save_event_clip(list(frame_buffer), camera_id, fps=actual_fps)
                             _put_event(event_queue, camera_id, "collapse", clip_path, timestamp)
                             _set_fire(last_fire, "E003", now)
                             events.append({"type": "E003", "message": "작업자 쓰러짐 감지"})
                             logger.info("[SafetyAI:%s] E003 작업자 쓰러짐 감지 sustain=%.1fs", camera_id, COLLAPSE_SUSTAIN)
-                        collapse_start_time = None  # 발화 후 초기화
+                        collapse_start_time = None
                 else:
-                    collapse_start_time = None  # 감지 끊기면 초기화
+                    collapse_start_time = None
 
-            if detection_is_run:
-                switch = True
+        else:
+            # ── [full 모드] 기존 교차 구동(switch) 방식
+            # 1. Detection 실행 (switch = True 차례)
+            if detection_is_run and switch:
+                results = model_safety.track(frame, persist=True, verbose=False)
+                hazard_items: list[dict] = []
+
+                for result in results:
+                    boxes = result.boxes
+                    if boxes is None:
+                        continue
+
+                    for box, cls, conf in zip(boxes.xyxy, boxes.cls, boxes.conf):
+                        x1, y1, x2, y2 = map(int, box)
+                        cls_idx  = int(cls)
+                        conf_val = float(conf)
+                        cls_name = get_class_name(ModelType.SAFETY, cls_idx) or "unknown"
+
+                        detections.append({
+                            "class": cls_name,
+                            "bbox":  [x1, y1, x2, y2],
+                            "conf":  round(conf_val, 3),
+                        })
+
+                        cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+
+                        # ── E001: 안전모 미착용
+                        if cls_name == "no_helmet" and conf_val >= CONF_THR:
+                            if _can_fire(last_fire, "E001", now, COOLDOWN_SEC):
+                                img_path = save_event_image(frame, camera_id, "no_helmet")
+                                _put_event(event_queue, camera_id, "no_helmet", img_path, timestamp)
+                                _set_fire(last_fire, "E001", now)
+                                trigger_relay()
+                                events.append({"type": "E001", "message": "안전모 미착용 감지"})
+                                logger.info("[SafetyAI:%s] E001 안전모 미착용 감지 conf=%.3f", camera_id, conf_val)
+
+                        # ── E002: 위험구역 출입
+                        elif cls_name == "person" and conf_val >= CONF_THR:
+                            person_boxes.append([x1, y1, x2, y2])
+                            if roi_arr and check_roi((cx, cy), roi_arr):
+                                if _can_fire(last_fire, "E002", now, COOLDOWN_SEC):
+                                    img_path = save_event_image(frame, camera_id, "person")
+                                    _put_event(event_queue, camera_id, "person", img_path, timestamp)
+                                    _set_fire(last_fire, "E002", now)
+                                    trigger_relay()
+                                    events.append({"type": "E002", "message": "위험구역 출입 감지"})
+                                    logger.info("[SafetyAI:%s] E002 위험구역 출입 감지 conf=%.3f", camera_id, conf_val)
+
+                        # ── E004: 위험체 수집
+                        elif cls_name in ("forklift", "hoist") and conf_val >= CONF_THR:
+                            hazard_items.append({
+                                "class":  cls_name,
+                                "center": (cx, cy),
+                            })
+
+                # ── E004: 안전 격자 기반 위험체 접근 감지
+                if safety_grid and hazard_items:
+                    _update_grid_state(grid_st, hazard_items, safety_grid, now_ms)
+                    _detect_e004_grid(
+                        grid_st=grid_st,
+                        person_boxes=person_boxes,
+                        safety_grid=safety_grid,
+                        frame=frame,
+                        camera_id=camera_id,
+                        timestamp=timestamp,
+                        now=now,
+                        now_ms=now_ms,
+                        event_queue=event_queue,
+                        last_fire=last_fire,
+                        events=events,
+                        cooldown_sec=COOLDOWN_SEC,
+                    )
+                elif safety_grid and not hazard_items:
+                    _cleanup_stale(grid_st, now_ms)
+
+                if pose_is_run:
+                    switch = False
+
+            # 2. Pose 실행 (switch = False 차례, 전체 화면 대상)
+            elif not switch:
+                if pose_is_run:
+                    collapse_in_frame = False
+                    pose_results = model_pose(frame, verbose=False)
+                    for result in pose_results:
+                        if result.boxes is None:
+                            continue
+                        for box_idx, box in enumerate(result.boxes):
+                            cls_id   = int(box.cls[0])
+                            conf_v   = float(box.conf[0])
+                            cls_name = get_class_name(ModelType.POSE, cls_id) or "unknown"
+
+                            detections.append({
+                                "class": cls_name,
+                                "bbox":  list(map(int, box.xyxy[0])),
+                                "conf":  round(conf_v, 3),
+                                "keypoints": _extract_keypoints(result, box_idx),
+                            })
+
+                            if cls_name == "collapse" and conf_v >= CONF_THR:
+                                collapse_in_frame = True
+
+                    # ── E003: collapse 지속 시간 판정
+                    if collapse_in_frame:
+                        if collapse_start_time is None:
+                            collapse_start_time = now
+                        elif now - collapse_start_time >= COLLAPSE_SUSTAIN:
+                            if _can_fire(last_fire, "E003", now, COOLDOWN_SEC):
+                                # 실제 캡처 속도(FPS) 동적 계산
+                                actual_fps = 10.0
+                                if len(frame_times) >= 2:
+                                    intervals = [frame_times[i] - frame_times[i-1] for i in range(1, len(frame_times))]
+                                    avg_interval = sum(intervals) / len(intervals)
+                                    if avg_interval > 0:
+                                        actual_fps = 1.0 / avg_interval
+                                clip_path = save_event_clip(list(frame_buffer), camera_id, fps=actual_fps)
+                                _put_event(event_queue, camera_id, "collapse", clip_path, timestamp)
+                                _set_fire(last_fire, "E003", now)
+                                events.append({"type": "E003", "message": "작업자 쓰러짐 감지"})
+                                logger.info("[SafetyAI:%s] E003 작업자 쓰러짐 감지 sustain=%.1fs", camera_id, COLLAPSE_SUSTAIN)
+                            collapse_start_time = None
+                    else:
+                        collapse_start_time = None
+
+                if detection_is_run:
+                    switch = True
 
         # ── WebSocket 결과 전송
-        _send_result(result_mp_queue, camera_id, timestamp, detections, events)
+        # bbox 좌표는 현재 AI가 읽은 frame 크기 기준이다.
+        # 디버그 화면은 이 값을 받아 실제 표시 크기에 맞게 박스를 다시 환산한다.
+        _send_result(
+            result_mp_queue,
+            camera_id,
+            timestamp,
+            detections,
+            events,
+            frame_width=w_frame,
+            frame_height=h_frame,
+        )
 
     logger.info("[SafetyAI:%s] Process stopped.", camera_id)
 
@@ -500,6 +708,53 @@ def _detect_e004_grid(
 
 # ── 공통 헬퍼 ─────────────────────────────────────────────────────────────────
 
+def _extract_keypoints(
+    result,
+    box_idx: int,
+    offset_x: int = 0,
+    offset_y: int = 0,
+) -> list[dict]:
+    """YOLO pose keypoints를 프론트에서 그리기 쉬운 좌표 목록으로 변환한다.
+
+    현재 pose 모델이 keypoints를 제공하지 않는 모델이면 빈 리스트를 반환한다.
+    crop 모드에서는 crop 내부 좌표를 전체 프레임 좌표로 되돌리기 위해 offset을 더한다.
+    """
+    keypoints = getattr(result, "keypoints", None)
+    if keypoints is None or getattr(keypoints, "xy", None) is None:
+        return []
+
+    try:
+        xy_points = keypoints.xy[box_idx].detach().cpu().tolist()
+        conf_points = None
+        if getattr(keypoints, "conf", None) is not None:
+            conf_points = keypoints.conf[box_idx].detach().cpu().tolist()
+
+        points: list[dict] = []
+        for idx, point in enumerate(xy_points):
+            if len(point) < 2:
+                continue
+
+            x = float(point[0])
+            y = float(point[1])
+            conf = None
+            if conf_points is not None and idx < len(conf_points):
+                conf = float(conf_points[idx])
+
+            if x <= 0 and y <= 0:
+                continue
+
+            item = {
+                "index": idx,
+                "x": round(x + offset_x, 1),
+                "y": round(y + offset_y, 1),
+            }
+            if conf is not None:
+                item["conf"] = round(conf, 3)
+            points.append(item)
+        return points
+    except Exception:
+        return []
+
 def _can_fire(last_fire: dict[str, float], code: str, now: float, cooldown_sec: float = 600.0) -> bool:
     """쿨다운이 끝났으면 True를 반환한다."""
     return now - last_fire.get(code, 0.0) >= cooldown_sec
@@ -535,14 +790,24 @@ def _send_result(
     timestamp: str,
     detections: list[dict],
     events: list[dict],
+    frame_width: int | None = None,
+    frame_height: int | None = None,
 ) -> None:
-    """ws_bridge mp_queue에 AI 결과를 전송한다."""
+    """ws_bridge mp_queue에 AI 결과를 전송한다.
+
+    detections[].bbox는 원본 영상 픽셀 좌표다.
+    frame_width/frame_height를 같이 보내야 브라우저가 화면 크기에 맞춰 박스를 정확히 그릴 수 있다.
+    """
     try:
-        q.put_nowait({
+        payload = {
             "camera_id":  camera_id,
             "timestamp":  timestamp,
             "detections": detections,
             "events":     events,
-        })
+        }
+        if frame_width and frame_height:
+            payload["frame_width"] = frame_width
+            payload["frame_height"] = frame_height
+        q.put_nowait(payload)
     except Exception:
         pass

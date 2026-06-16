@@ -1,4 +1,12 @@
-"""CCTV 카메라 도메인의 DB 접근 로직을 정의한다."""
+"""
+================================================================================
+[Repository] service/cctv/repository.py
+================================================================================
+- 역할: 데이터베이스(PostgreSQL)의 tb_camera 테이블에 직접 쿼리를 실행하는 데이터 접근 레이어입니다.
+- 흐름: Service(service.py)의 요청에 따라 SQLAlchemy ORM 쿼리를 생성하여 DB 데이터를 조회/추가/수정/삭제합니다.
+- 주요 기능: 회사/서버별 카메라 쿼리, 실행 상태인 카메라 목록 조회, 카메라 상태(PID 등) 갱신, Upsert 및 Delete 실행
+================================================================================
+"""
 
 from __future__ import annotations
 
@@ -9,7 +17,12 @@ from service.cctv.model import Camera
 
 
 def fetch_cameras_by_comp(db: Session, comp_id: str) -> list[Camera]:
-    """회사 식별자 기준으로 카메라 목록을 조회한다."""
+    """회사 식별자 기준으로 카메라 목록을 조회한다.
+    
+    [DB 연동 설명]:
+    SQLAlchemy의 select(Camera)를 사용하여 tb_camera(Camera 모델) 테이블로부터
+    특정 회사 ID(comp_id)를 가진 카메라 정보 리스트를 조회해 옵니다.
+    """
     stmt = select(Camera).where(Camera.comp_id == comp_id).order_by(Camera.camera_id)
     return list(db.scalars(stmt).all())
 

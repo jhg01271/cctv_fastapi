@@ -1,4 +1,13 @@
-"""텔레그램 매니저 DB 접근 레이어."""
+"""텔레그램 알림 대상자를 DB에서 찾고 관리하는 파일.
+
+흐름에서의 위치:
+  1. service/safety/worker.py가 이벤트 DB 저장 후 service/telegram/service.py를 호출한다.
+  2. service/telegram/service.py는 이 파일의 fetch_chat_ids_for_camera()로 알림 받을 chat_id/token을 찾는다.
+  3. 이 파일은 카메라가 속한 MonitoringLayout과 TelegramManager를 조인해 notification_on=True 대상만 반환한다.
+
+다음에 볼 파일:
+  - service/telegram/service.py: 조회된 chat_id/token으로 실제 Telegram API를 호출한다.
+"""
 
 from __future__ import annotations
 

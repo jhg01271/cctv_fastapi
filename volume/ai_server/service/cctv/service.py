@@ -1,4 +1,15 @@
-"""CCTV 카메라 도메인의 비즈니스 로직을 정의한다."""
+"""
+================================================================================
+[Service] service/cctv/service.py
+================================================================================
+- 역할: CCTV 카메라 도메인의 핵심 비즈니스 로직을 처리하는 서비스 레이어입니다.
+- 흐름: Router(routes.py)로부터 데이터를 전달받아 검증, 포맷팅, 캐시 갱신 및 DB 접근(repository.py)을 지시합니다.
+- 주요 기능:
+  1. 회사/서버별 카메라 목록 조회 및 단일 카메라 정보 추출
+  2. 카메라 정보 등록 및 수정 (특히 카메라 정보가 변경될 때 스냅샷 이미지 캐시를 비동기로 갱신하는 트리거 역할 수행)
+  3. 카메라 삭제 처리
+================================================================================
+"""
 
 from __future__ import annotations
 
@@ -91,8 +102,35 @@ def _save_camera_item(db: Session, data: dict[str, Any]) -> Camera:
 def save_camera(db: Session, data: dict[str, Any] | list[dict[str, Any]]) -> list[Camera]:
     """카메라 1건 또는 여러 건을 등록하거나 수정한다."""
     if isinstance(data, list):
-        return [_save_camera_item(db, item) for item in data]
-    return [_save_camera_item(db, data)]
+        cameras = [_save_camera_item(db, item) for item in data]
+    else:
+        cameras = [_save_camera_item(db, data)]
+
+    # 변경되거나 등록된 카메라들의 실시간 캡처 스냅샷 이미지 캐시 갱신 (비동기 스레드)
+    if cameras:
+        from service.roi.service import update_cctv_image_cache
+        from core.database.session import SessionLocal
+        import threading
+        
+        def update_task(cam_ids):
+            db_sync = SessionLocal()
+            try:
+                for cid in cam_ids:
+                    update_cctv_image_cache(db_sync, cid)
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"[CCTVImageCacheSync] Failed to update cache: {e}")
+            finally:
+                db_sync.close()
+
+        threading.Thread(
+            target=update_task,
+            args=([cam.camera_id for cam in cameras],),
+            name="cctv-cache-updater",
+            daemon=True
+        ).start()
+
+    return cameras
 
 
 def remove_camera(db: Session, camera_id: str) -> bool:

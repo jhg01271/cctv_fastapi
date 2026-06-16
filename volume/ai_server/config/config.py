@@ -1,4 +1,14 @@
-﻿"""환경별 .env 파일을 로드하고 애플리케이션 설정을 관리한다."""
+"""AI/DB/MediaMTX/이벤트 정책에 쓰이는 환경 설정을 한 곳에서 읽는 파일.
+
+흐름에서의 위치:
+  1. 애플리케이션 시작 시 .env.dev 또는 .env.prod 값을 읽어 settings 객체를 만든다.
+  2. service/remote/service.py, core/ai/process_manager.py, service/safety/processor.py 등이 settings를 참조한다.
+  3. AI_POSE_MODE, AI_FRAME_SKIP, AI_READER_INPUT, 모델 경로, 이벤트 쿨다운 같은 동작 기준이 여기서 결정된다.
+
+다음에 볼 파일:
+  - service/safety/processor.py: AI_POSE_MODE와 이벤트 임계값을 실제 추론/판단에 사용한다.
+  - core/ai/process_manager.py: AI_READER_INPUT과 frame_queue 크기를 사용해 reader 입력을 정한다.
+"""
 
 from __future__ import annotations
 
@@ -60,14 +70,21 @@ class Settings(BaseSettings):
     MEDIA_SERVER_API_PORT: int = Field(default=9997)
 
     # AI 모델 경로
-    MODEL_SAFETY_PT: str = Field(default="./model/yolo12m4.pt")
-    MODEL_POSE_PT: str = Field(default="./model/collapes.pt")
+    MODEL_SAFETY_PT: str = Field(default="./model/helmet_yolo26m.pt")
+    MODEL_POSE_CROP_PT: str = Field(default="./model/falling_crop_0518_0917.pt")
+    MODEL_POSE_FULL_PT: str = Field(default="./model/falling_0430_0911.pt")
     MODEL_PROGRESS_PT: str = Field(default="./model/progress_model.pt")
 
     # AI 처리 설정
+    AI_POSE_MODE: str = Field(default="crop")  # "crop" 또는 "full"
     AI_FRAME_SKIP: int = Field(default=3)
+    AI_FRAME_QUEUE_SIZE: int = Field(default=2)
+    AI_READER_FIRST_FRAME_TIMEOUT_SEC: int = Field(default=20)
+    AI_READER_INPUT: str = Field(default="mediamtx")
     AI_CONFIDENCE_THRESHOLD: float = Field(default=0.8)
     AI_STARTUP_DELAY: int = Field(default=10)
+    AI_WORKER_STARTUP_GRACE_SEC: int = Field(default=120)
+    AI_POSE_MAX_CROPS: int = Field(default=1)
 
     # 이벤트 쿨다운 (초) — 모든 이벤트 공통
     AI_EVENT_COOLDOWN_SEC: int = Field(default=600)

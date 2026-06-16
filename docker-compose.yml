@@ -162,12 +162,12 @@ services:
       dockerfile: Dockerfile
     environment:
       TZ: "Asia/Seoul"
-      APP_ENV: prod
+      APP_ENV: dev
       DB_HOST: postgres
       MEDIA_SERVER_HOST: mediamtx
       STREAM_GATEWAY_URL: http://stream_gateway:8010
     env_file:
-      - ./volume/ai_server/config/.env.prod
+      - ./volume/ai_server/config/.env.dev
     networks:
       - iljoo
     ports:

@@ -12,4 +12,3 @@ __pycache__/
 # virtual environment
 .venv/
 venv/
-tests/

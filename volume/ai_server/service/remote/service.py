@@ -1,4 +1,15 @@
-"""AI 프로세스 원격 제어 비즈니스 로직을 정의한다."""
+"""CCTV AI 실행/중지 요청을 실제 프로세스 시작 흐름으로 연결하는 파일.
+
+흐름에서의 위치:
+  1. Frontend 또는 복구 로직이 "CAM0001을 실행해줘"라고 요청한다.
+  2. 이 파일의 run_cctv(), run_all(), restore_running_cameras()가 카메라 정보를 DB에서 읽는다.
+  3. _register_camera()가 stream_gateway에 영상 송출을 요청하고, jit_only 여부를 판단한다.
+  4. 일반 AI 모드이면 ROI, Detection/Pose 실행 여부, 안전 격자를 DB에서 읽어 CameraProcessManager에 넘긴다.
+
+다음에 볼 파일:
+  - core/ai/process_manager.py: 카메라별 RTSP reader 프로세스와 AI 프로세스를 실제로 띄운다.
+  - core/ai/jit_processor.py: jit_only=True일 때 모델 추론 대신 학습용 이미지를 저장한다.
+"""
 
 from __future__ import annotations
 
@@ -19,7 +30,7 @@ from service.safety.repository import fetch_roi, fetch_detection_flags, fetch_sa
 
 logger = get_logger(__name__)
 
-_GATEWAY_TIMEOUT = 10.0
+_GATEWAY_TIMEOUT = 15.0
 _run_all_lock = threading.Lock()
 _run_all_running = False
 
@@ -51,12 +62,18 @@ def _stream_gateway_base_url() -> str | None:
 
 
 def _start_stream(camera_id: str, rtsp_url: str) -> None:
-    """stream gateway로 MediaMTX publish를 시작한다."""
+    """stream_gateway에 카메라 영상 송출 시작을 요청한다.
+
+    ai_server는 "어떤 카메라를 켜야 하는지"는 알고 있지만, 실제 FFmpeg 프로세스를
+    직접 관리하지 않는다. 이 함수는 stream_gateway의
+    POST /streams/{camera_id}/start API를 호출해서 RTSP 영상을 MediaMTX에 올리게 한다.
+    """
     gateway_url = _stream_gateway_base_url()
     if gateway_url is None:
         raise BadRequestException(msg="STREAM_GATEWAY_URL 설정이 필요합니다.")
 
     try:
+        # 여기서 프로세스가 직접 뜨는 것이 아니라, 별도 서비스인 stream_gateway로 HTTP 요청이 나간다.
         resp = httpx.post(
             f"{gateway_url}/streams/{camera_id}/start",
             json={"rtsp_url": rtsp_url},
@@ -305,8 +322,7 @@ def check_pid() -> dict:
 
 def get_play_url(camera_id: str) -> dict:
     """카메라의 WebRTC 재생 URL을 반환한다."""
-    from config.config import settings
-    url = f"http://{settings.MEDIA_SERVER_HOST}:{settings.MEDIA_SERVER_WEBRTC_PORT}/{camera_id}"
+    url = f"/{camera_id}/"
     return {"camera_id": camera_id, "play_url": url}
 
 

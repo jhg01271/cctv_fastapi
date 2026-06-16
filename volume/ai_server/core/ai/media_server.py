@@ -1,4 +1,8 @@
-"""MediaMTX REST API 연동 — FFmpeg 트랜스코딩을 통한 스트림 등록/삭제."""
+"""MediaMTX REST API 연동 — FFmpeg 트랜스코딩을 통한 스트림 등록/삭제.
+
+* WebRTC Same-Origin 프록시 복구 조치 반영:
+  - 프론트엔드가 Nginx 프록시를 통해 MediaMTX 원본 경로(/{camera_id}/)로 비디오를 띄우도록 제공.
+"""
 
 from __future__ import annotations
 
@@ -71,20 +75,27 @@ def _register_path(camera_id: str) -> bool:
 
 
 def _start_ffmpeg(camera_id: str, rtsp_url: str) -> bool:
-    """FFmpeg 프로세스를 시작하여 RTSP → H264 트랜스코딩 후 MediaMTX에 push한다."""
+    """FFmpeg를 실행해 원본 RTSP 영상을 MediaMTX의 카메라 채널로 송출한다.
+
+    원본 카메라 영상은 브라우저가 바로 보기 어렵거나 너무 무거울 수 있다.
+    FFmpeg는 이 영상을 WebRTC 재생에 맞는 H264, 1280x720, 10fps로 바꾼 뒤
+    MediaMTX의 rtsp://.../{camera_id} 경로에 계속 밀어 넣는다.
+    """
     output_url = f"{settings.MEDIA_SERVER_RTSP_URL}/{camera_id}"
 
     cmd = [
         "ffmpeg",
         "-rtsp_transport", "tcp",
         "-i", rtsp_url,
-        # "-vf", "scale=1280:720",
-        # "-r", "2",
-        # "-c:v", "libx264",
-        # "-preset", "ultrafast",
-        # "-tune", "zerolatency",
-        # "-g", "4",
-        "-c:v", "copy",
+        # 6개 카메라를 동시에 띄우고 AI도 같이 돌리므로, 개발 환경에서는 가벼운 스트림으로 만든다.
+        "-vf", "scale=960:-2,fps=5",
+        "-c:v", "libx264",
+        "-preset", "ultrafast",
+        "-tune", "zerolatency",
+        "-b:v", "700k",
+        "-maxrate", "900k",
+        "-bufsize", "1800k",
+        "-g", "10",
         "-an",
         "-f", "rtsp",
         "-rtsp_transport", "tcp",
@@ -265,10 +276,13 @@ def remove_stream_path(camera_id: str) -> bool:
 
 
 def get_stream_urls(camera_id: str) -> dict:
-    """프론트엔드(브라우저)에서 사용할 스트림 URL들을 반환한다."""
+    """프론트엔드(브라우저)에서 사용할 스트림 URL들을 반환한다.
+    
+    * webrtc: Nginx Same-Origin 프록시를 통해 MediaMTX 원본 경로(/CAM0001/)로 반환
+    """
     ext_host = settings.MEDIA_SERVER_EXTERNAL_HOST
     return {
-        "webrtc": f"http://{ext_host}:{settings.MEDIA_SERVER_WEBRTC_PORT}/{camera_id}",
+        "webrtc": f"/{camera_id}/",
         "rtsp": f"rtsp://{ext_host}:{settings.MEDIA_SERVER_RTSP_PORT}/{camera_id}",
     }
 
@@ -292,7 +306,11 @@ def _ensure_health_check() -> None:
 
 
 def _check_stream_ready(camera_id: str) -> bool:
-    """MediaMTX API로 해당 카메라 스트림이 실제로 publish 중인지 확인한다."""
+    """MediaMTX에 해당 카메라 채널이 실제 방송 중인지 물어본다.
+
+    MediaMTX는 /CAM0001 같은 채널 목록을 관리한다. 여기서는 API로 목록을 조회해서
+    원하는 camera_id 채널이 있고, 그 채널의 ready 값이 true인지 확인한다.
+    """
     try:
         resp = httpx.get(
             f"{settings.MEDIA_SERVER_API_URL}/v3/paths/list",
@@ -306,6 +324,21 @@ def _check_stream_ready(camera_id: str) -> bool:
         return False  # path 자체가 없음
     except Exception:
         return True  # 네트워크 오류 시 일단 정상으로 간주
+
+
+def wait_stream_ready(camera_id: str, timeout: float = 8.0, interval: float = 0.25) -> bool:
+    """브라우저가 열기 전에 MediaMTX 카메라 채널이 준비될 때까지 기다린다.
+
+    FFmpeg를 켠 직후에는 아직 MediaMTX가 /CAM0001 채널을 ready로 표시하지 않을 수 있다.
+    이 상태에서 iframe이 먼저 열리면 검은 화면이나 "no stream" 재시도가 생긴다.
+    그래서 timeout 동안 ready 상태를 반복 확인하고, 준비되면 True를 반환한다.
+    """
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if _check_stream_ready(camera_id):
+            return True
+        time.sleep(interval)
+    return _check_stream_ready(camera_id)
 
 
 def _health_check_loop() -> None:

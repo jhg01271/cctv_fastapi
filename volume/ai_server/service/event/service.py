@@ -1,4 +1,15 @@
-"""카메라 이벤트 도메인의 비즈니스 로직을 정의한다."""
+"""DB에서 읽은 이벤트 이력을 프론트가 이해하는 응답 형태로 바꾸는 파일.
+
+흐름에서의 위치:
+  1. service/event/routes.py가 SafetyMonitoringHistory의 조회 요청을 받는다.
+  2. 이 파일은 service/event/repository.py에 DB 조회를 맡긴다.
+  3. 조회된 CameraEventHist ORM 객체를 cctv_id, event_type_name, file_path 같은 프론트 호환 필드로 가공한다.
+  4. 이미지/영상 상세 요청에서는 file_path가 실제 존재하는지도 확인한다.
+
+다음에 볼 파일:
+  - service/event/repository.py: tb_camera_event_hist에서 실제로 이벤트를 조회한다.
+  - service/event/routes.py: 가공된 결과를 /cctv/ce API 응답으로 반환한다.
+"""
 
 from __future__ import annotations
 
@@ -17,15 +28,20 @@ EVENT_TYPE_NAMES: dict[str, str] = {
 }
 
 
+from core.utils.formatters.datetime import format_datetime
+
 def _enrich_event(event) -> dict:
     """ORM 이벤트 객체에 event_type_name을 추가하여 dict로 반환한다."""
     return {
-        "event_time": event.event_time,
+        "event_time": format_datetime(event.event_time) if event.event_time else "",
         "camera_id": event.camera_id,
+        "cctv_id": event.camera_id,  # 프론트엔드 호환성용 추가
         "event_type": event.event_type,
         "event_type_name": EVENT_TYPE_NAMES.get(event.event_type, event.event_type or ""),
         "event_desc": event.event_desc,
         "file_path": event.file_path,
+        "isread": event.isread if event.isread is not None else False,  # 프론트엔드 호환성용 추가
+        "isRead": event.isread if event.isread is not None else False,  # 대소문자 호환성용 추가
         "remark": event.remark,
     }
 

@@ -1,4 +1,15 @@
-"""카메라 이벤트 도메인의 DB 접근 로직을 정의한다."""
+"""History 화면이 볼 이벤트 이력을 tb_camera_event_hist에서 조회하는 파일.
+
+흐름에서의 위치:
+  1. service/safety/repository.py가 AI 확정 이벤트를 tb_camera_event_hist에 저장한다.
+  2. service/event/routes.py가 SafetyMonitoringHistory의 조회 요청을 받는다.
+  3. 이 파일은 카메라, 이벤트 종류, 날짜, 모니터링 그룹 조건으로 저장된 이벤트를 조회한다.
+  4. 조회 결과는 service/event/service.py에서 프론트가 쓰기 쉬운 형태로 가공된다.
+
+다음에 볼 파일:
+  - service/event/routes.py: 프론트가 호출하는 /cctv/ce API 입구다.
+  - service/event/service.py: 조회된 ORM 객체를 cctv_id, event_type_name 같은 응답 필드로 바꾼다.
+"""
 
 from __future__ import annotations
 

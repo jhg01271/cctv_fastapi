@@ -18,7 +18,7 @@ import cv2
 import numpy as np
 
 from config.config import settings
-from core.ai.model_loader import load_model, ModelType
+from core.ai.model_loader import load_model
 
 # 스냅샷 캡처 프레임 수 (안정된 프레임 선택용)
 SNAPSHOT_FRAMES = 5
@@ -196,7 +196,7 @@ def progress_process(
     last_auto_frames: dict[str, np.ndarray] = {}
 
     # 모델을 프로세스 시작 시 1번만 로드
-    model = load_model(ModelType.PROGRESS, settings.MODEL_PROGRESS_PT)
+    model = load_model("progress", settings.MODEL_PROGRESS_PT)
 
     first_run = True
 

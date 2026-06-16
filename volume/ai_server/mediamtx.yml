@@ -1,6 +1,10 @@
-###############################################
+# ###############################################
 # MediaMTX 설정 — 전진 AI 모니터링 시스템
-###############################################
+#
+# * WebRTC ICE Candidate 보강:
+#   - 로컬 브라우저 접속 환경에서의 WebRTC UDP 세션 맺기 실패 방지를 위해
+#     webrtcAdditionalHosts 후보군에 [127.0.0.1, localhost] 지정.
+# ###############################################
 
 logLevel: info
 
@@ -28,10 +32,19 @@ writeQueueSize: 1024
 
 # WebRTC 서버 (프론트엔드 실시간 영상 시청)
 webrtcAddress: :8889
+# WebRTC ICE Candidate 협상 실패(deadline exceeded) 방지용 로컬 접속 후보군 명시
+webrtcAdditionalHosts: [127.0.0.1, localhost]
 
 # HLS 비활성화
 hls: false
 
 # 기본 path 설정
 pathDefaults:
-  sourceOnDemand: yes
+  sourceOnDemand: no
+
+# 시뮬레이터용 스트림 경로 설정
+paths:
+  test_cam1:
+  test_cam2:
+  test_cam3:
+

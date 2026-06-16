@@ -34,3 +34,11 @@ volume/backend/log/
 .DS_Store
 Thumbs.db
 volume/frontend/dist.tar.gz
+
+videos/
+tests/
+volume/tests/
+*.mp4
+*.avi
+*.jpg
+*.png

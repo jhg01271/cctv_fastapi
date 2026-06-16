@@ -282,6 +282,8 @@ def get_raw_img(unique_id: str) -> dict:
 
 def point_list_view(point_list: list, image_base64: str, sort_direction: str) -> dict:
     """포인트 목록으로 안전 격자를 생성하고 미리보기를 반환한다."""
+    if not image_base64:
+        raise BadRequestException(msg="image_base64는 필수입니다.")
     image = decode_base64_to_image(image_base64)
     grid = []
     point_buffer = []

@@ -1,8 +1,19 @@
-"""MediaMTX 경유 RTSP 스트림에서 프레임을 읽어 큐에 공급하는 프로듀서."""
+"""RTSP 영상에서 프레임을 계속 읽어 AI가 볼 frame_queue에 넣는 파일.
+
+흐름에서의 위치:
+  1. core/ai/process_manager.py가 카메라별 reader 프로세스로 rtsp_reader_process()를 실행한다.
+  2. 이 파일은 OpenCV VideoCapture로 원본 RTSP 또는 MediaMTX RTSP 주소에 연결한다.
+  3. 프레임을 읽을 때마다 frame_queue에 넣고, 큐가 가득 차면 오래된 프레임을 버린다.
+  4. 연결이 끊기면 재연결을 시도해서 AI 프로세스가 다시 프레임을 받을 수 있게 한다.
+
+다음에 볼 파일:
+  - service/safety/processor.py: frame_queue에서 최신 프레임을 꺼내 Detection/Pose 모델을 돌린다.
+"""
 
 from __future__ import annotations
 
 import multiprocessing as mp
+import os
 import time
 
 import cv2
@@ -21,8 +32,15 @@ QUEUE_PUT_TIMEOUT = 1
 
 def _open_capture(stream_url: str) -> cv2.VideoCapture | None:
     """MediaMTX RTSP URL에 연결하고 VideoCapture를 반환한다. 실패 시 None을 반환한다."""
+    # OpenCV가 내부적으로 쓰는 FFmpeg 옵션이다. RTSP 연결이 오래 멈추지 않도록 TCP와 짧은 timeout을 강제한다.
+    os.environ.setdefault(
+        "OPENCV_FFMPEG_CAPTURE_OPTIONS",
+        "rtsp_transport;tcp|stimeout;5000000|max_delay;500000",
+    )
     cap = cv2.VideoCapture(stream_url, cv2.CAP_FFMPEG)
     if cap.isOpened():
+        # OpenCV 내부 버퍼도 작게 유지해서 AI가 몇 초 전 영상이 아니라 최신 영상에 가깝게 추론한다.
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
         return cap
     cap.release()
     return None

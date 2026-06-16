@@ -1,4 +1,13 @@
-"""AI 프로세스 원격 제어 라우터 — 프론트엔드 /cctv/remote 엔드포인트 대응."""
+"""프론트에서 CCTV AI 시작/중지 버튼을 눌렀을 때 처음 들어오는 라우터 파일.
+
+흐름에서의 위치:
+  1. Frontend가 /cctv/remote/run_all, /run_cctv/{camera_id}, /stop_cctv/{camera_id}를 호출한다.
+  2. 이 파일은 HTTP 요청을 받아 service/remote/service.py의 실행/중지 함수로 넘긴다.
+  3. 실제 stream_gateway 요청, jit_only 분기, 프로세스 등록은 service.py에서 처리한다.
+
+다음에 볼 파일:
+  - service/remote/service.py: 카메라 정보를 읽고 CameraProcessManager에 등록한다.
+"""
 
 from __future__ import annotations
 

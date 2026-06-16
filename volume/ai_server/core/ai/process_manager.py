@@ -1,4 +1,15 @@
-"""카메라별 AI 프로세스를 생성·감시·종료하는 매니저."""
+"""카메라 1대에 필요한 reader/AI 프로세스 묶음을 만들고 감시하는 파일.
+
+흐름에서의 위치:
+  1. service/remote/service.py의 _register_camera()가 add_camera()를 호출한다.
+  2. 이 파일은 카메라마다 frame_queue를 만들고 RTSP reader 프로세스를 먼저 시작한다.
+  3. reader가 첫 프레임을 받았는지 확인한 뒤 safety_process 또는 jit_process를 시작한다.
+  4. watchdog이 reader/AI 프로세스와 프레임 수신 상태를 감시하다가 문제가 있으면 재시작한다.
+
+다음에 볼 파일:
+  - core/ai/rtsp_reader.py: RTSP에서 프레임을 읽어 frame_queue에 넣는다.
+  - service/safety/processor.py: frame_queue에서 프레임을 꺼내 모델 추론과 이벤트 판단을 한다.
+"""
 
 from __future__ import annotations
 
@@ -19,8 +30,6 @@ WATCHDOG_INTERVAL = 10
 PROCESS_JOIN_TIMEOUT = 5
 # 프로세스 재시작 전 대기 시간(초)
 RESTART_DELAY = 3
-# 프로세스 시작 후 워치독 체크 유예 시간(초) — 초기화 시간 보장
-RESTART_COOLDOWN = 30
 # 프레임 수신이 이 시간 이상 없으면 스트림 끊김으로 판단(초)
 FRAME_STALE_TIMEOUT = 30
 
@@ -146,12 +155,15 @@ class CameraProcessManager:
         return f"{settings.MEDIA_SERVER_RTSP_URL}/{camera_id}"
 
     def _create_worker(self, camera_id: str, rtsp_url: str, ai_target: Callable | None = None, **ai_kwargs) -> CameraWorker:
-        stream_url = self._build_stream_url(camera_id)
+        # 브라우저 재생은 MediaMTX의 CAM000X 채널을 쓰지만, AI reader는 필요하면 원본 RTSP를 직접 읽을 수 있다.
+        # 개발 환경에서 6개 중간 채널을 동시에 OpenCV로 열면 지연이 커져 source 모드를 사용한다.
+        stream_url = rtsp_url if settings.AI_READER_INPUT == "source" else self._build_stream_url(camera_id)
         worker = CameraWorker(
             camera_id=camera_id,
             rtsp_url=rtsp_url,
             stream_url=stream_url,
-            frame_queue=mp.Queue(maxsize=30),
+            # 실시간 화면은 오래된 프레임을 쌓는 것보다 최신 프레임만 남기는 편이 중요하다.
+            frame_queue=mp.Queue(maxsize=max(1, settings.AI_FRAME_QUEUE_SIZE)),
             stop_event=mp.Event(),
         )
         worker._ai_kwargs = ai_kwargs
@@ -186,7 +198,24 @@ class CameraProcessManager:
         )
 
         worker.reader_process.start()
-        time.sleep(2)  # RTSP 리더가 먼저 연결되도록 대기
+
+        first_frame_timeout = max(1, settings.AI_READER_FIRST_FRAME_TIMEOUT_SEC)
+        deadline = time.time() + first_frame_timeout
+        while time.time() < deadline:
+            if worker.last_frame_at.value > 0:
+                logger.info("[ProcessManager] Reader received first frame: %s", worker.camera_id)
+                break
+            if worker.reader_process and not worker.reader_process.is_alive():
+                logger.warning("[ProcessManager] Reader exited before first frame: %s", worker.camera_id)
+                break
+            time.sleep(0.25)
+        else:
+            logger.warning(
+                "[ProcessManager] Reader first frame timeout. camera=%s timeout=%ss",
+                worker.camera_id,
+                first_frame_timeout,
+            )
+
         worker.ai_process.start()
 
     def _stop_worker(self, camera_id: str) -> None:
@@ -227,12 +256,13 @@ class CameraProcessManager:
                         logger.debug("[Watchdog] Skipping camera=%s (restart in progress)", camera_id)
                         continue
 
-                    # (2) restart cooldown — 시작 직후에는 체크 스킵
+                    # (2) startup grace — 모델 로딩 중인 프로세스를 성급하게 재시작하지 않는다.
                     elapsed = now - worker.started_at
-                    if worker.started_at > 0 and elapsed < RESTART_COOLDOWN:
+                    startup_grace = max(30, settings.AI_WORKER_STARTUP_GRACE_SEC)
+                    if worker.started_at > 0 and elapsed < startup_grace:
                         logger.debug(
                             "[Watchdog] Skipping camera=%s (cooldown %.0fs remaining)",
-                            camera_id, RESTART_COOLDOWN - elapsed,
+                            camera_id, startup_grace - elapsed,
                         )
                         continue
 
@@ -243,10 +273,13 @@ class CameraProcessManager:
                     # (4) heartbeat 확인 (AI 프로세스 루프 동작 여부)
                     current_hb = worker.heartbeat.value
                     prev_hb = last_heartbeats.get(camera_id, -1)
-                    hb_stuck = (prev_hb == current_hb) and ai_alive
+                    last_frame = worker.last_frame_at.value
+                    # heartbeat은 AI가 실제 프레임을 받은 뒤에야 증가한다.
+                    # 아직 프레임이 한 장도 들어오지 않았으면 heartbeat_stuck이 아니라 reader 쪽 문제로 본다.
+                    hb_stuck = (prev_hb == current_hb) and ai_alive and last_frame > 0
 
                     # (5) last_frame_at 확인 (RTSP 스트림 프레임 수신 여부)
-                    last_frame = worker.last_frame_at.value
+                    frame_never_received = reader_alive and last_frame <= 0
                     frame_stale = (
                         reader_alive
                         and last_frame > 0
@@ -260,6 +293,8 @@ class CameraProcessManager:
                         restart_reason = "ai_dead"
                     elif hb_stuck:
                         restart_reason = "heartbeat_stuck"
+                    elif frame_never_received:
+                        restart_reason = "frame_never_received"
                     elif frame_stale:
                         restart_reason = "frame_stale"
 

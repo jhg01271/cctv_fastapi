@@ -1,8 +1,16 @@
-"""multiprocessing.Queue → asyncio.Queue 브리지.
+"""AI 프로세스의 실시간 결과를 WebSocket 구독자에게 나눠주는 브리지 파일.
 
-AI 자식 프로세스가 결과를 mp_queue에 넣으면,
-백그라운드 스레드가 이를 읽어 카메라별 asyncio.Queue로 분배한다.
-WebSocket 핸들러는 asyncio.Queue를 구독(subscribe)하여 결과를 받는다.
+흐름에서의 위치:
+  1. service/safety/processor.py가 _send_result()로 현재 프레임의 detections/events를 mp_queue에 넣는다.
+  2. 이 파일의 WebSocketBridge가 mp_queue를 읽어 camera_id별 asyncio.Queue로 분배한다.
+  3. service/safety/routes.py의 /safety/ws/{camera_id} WebSocket 핸들러가 해당 Queue를 구독한다.
+  4. /safety/debug 같은 화면은 이 WebSocket 메시지를 받아 bbox/keypoints를 그린다.
+
+중요한 점:
+  - 이 경로는 실시간 표시용이다. DB 저장은 service/safety/worker.py의 event_queue 경로가 담당한다.
+
+다음에 볼 파일:
+  - service/safety/routes.py: 브라우저 WebSocket 연결을 받고 이 브리지를 구독한다.
 """
 
 from __future__ import annotations

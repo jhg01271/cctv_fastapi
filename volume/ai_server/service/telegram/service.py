@@ -1,4 +1,18 @@
-"""텔레그램 알림 전송 서비스."""
+"""DB 저장이 끝난 안전 이벤트를 텔레그램으로 보내는 파일.
+
+흐름에서의 위치:
+  1. service/safety/worker.py가 확정 이벤트를 DB에 저장한 뒤 send_telegram_alert()를 호출한다.
+  2. 이 파일은 해당 camera_id가 포함된 모니터링 그룹의 알림 대상 chat_id/token을 조회한다.
+  3. 이벤트 코드(E001~E004)에 맞는 메시지를 만들고, 증거 JPG/MP4가 있으면 파일과 함께 전송한다.
+
+중요한 점:
+  - 현재 텔레그램은 "감지 즉시"가 아니라 "DB 저장 성공 후" 발송된다.
+  - 즉시 릴레이 반응은 service/safety/events.py의 trigger_relay() 경로를 본다.
+
+다음에 볼 파일:
+  - service/safety/worker.py: DB 저장 후 이 파일을 호출한다.
+  - service/telegram/repository.py: 카메라가 속한 모니터링 그룹의 알림 대상자를 찾는다.
+"""
 
 from __future__ import annotations
 

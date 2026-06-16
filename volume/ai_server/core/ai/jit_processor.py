@@ -1,11 +1,19 @@
-"""JIT(학습용) 이미지 수집 프로세스.
+"""jit_only=True 카메라에서 AI 추론 대신 학습/검증용 이미지를 수집하는 파일.
 
-jit_only=True인 카메라에 대해 AI 감지 없이 주기적으로 프레임을 저장한다.
+흐름에서의 위치:
+  1. service/remote/service.py의 _register_camera()가 카메라 설정의 jit_only 값을 확인한다.
+  2. jit_only=True이면 service/safety/processor.py가 아니라 이 파일의 jit_process()가 AI 프로세스로 실행된다.
+  3. core/ai/rtsp_reader.py가 넣은 frame_queue에서 프레임을 꺼낸다.
+  4. 모델 추론과 이벤트 DB 저장은 하지 않고, 주기 또는 변화 감지 조건에 맞춰 JPG만 저장한다.
 
 저장 주기:
   - short: 10분마다 무조건 저장
   - long:  60분마다 무조건 저장
   - auto:  이전 프레임 대비 변화 감지 시 저장 (최소 1시간 간격)
+
+다음에 볼 파일:
+  - service/remote/service.py: 어떤 카메라가 jit_only로 이 파일을 타는지 결정한다.
+  - service/safety/processor.py: 일반 AI 이벤트 판단 모드는 이 파일 대신 processor.py를 탄다.
 """
 
 from __future__ import annotations
