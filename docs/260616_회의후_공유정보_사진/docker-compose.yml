@@ -1,0 +1,84 @@
+# backend yml 파일 사용 X, properties 사용 - 2025.08.21 LJH
+version: "3.5"
+
+x-logging:
+  &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services: 
+  
+  backend_safewizpro:
+    container_name: backend_safewizpro
+    build:
+      context: ./dockerfile/backend
+      dockerfile: Dockerfile
+    environment:
+      # log4j2_prod.xml의 SQL관련 로그(jdbc.sqlonly 등) 설정이 적용되게 하기 위함
+      - JAVA_TOOL_OPTIONS=-Dlog4jdbc.spylogdelegator.name=net.sf.log4jdbc.log.slf4j.Slf4jSpyLogDelegator
+    ports:
+      - "9000:9000"
+    networks:
+      - safewiznet
+    volumes:
+      - ./dockerdata/framework/safewizpro/backend/i-back-end.jar:/app/i-back-end.jar
+      - ./dockerdata/framework/safewizpro/backend/logs:/logs/
+      - ./file-uploads:/file-uploads/
+    command:
+      - --spring.profiles.active=hsgsd
+      #- --logging.level.root=WARN
+      - --file.upload-dir=/file-uploads
+      - --spring.datasource.hikari.first.jdbc-url=jdbc:log4jdbc:postgresql://192.168.2.246:5432/safewizpro
+      - --spring.datasource.hikari.first.username=safewizpro
+      - --spring.datasource.hikari.first.password=esg2024
+    logging: *default-logging
+    restart: always
+  
+  frontend_safewizpro:
+    container_name: frontend_safewizpro
+    image: httpd:2.4-alpine
+    ports:
+      - "9070:80"
+    networks:
+      - safewiznet
+    volumes:
+      - ./dockerdata/framework/safewizpro/frontend:/usr/local/apache2/htdocs
+    logging: *default-logging
+    restart: always
+    
+  postgre:
+    container_name: postgre_safewizpro
+    privileged: true
+    build:
+      context: ./dockerfile/postgre
+      dockerfile: Dockerfile
+    ports:
+     - 5432:5432
+    command: postgres -c 'max_connections=500'
+    environment:
+          POSTGRES_HOST_AUTH_METHOD: "trust"
+    volumes:
+      - ./dockerdata/postgre:/var/lib/postgresql/data
+    networks:
+      - safewiznet
+    logging: *default-logging
+    restart: always
+
+  nginx:
+    container_name: nginx_safewizpro
+    image: nginx:1.15-alpine
+    ports:
+       - "8080:8080"
+    networks:
+      - safewiznet
+    volumes:
+     - ./dockerfile/nginx/sites-available:/etc/nginx/conf.d
+    logging: *default-logging
+    restart: always
+
+networks:
+  safewiznet:
+
+
