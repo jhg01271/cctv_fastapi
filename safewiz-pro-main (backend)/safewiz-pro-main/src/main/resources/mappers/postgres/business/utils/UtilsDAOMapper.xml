@@ -1,0 +1,328 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.utils.dao.postgres.UtilsDAO">
+    <select id='getLogoFileId' parameterType='kr.co.igns.business.utils.model.UtilsVO' resultType='String'>
+        SELECT
+            file_id
+        FROM esg.tb_sys_file
+        WHERE target_type = 'clientLogo'
+            AND target_id = #{clntId}
+    </select>
+    <select id='getHrIncharge' resultType='kr.co.igns.system.base.model.HrVO'>
+        select t1.gubun
+        	, t1.hr_id
+        	, t2.hr_nm
+            , t3.file_id as logo_id
+        FROM esg.tb_hr_incharge_map t1
+        left join esg.tb_hr_info t2
+            on t1.hr_id = t2.hr_id
+        left join esg.tb_sys_file t3
+        	on t3.target_id = t1.hr_id
+        	and t3.target_type = 'hrImg'
+        where t1.target_type = #{targetType}
+            and t1.target_id = #{targetId}
+            and t1.gubun = #{gubun}
+            and t1.hr_id is not null
+            and t1.hr_id != ''
+        order by t2.ord_seq asc
+    </select>
+    <!-- 2025.12.01 BHJ 사업장 관리 정렬 순서 : 사업장 정렬 순서 오름차순, comp_id 오름차순 (등록순) -->
+    <select id='searchCompList' resultType='kr.co.igns.business.utils.model.UtilsVO' parameterType='kr.co.igns.business.utils.model.UtilsVO'>
+        select c.comp_id, c.comp_nm
+        from esg.tb_client_info a
+                 left join esg.tb_comp_client_map b on a.clnt_id = b.clnt_id
+                 left join esg.tb_company_info c on b.comp_id = c.comp_id
+        where a.clnt_id = #{clntId} and c.use_yn = 'Y' 
+        ORDER BY c.ord_seq asc, c.comp_id asc 
+    </select>
+    <select id='getClntNm' parameterType='kr.co.igns.business.utils.model.UtilsVO' resultType='String'>
+        SELECT
+            clnt_nm
+        FROM esg.tb_client_info
+        WHERE clnt_id = #{clntId}
+    </select>
+    <select id='getCompNm' parameterType='kr.co.igns.business.utils.model.UtilsVO' resultType='String'>
+        SELECT
+            comp_nm
+        FROM esg.tb_company_info
+        WHERE  comp_id = #{compId}
+    </select>
+    <select id='getUserSignature' parameterType='kr.co.igns.business.utils.model.UtilsVO' resultType='String'>
+        SELECT
+            tui.signature
+        FROM esg.tb_user_info tui
+        LEFT JOIN esg.tb_hr_info thi
+            ON tui.user_id = thi.user_id
+        WHERE 1=1
+        <if test="userId != null and !userId.equals('')">
+            AND tui.user_id = #{userId}
+        </if>
+        <if test="hrId != null and !hrId.equals('')">
+            AND tui.clnt_id = #{clntId}
+            AND thi.hr_id = #{hrId}
+        </if>
+    </select>
+
+	<!-- 서명자 정보 입력-->
+    <insert id="insertApprovalInfo" parameterType="kr.co.igns.business.utils.model.UtilsVO" useGeneratedKeys="true" keyProperty="seq" >
+        INSERT INTO esg.tb_approval_info(
+            target_type,
+            target_id,
+            display_name,
+            hr_id,
+            param,
+            signature,
+            hr_nm,
+            orgn_nm,
+            jbrp_nm,
+            created_at,
+            created_by,
+            type
+        )
+        <choose>
+            <!-- hrId가 존재하는 경우 -->
+            <when test="hrId != null and hrId != ''">
+                SELECT #{targetType}, #{targetId}, #{displayName}, thi.hr_id, #{param}, #{signature},
+                thi.hr_nm, toi.orgn_nm, jbrp.jbrp_nm, now(), #{userId}, #{type}
+                FROM esg.tb_hr_info thi
+                LEFT JOIN esg.tb_orgn_info toi ON thi.orgn_id = toi.orgn_id
+                LEFT JOIN esg.tb_hr_info_jbrp jbrp ON jbrp.jbrp_id = thi.jbrp and jbrp.comp_id = #{compId}
+                WHERE thi.hr_id = #{hrId}
+            </when>
+
+            <!-- hrId가 NULL이거나 빈값일 경우 -->
+            <otherwise>
+                SELECT #{targetType}, #{targetId}, #{displayName}, NULL, #{param}, #{signature},
+                NULL, NULL, NULL, now(), #{userId}, #{type}
+            </otherwise>
+        </choose>
+        RETURNING seq
+    </insert>
+    <update id="updateApprovalInfo" parameterType="kr.co.igns.business.utils.model.UtilsVO">
+        
+        UPDATE esg.tb_approval_info tai
+           SET updated_at = now(),
+            updated_by = #{userId},
+        <choose>
+            <when test="hrId != null and hrId != ''">
+                hr_id = #{hrId},
+                hr_nm = #{hrNm},
+                orgn_nm = (
+                SELECT toi.orgn_nm
+                FROM esg.tb_hr_info thi
+                LEFT JOIN esg.tb_orgn_info toi ON thi.orgn_id = toi.orgn_id
+                WHERE thi.hr_id = #{hrId}
+                ),
+                jbrp_nm = (
+                SELECT jbrp.jbrp_nm
+                FROM esg.tb_hr_info thi
+                LEFT JOIN esg.tb_hr_info_jbrp jbrp ON jbrp.jbrp_id = thi.jbrp and jbrp.comp_id = #{compId}
+                WHERE thi.hr_id = #{hrId}
+                ),
+                signature = #{signature}
+            </when>
+            <otherwise>
+                hr_id = null,
+                hr_nm = null,
+                orgn_nm = null,
+                jbrp_nm = null,
+                signature = null
+            </otherwise>
+        </choose>
+        WHERE target_id = #{targetId}
+          AND target_type = #{targetType}
+          AND param = #{param}
+          AND type = #{type}
+          AND seq = #{seq}
+    </update>
+
+	<!-- 서명자 서명 입력  -->
+    <update id="updateApprovalInfoSign" parameterType="kr.co.igns.business.utils.model.UtilsVO">
+        
+        UPDATE esg.tb_approval_info tai
+           SET signature = (select signature
+							  from esg.tb_user_info tui 
+							  join esg.tb_hr_info thi 
+							    on tui.user_id = thi.user_id
+							   and thi.hr_id = tai.hr_id ),
+            updated_at = now(),
+            updated_by = #{userId}
+        WHERE target_id = #{targetId}
+          AND target_type = #{targetType}
+          AND param = #{param}
+          AND type = #{type}
+          AND seq = #{seq}
+    </update>
+
+	<!-- 서명자 서명 취소  -->
+    <update id="updateApprovalInfoSignCancel" parameterType="kr.co.igns.business.utils.model.UtilsVO">
+        
+        UPDATE esg.tb_approval_info
+           SET signature = null,
+            updated_at = now(),
+            updated_by = #{userId}
+        WHERE target_id = #{targetId}
+          AND target_type = #{targetType}
+          AND param = #{param}
+          AND type = #{type}
+          AND seq = #{seq}
+    </update>
+
+	<!-- 서명자 정보 삭제 -->
+    <delete id="deleteApprovalInfo" parameterType="kr.co.igns.business.utils.model.UtilsVO">
+        DELETE 
+          FROM esg.tb_approval_info
+		 WHERE target_type = #{targetType} 
+		   AND target_id = #{targetId}
+		   AND param = #{param}
+           AND type = #{type}
+           AND seq = #{seq}
+    </delete>
+    <delete id="deleteApprovalInfoAll" parameterType="kr.co.igns.business.utils.model.UtilsVO">
+        DELETE 
+          FROM esg.tb_approval_info
+		 WHERE target_type = #{targetType} 
+		   AND target_id = #{targetId}
+    </delete>
+    <!-- 해당 타입을 가진 서명자 정보 삭제 -->
+    <delete id="deleteApprovalInfoByType" parameterType="kr.co.igns.business.utils.model.UtilsVO">
+        DELETE 
+          FROM esg.tb_approval_info
+		 WHERE target_type = #{targetType} 
+		   AND target_id = #{targetId}
+		   AND type = #{type}
+    </delete>
+	
+	<!-- 서명 정보 조회 - 사용자 정보 및 사진까지 (공통) - task 조회용도 -->
+	<select id='getApprovalInfoTask' resultType='kr.co.igns.business.utils.model.UtilsVO' parameterType='kr.co.igns.business.utils.model.UtilsVO'>
+
+       SELECT tai.*, sf.file_id as logo_id, thi.user_id as hr_user_id
+         FROM esg.tb_approval_info tai
+    LEFT JOIN esg.tb_hr_info thi on tai.hr_id = thi.hr_id
+    LEFT JOIN esg.tb_sys_file sf on sf.target_id = tai.hr_id and sf.target_type='hrImg'
+        WHERE tai.target_type = #{targetType}
+          AND tai.target_id = #{targetId}
+
+    </select>
+
+    <!-- 서명 정보 조회 - 사용자 정보 및 사진까지 (공통) -->
+    <select id='getApprovalInfo' resultType='kr.co.igns.business.utils.model.UtilsVO' parameterType='kr.co.igns.business.utils.model.UtilsVO'>
+
+        SELECT tai.*,
+               sf.file_id AS logo_id,
+               thi.user_id AS hr_user_id,
+               CASE
+                    WHEN tai.signature IS NOT NULL
+                        THEN to_char(tai.updated_at, 'MM.dd hh24:mi')
+                    ELSE ''
+               END AS sign_time,
+               thi.use_yn
+        FROM esg.tb_approval_info tai
+                 LEFT JOIN esg.tb_hr_info thi
+                           ON tai.hr_id = thi.hr_id
+                 LEFT JOIN esg.tb_sys_file sf
+                           ON sf.target_id = tai.hr_id
+                               AND sf.target_type = 'hrImg'
+                 LEFT JOIN esg.tb_common_d dc
+                           ON dc.major_cd = 'C0045'
+                               AND dc.minor_cd = tai.param
+        WHERE tai.target_type = #{targetType}
+          AND tai.target_id = #{targetId}
+          AND tai.type = #{type}
+        ORDER BY dc.ord_seq ASC
+
+    </select>
+
+
+    <!-- 서명 정보 조회 - tb_approval_info 정보만 제공 (공통) -->
+    <select id='getApprovalInfoSimple' resultType='kr.co.igns.business.utils.model.UtilsVO' parameterType='kr.co.igns.business.utils.model.UtilsVO'>
+        SELECT tai.*
+        FROM esg.tb_approval_info tai
+        WHERE tai.target_type = #{targetType}
+          AND tai.target_id = #{targetId}
+    </select>
+<!--    <select id='checkDuplicateApprovalInfo' resultType='int' parameterType='kr.co.igns.business.utils.model.UtilsVO'>-->
+<!--        SELECT COUNT(*)-->
+<!--        FROM esg.tb_approval_info-->
+<!--        WHERE target_type = #{targetType}-->
+<!--          AND target_id = #{targetId}-->
+<!--          AND seq = #{seq}-->
+<!--    </select>-->
+
+    <update id="updateUserSignature" parameterType='kr.co.igns.business.utils.model.UtilsVO'>
+        UPDATE esg.tb_user_info
+        SET signature = #{signature},
+            updated_at = now(),
+            updated_by = #{userId}
+        WHERE user_id = #{userId}
+<!--          AND seq = #{seq}-->
+    </update>
+
+    <!-- 매핑정보 조회 쿼리 -->
+    <select id="getWpMapByTargetIds" parameterType="map" resultType="kr.co.igns.system.base.model.BaseMapVO">
+        SELECT twm.*, twi.workplace_nm AS nm, twi.ord_seq as seq
+        FROM esg.tb_workplace_map twm
+        LEFT JOIN esg.tb_workplace_info twi ON twi.workplace_id = twm.workplace_id
+        WHERE twm.target_type = #{targetType}
+            AND twm.use_yn = 'Y'
+            AND twm.target_id IN
+            <foreach item="id" collection="targetIds" open="(" separator="," close=")">
+              #{id}
+            </foreach>
+    </select>
+
+    <select id="getOrgnMapByTargetIds" parameterType="map" resultType="kr.co.igns.system.base.model.BaseMapVO">
+        SELECT tom.*, toi.orgn_id AS id, toi.orgn_nm AS nm, tom.target_id, toi.ord_seq as seq
+          FROM esg.tb_orgn_map tom
+     LEFT JOIN esg.tb_orgn_info toi ON toi.orgn_id = tom.orgn_id
+         WHERE tom.target_type = #{targetType}
+               AND tom.use_yn = 'Y'
+               AND tom.target_id IN
+               <foreach item="id" collection="targetIds" open="(" separator="," close=")">
+                   #{id}
+               </foreach>
+       ORDER BY toi.ord_seq asc
+    </select>
+
+    <select id="getPrcsWorkMapByTargetIds" parameterType="map" resultType="kr.co.igns.system.base.model.PrcsWorkVO">
+    SELECT tpwc.rev_no,
+           tpwc.process_id,
+           tpwc.cnfm_at,
+           tpwc.cnfm_yn,
+           tpwc.use_yn AS rev_use_yn,
+           tpwc.cnfm_by,
+           tpw.*,
+           tpi.process_nm,
+           tpwm.target_id
+    FROM esg.tb_process_work_map tpwm
+    LEFT JOIN esg.tb_process_work tpw ON tpwm.prcs_work_id = tpw.prcs_work_id
+    INNER JOIN esg.tb_process_work_cnfm tpwc ON tpw.prcs_cnfm_id = tpwc.prcs_cnfm_id
+    LEFT JOIN esg.tb_process_info tpi ON tpwm.process_id = tpi.process_id
+    WHERE tpwm.target_type = #{targetType}
+        AND tpwm.use_yn = 'Y'
+        AND tpwm.target_id IN
+        <foreach item="id" collection="targetIds" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
+    <select id="getHrInchargeByTargetIds" parameterType="map" resultType="kr.co.igns.system.base.model.HrVO">
+    SELECT t1.gubun,
+           t1.hr_id,
+           t2.hr_nm,
+           t3.file_id AS logo_id,
+           t1.target_id
+    FROM esg.tb_hr_incharge_map t1
+    LEFT JOIN esg.tb_hr_info t2 ON t1.hr_id = t2.hr_id
+    LEFT JOIN esg.tb_sys_file t3 ON t3.target_id = t1.hr_id AND t3.target_type = 'hrImg'
+    WHERE t1.target_type = #{targetType}
+        AND t1.gubun = #{gubun}
+        AND t1.hr_id IS NOT NULL
+        AND t1.hr_id != ''
+        AND t1.target_id IN
+        <foreach item="id" collection="targetIds" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+</mapper>

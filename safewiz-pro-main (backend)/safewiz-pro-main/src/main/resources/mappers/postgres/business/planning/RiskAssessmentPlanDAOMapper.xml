@@ -1,0 +1,412 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.co.igns.business.planning.dao.postgres.RiskAssessmentPlanDAO">
+	
+	<resultMap type="kr.co.igns.business.planning.model.RiskAssessmentPlanVO" id="avgCountMap">
+		<id column="doc_no" property="docNo" />
+		<result column="reductionCount" property="reductionCount" />
+		<result column="implCount" property="implCount" />
+		<result column="implPercentage" property="implPercentage" />
+		<result column="reductionCompletedCount" property="reductionCompletedCount" />
+		<result column="reductionAllCount" property="reductionAllCount" />
+		<result column="reductionPercentage" property="reductionPercentage" />
+		<result column="implAvgRisk" property="implAvgRisk" />
+		<result column="reduAvgRisk" property="reduAvgRisk" />
+		<collection property="systemCodeList" ofType="kr.co.igns.system.setting.model.SystemMinorCodeVO">
+			<id column="major_cd" property="majorCd" />
+			<id column="minor_cd" property="minorCd" />
+			<result column="minor_nm" property="minorNm" />
+		</collection>
+	</resultMap>
+	
+    <select id="getRiskAssessmentPlanList"
+            parameterType="kr.co.igns.system.common.model.SpSearchVO"
+            resultType="kr.co.igns.business.planning.model.RiskAssessmentPlanVO">
+
+        -- 결제 상태 순번 테이블 ( 서명이 된 상태만 )
+        WITH SIGNSTATUS AS (SELECT TAI.PARAM,
+                                   TAI.TARGET_ID,
+                                   ROW_NUMBER() OVER
+                                       (
+                                       PARTITION BY TARGET_ID
+                                       ORDER BY
+                                           CASE PARAM
+                                               -- 승인
+                                               WHEN 'approver' THEN 1
+                                               -- 검토
+                                               WHEN 'reviewer' THEN 2
+                                               -- 작성
+                                               WHEN 'writer' THEN 3
+                                               ELSE 4
+                                               END
+                                       ) AS RN
+                            FROM ESG.TB_APPROVAL_INFO TAI
+                            WHERE TAI.TARGET_TYPE = 'RAP'
+                              AND TAI.SIGNATURE IS NOT NULL),
+             -- 감소대책 등룍율 / 개선 이행률
+             IMPLEMENTATION AS (SELECT E.DOC_NO,
+                                       E.WRITE_YEAR,
+                                       COUNT(DISTINCT F.DOC_SEQ)           AS REDUCTIONCOUNT,
+                                       COUNT(F.DOC_SEQ)                    AS REDUCTIONALLCOUNT,
+                                       (SELECT COUNT(*)
+                                        FROM ESG.TB_RISK_ASSESSMENT_IMPLEMENTATION D
+                                        WHERE D.USE_YN = 'Y'
+                                          AND D.DOC_NO = E.DOC_NO
+                                          AND D.WRITE_YEAR = E.WRITE_YEAR) AS IMPLCOUNT,
+                                       COUNT(CASE
+                                                 WHEN E.COMPLETED_DATE IS NOT NULL AND E.USE_YN = 'Y'
+                                                     THEN E.DOC_SEQ END)   AS REDUCTIONCOMPLETEDCOUNT
+                                FROM ESG.TB_RISK_ASSESSMENT_IMPLEMENTATION_REDUCTION E
+                                         INNER JOIN ESG.TB_RISK_ASSESSMENT_IMPLEMENTATION F
+                                                    ON E.WRITE_YEAR = F.WRITE_YEAR
+                                                        AND E.DOC_TYPE = F.DOC_TYPE
+                                                        AND E.DOC_NO = F.DOC_NO
+                                                        AND E.DOC_SEQ = F.DOC_SEQ
+                                                        AND E.USE_YN = 'Y'
+                                GROUP BY E.DOC_NO, E.WRITE_YEAR)
+        SELECT TP.WRITE_YEAR,
+               TP.DOC_TYPE,
+               TP.DOC_NO,
+               TP.ORGN_ID,
+               TP.COMP_ID,
+               TP.PLAN_NM,
+               TP.START_DATE,
+               TP.END_DATE,
+               TP.ASSESSMENT_DATE,
+               TP.ASSESSMENT_COMPL_DATE,
+               TP.RISK_ASSESSMENT_CHART_ID,
+               TP.RISK_ASSESSMENT_GUBUN,
+               TP.RISK_ASSESSMENT_STANDARDS,
+               TP."desc",
+               TP.USE_YN,
+               TP.CREATED_AT,
+               TP.CREATED_BY,
+               TP.UPDATED_AT,
+               TP.UPDATED_BY,
+               TI.ORGN_NM,
+               SS.PARAM                                AS SIGN_STATUS,
+               -- 감소대책 등록 요인 수
+               COALESCE(IM.REDUCTIONCOUNT, 0)          AS REDUCTIONCOUNT,
+               -- 유해요인건수
+               COALESCE(IM.IMPLCOUNT, 0)               AS IMPLCOUNT,
+               -- 감소대책등록율(%) (감소대책 등록 요인수 * 100 / 유해요인 건수)
+               COALESCE(
+                       CASE
+                           WHEN IM.IMPLCOUNT = 0 OR IM.IMPLCOUNT IS NULL THEN 0
+                           ELSE TRUNC((IM.REDUCTIONCOUNT * 100.0) / IM.IMPLCOUNT)
+                           END, 0)                     AS IMPLPERCENTAGE,
+               -- 개선조치 건수
+               COALESCE(IM.REDUCTIONCOMPLETEDCOUNT, 0) AS REDUCTIONCOMPLETEDCOUNT,
+               -- 감소대책 건수
+               COALESCE(IM.REDUCTIONALLCOUNT, 0)       AS REDUCTIONALLCOUNT,
+               -- 개선 이행율(%) (개선조치건수 * 100 / 감소대책 건수)
+               COALESCE(
+                       CASE
+                           WHEN IM.REDUCTIONALLCOUNT = 0 OR IM.REDUCTIONALLCOUNT IS NULL THEN 0
+                           ELSE TRUNC((IM.REDUCTIONCOMPLETEDCOUNT * 100) / IM.REDUCTIONALLCOUNT)
+                           END, 0)                     AS REDUCTIONPERCENTAGE
+        FROM ESG.TB_RISK_ASSESSMENT_PLAN TP
+                 INNER JOIN ESG.TB_ORGN_INFO TI ON TI.ORGN_ID = TP.ORGN_ID
+            -- 결제 상태 순번 테이블 에서 서명된것 중에 최고순위 하나 가져오기
+                 LEFT JOIN SIGNSTATUS SS ON SS.TARGET_ID = CONCAT(TP.WRITE_YEAR, TP.DOC_NO) AND SS.RN = 1
+            -- 감소대책 등룍율 / 개선 이행률
+                 LEFT JOIN IMPLEMENTATION IM ON IM.write_year = TP.write_year AND IM.doc_no = TP.doc_no
+        WHERE TP.COMP_ID = #{compId}
+          AND SUBSTR(TP.WRITE_YEAR, 0, 5) = #{searchText}
+        ORDER BY TP.USE_YN DESC, TP.CREATED_AT DESC
+
+    </select>
+
+    <select id="getRiskAssessmentPlanOrgnPopupList" parameterType="kr.co.igns.system.common.model.SpSearchVO" resultType="kr.co.igns.business.planning.model.RiskAssessmentPlanVO">
+        SELECT TCPEM.ORGN_ID, TOI.ORGN_NM
+          FROM ESG.TB_CLASSIFICATION_PROCESS_EQUIP_MSDS TCPEM
+          LEFT JOIN ESG.TB_ORGN_INFO TOI
+            ON TOI.ORGN_ID = TCPEM.ORGN_ID
+         WHERE TCPEM.COMP_ID = #{compId}
+           AND TCPEM.USE_YN = 'Y'
+           AND TCPEM.CONFIRM_YN = 'Y'
+         ORDER BY TCPEM.DOC_NO::INTEGER ASC
+    </select>
+
+    <select id="getRiskAssessmentPlanPrevPopupList" parameterType="kr.co.igns.business.planning.model.RiskAssessmentPlanVO" resultType="kr.co.igns.business.planning.model.RiskAssessmentPlanVO">
+        SELECT P.WRITE_YEAR, P.DOC_TYPE, P.DOC_NO, P.ORGN_ID, P.PLAN_NM || ' (' || D.MINOR_NM || ')' AS planNm, P.RISK_ASSESSMENT_STANDARDS, P.RISK_ALLOWANCE_STANDARDS
+          FROM ESG.TB_RISK_ASSESSMENT_PLAN P
+          LEFT JOIN ESG.TB_COMMON_D D
+            ON D.MAJOR_CD = 'C0027' AND D.MINOR_CD = P.RISK_ASSESSMENT_STANDARDS
+         WHERE P.WRITE_YEAR = #{writeYear}
+           AND P.ORGN_ID = #{orgnId}
+           AND P.COMP_ID = #{compId}
+           AND P.USE_YN = 'Y'
+           AND P.DOC_NO != #{docNo}
+           AND P.RISK_ASSESSMENT_STANDARDS = #{riskAssessmentStandards}
+        ORDER BY P.DOC_NO::INTEGER ASC
+    </select>
+
+    <insert id="insertRiskAssessmentPlan"
+            parameterType="kr.co.igns.business.planning.model.RiskAssessmentPlanVO"
+            useGeneratedKeys="true" keyColumn="doc_no" keyProperty="docNo">
+
+        <selectKey keyProperty="docNo"
+                   resultType="kr.co.igns.business.planning.model.RiskAssessmentPlanVO"
+                   order="BEFORE">
+            SELECT
+                LPAD((COALESCE(MAX(DOC_NO::INTEGER), 0) + 1)::TEXT, 5, '0') AS DOC_NO
+            FROM ESG.TB_RISK_ASSESSMENT_PLAN
+            WHERE WRITE_YEAR = #{writeYear}
+              AND doc_type = #{docType}
+        </selectKey>
+
+        INSERT INTO ESG.TB_RISK_ASSESSMENT_PLAN
+        (
+            WRITE_YEAR,
+            DOC_TYPE,
+            DOC_NO,
+            ORGN_ID,
+            COMP_ID,
+            PLAN_NM,
+            START_DATE,
+            END_DATE,
+            ASSESSMENT_DATE,
+            ASSESSMENT_COMPL_DATE,
+            RISK_ASSESSMENT_CHART_ID,
+            RISK_ASSESSMENT_GUBUN,
+            RISK_ASSESSMENT_STANDARDS,
+            "desc",
+            CREATED_AT,
+            CREATED_BY,
+            RISK_ALLOWANCE_STANDARDS
+        )
+        VALUES
+        (
+            #{writeYear},
+            'RAP',
+            #{docNo},
+            #{orgnId},
+            #{compId},
+            #{planNm},
+            #{startDate},
+            #{endDate},
+            #{assessmentDate},
+            #{assessmentComplDate},
+            #{riskAssessmentChartId},
+            #{riskAssessmentGubun},
+            #{riskAssessmentStandards},
+            #{desc},
+            NOW(),
+            #{createdBy},
+            #{riskAllowanceStandards}
+        )
+
+    </insert>
+
+    <select id="getRiskAssessmentPlanDetail"
+            resultType="kr.co.igns.business.planning.model.RiskAssessmentPlanVO"
+            parameterType="kr.co.igns.business.planning.model.RiskAssessmentPlanVO">
+
+        SELECT TP.WRITE_YEAR,
+               TP.DOC_TYPE,
+               TP.DOC_NO,
+               TP.ORGN_ID,
+               TP.COMP_ID,
+               TP.PLAN_NM,
+               TP.CPEM_WRITE_YEAR,
+               TP.CPEM_DOC_NO,
+               START_DATE,
+               END_DATE,
+               ASSESSMENT_DATE,
+               ASSESSMENT_COMPL_DATE,
+               TP.RISK_ASSESSMENT_CHART_ID,
+               TP.RISK_ASSESSMENT_GUBUN,
+               TP.RISK_ASSESSMENT_STANDARDS,
+               TP.RISK_ALLOWANCE_STANDARDS,
+               TP."desc",
+               TP.USE_YN,
+               TP.CREATED_AT,
+               TP.CREATED_BY,
+               TP.UPDATED_AT,
+               TP.UPDATED_BY,
+               TI.ORGN_NM,
+               TC.CHART_NM,
+               TC.CHART_DATA,
+               esg.fn_getapprovalstatus('RAP', CONCAT(TP.WRITE_YEAR, TP.DOC_NO)) as WRITER_SIGN_YN
+        FROM ESG.TB_RISK_ASSESSMENT_PLAN TP
+                 INNER JOIN ESG.TB_ORGN_INFO TI ON TI.ORGN_ID = TP.ORGN_ID
+                 INNER JOIN ESG.TB_RISK_ASSESSMENT_ORGAN_CHART TC ON TC.CHART_ID = TP.RISK_ASSESSMENT_CHART_ID
+        WHERE TP.WRITE_YEAR = #{writeYear}
+          AND TP.DOC_TYPE = #{docType}
+          AND TP.DOC_NO = #{docNo}
+
+    </select>
+
+    <update id="updateRiskAssessmentPlan"
+            parameterType="kr.co.igns.business.planning.model.RiskAssessmentPlanVO">
+
+        UPDATE ESG.TB_RISK_ASSESSMENT_PLAN
+        SET PLAN_NM                   = #{planNm},
+            ORGN_ID                   = #{orgnId},
+            START_DATE                = #{startDate},
+            END_DATE                  = #{endDate},
+            ASSESSMENT_DATE           = #{assessmentDate},
+            ASSESSMENT_COMPL_DATE     = #{assessmentComplDate},
+            RISK_ASSESSMENT_CHART_ID  = #{riskAssessmentChartId},
+            RISK_ASSESSMENT_GUBUN     = #{riskAssessmentGubun},
+            RISK_ASSESSMENT_STANDARDS = #{riskAssessmentStandards},
+            RISK_ALLOWANCE_STANDARDS = #{riskAllowanceStandards},
+            "desc"                    = #{desc},
+            USE_YN                    = #{useYn},
+            UPDATED_AT                = NOW(),
+            UPDATED_BY                = #{updatedBy}
+        WHERE WRITE_YEAR = #{writeYear}
+          AND DOC_TYPE = #{docType}
+          AND DOC_NO = #{docNo}
+
+    </update>
+
+    <update id="updateRiskAssessmentPlanCpemData"
+            parameterType="kr.co.igns.business.planning.model.RiskAssessmentPlanVO">
+
+        UPDATE ESG.TB_RISK_ASSESSMENT_PLAN
+           SET CPEM_WRITE_YEAR = #{cpemWriteYear},
+               CPEM_DOC_NO = #{cpemDocNo},
+               UPDATED_AT = NOW(),
+               UPDATED_BY = #{updatedBy}
+         WHERE WRITE_YEAR = #{writeYear}
+           AND DOC_TYPE = #{docType}
+           AND DOC_NO = #{docNo}
+
+    </update>
+
+    <delete id="deleteRiskAssessmentPlan"
+            parameterType="kr.co.igns.business.planning.model.RiskAssessmentPlanVO">
+
+        UPDATE ESG.TB_RISK_ASSESSMENT_PLAN
+        SET USE_YN     = 'N',
+            UPDATED_AT = NOW(),
+            UPDATED_BY = #{updatedBy}
+        WHERE WRITE_YEAR = #{writeYear}
+          AND DOC_TYPE = #{docType}
+          AND DOC_NO = #{docNo}
+
+    </delete>
+    
+    <select id="selectRiskAvgCount" resultMap="avgCountMap">
+    	SELECT a.doc_no,
+    		   -- 감소대책 등록 요인 수
+    		   e.reductionCount,
+               -- 유해요인건수
+               f.implCount,
+               -- 감소대책등록율(%) (감소대책 등록 요인수 * 100 / 유해요인 건수)
+               CASE WHEN e.reductionCount = 0 THEN 0
+        			ELSE TRUNC((e.reductionCount * 100.0) / f.implCount) 
+			    END AS implPercentage,
+			   -- 개선조치 건수
+			   g.reductionCompletedCount,
+			   -- 감소대책 건수
+    		   h.reductionAllCount,
+               -- 개선 이행율(%) (개선조치건수 * 100 / 감소대책 건수)
+               CASE WHEN g.reductionCompletedCount = 0 THEN 0 
+                    ELSE TRUNC((g.reductionCompletedCount * 100) / h.reductionAllCount) 
+                END AS reductionPercentage,
+               -- 개선전 평균 위험도 (소수점 반내림)
+               -- 빈도강도법 : 중대성(impact_score) * 가능성(frequency_score) = 위험성결정(risk_score) -> risk_score * 개수
+               -- 상중하기법 : 위험성결정(risk_score) -> risk_score * 개수
+               (
+                SELECT
+                    FLOOR(
+                        SUM(
+                            COALESCE(
+                                CASE SPLIT_PART(d.risk_score, '_', 2)
+                                    WHEN 'l' THEN 1
+                                    WHEN 'm' THEN 2
+                                    WHEN 'h' THEN 3
+                                    ELSE CAST(SPLIT_PART(d.risk_score, '_', 2) AS INTEGER)
+                                END, 0
+                            )
+                        ) / COUNT(*)
+                    )
+	              FROM esg.tb_risk_assessment_implementation d
+                 WHERE d.doc_no = #{docNo}
+                   AND d.write_year = #{writeYear}
+                   AND d.use_yn = 'Y'
+                ) AS implAvgRisk,
+               -- 개선후 평균 위험도 (소수점 반내림)
+               -- 빈도강도법 : 중대성(after_impact_score) * 가능성(after_frequency_score) = 위험성결정(after_risk_score) -> after_risk_score * 개수
+               -- 상중하기법 : 위험성결정(after_risk_score) -> after_risk_score * 개수
+               (
+                SELECT
+                    FLOOR(
+                        SUM(
+                            COALESCE(
+                                CASE SPLIT_PART(e.after_risk_score, '_', 2)
+                                    WHEN 'l' THEN 1
+                                    WHEN 'm' THEN 2
+                                    WHEN 'h' THEN 3
+                                    ELSE CAST(SPLIT_PART(e.after_risk_score, '_', 2) AS INTEGER)
+                                END, 0
+                            )
+                        ) / COUNT(*)
+                    )
+                   FROM esg.tb_risk_assessment_implementation e
+                  WHERE e.doc_no = #{docNo}
+                    AND e.write_year = #{writeYear}
+                    AND e.use_yn = 'Y'
+               ) as reduAvgRisk,
+               tdcd.major_cd,
+               tdcd.minor_cd,
+               tdcd.minor_nm
+          FROM esg.tb_risk_assessment_plan a
+          LEFT JOIN esg.tb_classification_process_equip_msds b
+            ON b.comp_id = a.comp_id 
+           AND b.orgn_id = a.orgn_id
+           AND b.use_yn = 'Y'
+           AND b.confirm_yn = 'Y'
+		  LEFT JOIN esg.tb_common_d tdcd
+		    ON 1=1
+		   AND tdcd.major_cd = 'C0040'
+		   AND tdcd.minor_cd like CONCAT(#{searchText}, '%')
+		   -- 감소대책 등록 요인 수
+		  LEFT JOIN ( SELECT COUNT(e.doc_seq) AS reductionCount
+	                    FROM esg.tb_risk_assessment_implementation_reduction e
+	                   INNER JOIN esg.tb_risk_assessment_implementation f
+	                      ON e.write_year = f.write_year
+	                     AND e.doc_type = f.doc_type
+	                     AND e.doc_no = f.doc_no
+	                     AND e.doc_seq = f.doc_seq
+	                     AND e.use_yn = 'Y'
+	                   WHERE f.doc_no = #{docNo} AND f.write_year = #{writeYear}) e
+            ON 1=1
+            -- 유해요인건수
+          LEFT JOIN ( SELECT COUNT(*) AS implCount
+	                    FROM esg.tb_risk_assessment_implementation d
+	                   WHERE d.doc_no = #{docNo} AND d.write_year = #{writeYear}
+	                     AND d.use_yn = 'Y' ) f
+	        ON 1=1
+			-- 개선조치 건수
+	      LEFT JOIN ( SELECT COUNT(e.doc_seq) as reductionCompletedCount
+				        FROM esg.tb_risk_assessment_implementation_reduction e
+				       INNER JOIN esg.tb_risk_assessment_implementation f
+				          ON e.write_year = f.write_year
+				         AND e.doc_type = f.doc_type
+				         AND e.doc_no = f.doc_no
+				         AND e.doc_seq = f.doc_seq
+				         AND e.use_yn = 'Y'
+				         AND e.completed_date is not null
+				       WHERE f.doc_no = #{docNo} AND f.write_year = #{writeYear}) g
+            ON 1=1
+            -- 감소대책 건수
+          LEFT JOIN ( SELECT COUNT(e.doc_seq) as reductionAllCount
+	                    FROM esg.tb_risk_assessment_implementation_reduction e
+	                   INNER JOIN esg.tb_risk_assessment_implementation f
+	                      ON e.write_year = f.write_year
+	                     AND e.doc_type = f.doc_type
+	                     AND e.doc_no = f.doc_no
+	                     AND e.doc_seq = f.doc_seq
+	                     AND e.use_yn = 'Y'
+	                   WHERE f.doc_no = #{docNo} AND f.write_year = #{writeYear}) h
+            ON 1=1
+         WHERE a.doc_no = #{docNo}
+           AND a.write_year = #{writeYear}
+         ORDER BY tdcd.ord_seq ASC
+    </select>
+
+</mapper>

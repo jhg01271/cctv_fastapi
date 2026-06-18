@@ -1,0 +1,254 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.planning.dao.postgres.RiskAndOpsAsmtCriteriaDAO">
+	<!-- 리스크와 기회 첫페이지 조회 -->
+	<select id='getRiskMain' parameterType='kr.co.igns.system.common.model.SpSearchVO'
+			resultType='kr.co.igns.business.planning.model.RiskAndOpsAsmtCriteriaVO'>
+
+		-- 리스크 및 기회 평가 기준표 조회
+		SELECT  'riskAsmt'                AS TITLE
+		      , '/RiskAndOpsAsmtCriteria' AS ROUTE
+		      , 'riskAsmtDesc'            AS DESCRIPTION
+		      , CASE
+		        WHEN (SELECT CASE 
+		                          WHEN COUNT(*) > 1 THEN 1 
+		                          ELSE COUNT(*) 
+		                      END
+		                 FROM ESG.TB_RISK_AND_OPS_ASMT_CRITERIA
+		                 WHERE COMP_ID = #{compId}
+		                   AND CONFIRMED_YN = 'Y'
+		                   AND CRITERIA_TYPE = 'R')
+		               +
+		               (SELECT CASE 
+		                          WHEN COUNT(*) > 1 THEN 1 
+		                          ELSE COUNT(*) 
+		                      END
+		                 FROM ESG.TB_RISK_AND_OPS_ASMT_CRITERIA
+		                 WHERE COMP_ID = #{compId}
+		                   AND CONFIRMED_YN = 'Y'
+		                   AND CRITERIA_TYPE = 'O') >= 2 
+		           THEN 'Y'
+		           ELSE 'N'
+		       END                          AS ACTIVEYN
+		UNION ALL
+		-- 리스크와 기회 조회
+		SELECT 'riskOpp'                      AS TITLE,
+		       '/RisksAndOpportunitiesManage' AS ROUTE,
+		       'riskOppDesc'                  AS DESCRIPTION,
+		       CASE
+		           WHEN EXISTS (SELECT 1 
+		                        FROM ESG.TB_RISKS_AND_OPPORTUNITIES
+		                        WHERE COMP_ID = #{compId}
+		                          AND WRITE_YEAR = #{searchText}) THEN 'Y'
+		           ELSE 'N'
+		       END                        AS ACTIVEYN;
+
+    </select>
+
+	<!-- 메인 조회 -->
+    <select id='getRiskAndOpsAsmtCriteria' parameterType='kr.co.igns.system.common.model.SpSearchVO'
+			resultType='kr.co.igns.business.planning.model.RiskAndOpsAsmtCriteriaVO'>
+
+        SELECT comp_id,
+	     	   criteria_id,
+	     	   criteria_type,
+	     	   confirmed_yn,
+	     	   confirmed_dt,
+	     	   use_yn,
+	     	   created_at  
+	      FROM esg.tb_risk_and_ops_asmt_criteria
+	     WHERE comp_id = #{compId}
+	  ORDER BY criteria_id DESC, use_yn = 'Y' DESC;
+
+	</select>
+	
+	<!-- 신규 로우 추가시 차수 max 조회 -->
+	<select id='getMaxAsmtCriteria' parameterType='string' resultType='string'>
+		<![CDATA[	
+		    SELECT 
+		        CASE 
+		            WHEN MAX(A.criteria_id) IS NULL 
+		                THEN TO_CHAR(CURRENT_DATE, 'YYYYMMDD') || '0001' 
+		            WHEN SUBSTRING(MAX(A.criteria_id) FROM 1 FOR 8)::DATE < CURRENT_DATE 
+		                THEN TO_CHAR(CURRENT_DATE, 'YYYYMMDD') || '0001'
+		            ELSE TO_CHAR(CAST(MAX(A.criteria_id) AS BIGINT) + 1, 'FM000000000000')
+		        END AS criteria_id
+			FROM esg.tb_risk_and_ops_asmt_criteria A
+			WHERE A.comp_id = #{compId}
+		]]>
+	</select>
+	
+	<!-- 디테일 조회 -->
+    <select id='getRiskAndOpsAsmtCriteriaDetailList' parameterType='kr.co.igns.business.planning.model.RiskAndOpsAsmtCriteriaVO' resultType='kr.co.igns.business.planning.model.RiskAndOpsAsmtCriteriaVO'>
+        SELECT A.comp_id,
+	     	   A.criteria_id,
+	     	   A.criteria_type,
+	     	   A.confirmed_yn,
+	     	   A.confirmed_dt,
+	     	   A.created_at,
+	     	   B.detail_type,
+	     	   B.detail_seq,
+	     	   B.content1,
+	     	   B.content2,
+	     	   B.content3,
+	     	   B.content4,
+	     	   B.ord_seq,
+	     	   B.use_yn AS detail_use_yn
+	      FROM esg.tb_risk_and_ops_asmt_criteria A
+	 LEFT JOIN esg.tb_risk_and_ops_asmt_criteria_detail B
+	        ON A.criteria_id = B.criteria_id 
+	     WHERE A.comp_id = #{compId}
+	       AND A.criteria_id = #{criteriaId}
+	  ORDER BY B.use_yn = 'Y' DESC, B.ord_seq
+	</select>
+	
+	<!-- 데이터셋 조회 -->
+    <select id='getDatasetAsmtList' parameterType='kr.co.igns.business.planning.model.RiskAndOpsAsmtCriteriaVO' resultType='kr.co.igns.business.planning.model.RiskAndOpsAsmtCriteriaVO'>
+        SELECT detail_type,
+	     	   content1,
+	     	   content2,
+	     	   content3,
+	     	   content4,
+	     	   ord_seq
+	      FROM dataset.tb_dataset_risk_and_ops_asmt_criteria
+	</select>
+	
+	<!-- 메인저장 -->
+	<insert id="insertRiskAndOpsAsmtCriteriaMain" parameterType="kr.co.igns.business.planning.model.RiskAndOpsAsmtCriteriaVO">
+		INSERT INTO esg.tb_risk_and_ops_asmt_criteria 
+				  (
+				    comp_id,
+				    criteria_id,
+				    criteria_type,
+				    confirmed_yn,
+				    confirmed_dt,
+				    use_yn,
+				    created_at,
+				    created_by
+				  ) 
+		     VALUES 
+		     	  (
+				    #{compId},
+				    #{criteriaId},
+				    #{criteriaType},
+				    #{confirmedYn},
+				    #{confirmedDt},
+				    #{useYn},
+				    NOW(),
+				    #{createdBy}
+				  )
+		ON CONFLICT (criteria_id) 
+	  DO UPDATE SET comp_id = EXCLUDED.comp_id,
+		    		criteria_type = EXCLUDED.criteria_type,
+				    confirmed_yn = EXCLUDED.confirmed_yn,
+				    confirmed_dt = EXCLUDED.confirmed_dt,
+				    use_yn = EXCLUDED.use_yn,
+				    created_at = now(),
+				    created_by = EXCLUDED.created_by
+	</insert>
+	
+	<!-- 디테일저장 -->
+	<insert id="insertRiskAndOpsAsmtCriteriaDetail" parameterType="kr.co.igns.business.planning.model.RiskAndOpsAsmtCriteriaVO" useGeneratedKeys="true" keyColumn="detail_seq" keyProperty="detailSeq">
+	
+		<selectKey keyProperty="detailSeq" resultType="kr.co.igns.business.planning.model.RiskAndOpsAsmtCriteriaVO" order="BEFORE">
+            SELECT LPAD(CAST(COALESCE(MAX(CAST(detail_seq AS INTEGER)), 0) + 1 AS INTEGER)::TEXT, 5, '0') AS detail_seq
+		      FROM esg.tb_risk_and_ops_asmt_criteria_detail
+	         WHERE criteria_id = #{criteriaId}
+        </selectKey>
+		INSERT INTO esg.tb_risk_and_ops_asmt_criteria_detail
+				  (
+		            criteria_id,
+		            detail_type,
+		            detail_seq,
+		            content1,
+		            content2,
+		            content3,
+		            content4,
+		            ord_seq,
+		            use_yn,
+		            created_at,
+		            created_by
+         ) VALUES (
+		            #{criteriaId},
+		            #{detailType},
+		            #{detailSeq},
+		            #{content1},
+		            #{content2},
+		            #{content3},
+		            #{content4},
+		            #{ordSeq}::integer,
+		            #{detailUseYn},
+		            now(),
+		            #{createdBy}
+		          )
+	</insert>
+	
+	<!-- 디테일수정 -->
+	<update id="updateRiskAndOpsAsmtCriteriaDetail" parameterType="kr.co.igns.business.planning.model.RiskAndOpsAsmtCriteriaVO">
+        UPDATE esg.tb_risk_and_ops_asmt_criteria_detail
+	       SET content1 = #{content1},
+	           content2 = #{content2},
+		       content3 = #{content3},
+		       content4 = #{content4},
+	           ord_seq = #{ordSeq}::integer,
+	           use_yn = #{detailUseYn},
+	           updated_at = now(),
+	           updated_by = #{updatedBy}
+	     WHERE criteria_id = #{criteriaId}
+		   AND detail_type = #{detailType}
+		   AND detail_seq = #{detailSeq}
+    </update>
+    
+    <!-- 디테일에서 메인 사용여부 -->
+	<update id="saveMainUseYn" parameterType="kr.co.igns.business.planning.model.RiskAndOpsAsmtCriteriaVO">
+        UPDATE esg.tb_risk_and_ops_asmt_criteria
+	       SET use_yn = #{useYn},
+      		   updated_at = now(),
+	           updated_by = #{updatedBy}
+	     WHERE criteria_id = #{criteriaId}
+    </update>
+    
+	<!-- 메인확정여부 -->
+	<update id="saveMainConfirm" parameterType="kr.co.igns.business.planning.model.RiskAndOpsAsmtCriteriaVO">
+        UPDATE esg.tb_risk_and_ops_asmt_criteria
+		   SET confirmed_yn = CASE WHEN #{confirmedYn} = 'N' 
+		   						   THEN 'Y'
+			                  	   ELSE 'N'
+			                       END,
+			   confirmed_dt = CASE WHEN #{confirmedYn} = 'N'
+			    				   THEN TO_CHAR(CURRENT_DATE, 'YYYYMMDD')
+			                       ELSE ''
+			                       END,
+			   updated_at = NOW(),
+			   updated_by = #{updatedBy}
+		 WHERE criteria_id = #{criteriaId}
+    </update>
+    
+    <!-- 메인삭제 -->
+    <delete id="deleteRiskAndOpsAsmtCriteriaMain" parameterType="kr.co.igns.business.planning.model.RiskAndOpsAsmtCriteriaVO">
+        UPDATE esg.tb_risk_and_ops_asmt_criteria
+       	   SET use_yn = 'N',
+       	   	   updated_at = now(),
+	           updated_by = #{updatedBy}
+         WHERE criteria_id = #{criteriaId}
+    </delete>
+    <!-- 디테일삭제 -->
+    <delete id="deleteRiskAndOpsAsmtCriteriaDetail" parameterType="kr.co.igns.business.planning.model.RiskAndOpsAsmtCriteriaVO">
+        UPDATE esg.tb_risk_and_ops_asmt_criteria_detail
+       	   SET use_yn = 'N',
+       	   	   updated_at = now(),
+	           updated_by = #{updatedBy}
+         WHERE criteria_id = #{criteriaId}
+           AND detail_type = #{detailType}
+		   AND detail_seq = #{detailSeq}
+    </delete>
+    <!-- 등급기준 이전데이터 삭제 -->
+    <delete id="deleteAsmtGrade" parameterType="kr.co.igns.business.planning.model.RiskAndOpsAsmtCriteriaVO">
+        DELETE 
+          FROM esg.tb_risk_and_ops_asmt_criteria_detail
+         WHERE criteria_id = #{criteriaId}
+           AND detail_type = 'RC'
+    </delete>
+</mapper>
+

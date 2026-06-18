@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.comp.master.dao.postgres.CompanyPreferencesDAO">
+
+	<sql id='selectCol'>
+		cp.comp_id,
+		cp.e_cri_val,
+		cp.w_cri_val,
+		cp.g_cri_val,
+		cp.e_bf_alert_yn,
+		cp.g_bf_alert_yn,
+		cp.w_bf_alert_yn,
+		cp.alert_mails,
+		cp.sense_tb_nm,
+		
+	</sql>
+
+	<sql id="filter">
+		<if test="delYn != null and delYn != ''">
+	    	<![CDATA[			AND c.del_yn = #{delYn}		]]>
+		</if>
+	</sql>
+
+	<select id='searchCount' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='int'>
+
+		SELECT
+		count(1)
+		FROM tb_comp_preferences cp
+		<!-- <include refid='kr.co.igns.comp.master.dao.postgres.CompanyPreferencesDAO.filter' /> -->
+
+	</select>
+
+	<select id='search' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.comp.master.model.CompanyPreferencesVO'>
+
+		SELECT
+		<include refid='kr.co.igns.business.comp.master.dao.postgres.CompanyPreferencesDAO.selectCol' />
+		created_at,
+		updated_at,
+		'U' cmd
+		FROM esg.tb_comp_preferences cp
+		<!-- <include refid='kr.co.igns.comp.master.dao.postgres.CompanyPreferencesDAO.filter' /> -->
+
+	</select>
+
+	<select id='findOne' parameterType='String' resultType='kr.co.igns.business.comp.master.model.CompanyPreferencesVO'>
+
+		SELECT
+		<include refid='kr.co.igns.business.comp.master.dao.postgres.CompanyPreferencesDAO.selectCol' />
+		created_at,
+		updated_at,
+		'U' cmd
+		FROM esg.tb_comp_preferences cp
+		WHERE comp_id = #{compId}
+
+	</select>
+
+	<insert id="insert" parameterType="kr.co.igns.business.comp.master.model.CompanyPreferencesVO" useGeneratedKeys="true" keyProperty="eqpId">
+
+		INSERT INTO
+		esg.tb_comp_preferences (
+		comp_id,
+		comp_nm,
+		comp_rmk,
+		rgst_no,
+		corp_no,
+		rpst_nm,
+		zip_cd,
+		addrs1,
+		addrs2,
+		chrg_prsn,
+		tel_no,
+		biz_nm,
+		biz_cd,
+		main_prdt,
+		prd_amt,
+		photo_file_id,
+		cmplt_de,
+		fl_area,
+		sales_amt,
+		full_empl_cnt,
+		avrg_work_hr,
+		clnt_id,
+		created_at,
+		created_by
+		) VALUES (
+		#{compId},
+		#{compNm},
+		#{compRmk},
+		#{rgstNo},
+		#{corpNo},
+		#{rpstNm},
+		#{zipCd},
+		#{addrs1},
+		#{addrs2},
+		#{chrgPrsn},
+		#{telNo},
+		#{bizNm},
+		#{bizCd},
+		#{mainPrdt},
+		#{prdAmt},
+		#{photoFileId},
+		#{cmpltDe},
+		#{flArea},
+		#{salesAmt},		
+		#{fullEmplCnt},		
+		#{avrgWorkHr},		
+		#{clntId},		
+		now(),
+		#{createdBy}
+		)
+
+	</insert>
+
+	<update id="update" parameterType="kr.co.igns.business.comp.master.model.CompanyPreferencesVO">
+
+		UPDATE esg.tb_comp_preferences
+		SET
+		e_cri_val = #{eCriVal},
+		w_cri_val = #{wCriVal},
+		g_cri_val = #{gCriVal},
+		e_bf_alert_yn = #{eBfAlertYn},
+		w_bf_alert_yn = #{wBfAlertYn},
+		g_bf_alert_yn = #{gBfAlertYn},
+		alert_mails = #{alertMails},
+		sense_tb_nm = #{senseTbNm},
+		updated_at = now(),
+		updated_by = #{updatedBy}
+		WHERE comp_id = #{compId}
+	</update>
+
+	<update id="updateDelYn" parameterType="String">
+
+		UPDATE esg.tb_comp_preferences
+		SET
+		del_yn = 'Y',
+		updated_at = now(),
+		updated_by = #{updatedBy}
+		WHERE comp_id = #{compId}
+		 
+	</update>
+	
+
+	<delete id="delete" parameterType="String">
+
+		DELETE FROM esg.tb_comp_preferences
+		WHERE comp_id = #{compId}
+
+	</delete>
+</mapper>

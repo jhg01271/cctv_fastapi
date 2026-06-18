@@ -1,0 +1,789 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.mobile.hseInspections.dao.postgres.V1HseInspectionsDAO">
+    <resultMap id="HseInspectionsCalendarResultMap" type="kr.co.igns.mobile.hseInspections.model.HseInspectionsVO">
+	    <result property="doneCount" column="done" 
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+	    <result property="undoneCount" column="undone" 
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>                                
+	</resultMap>
+	
+    <resultMap id="HseInspectionsResultMap" type="kr.co.igns.mobile.hseInspections.model.HseInspectionsVO">
+        <id property="id" column="id"/>
+        <result property="title" column="title"/>
+        <result property="done" column="done"/>
+        <result property="startedAt" column="startedat"/>
+        <result property="endedAt" column="endedat"/>
+        <result property="createdAt" column="createdat"/>
+        <!-- Use custom JsonTypeHandler -->
+        <result property="checkTarget" column="checktarget"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+        <result property="checker" column="checker"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+    </resultMap>	
+    
+    <resultMap id="HseInspectionsTemplatesResultMap" type="kr.co.igns.mobile.hseInspections.model.HseInspectionsTemplatesVO">
+        <id property="id" column="id"/>
+        <result property="title" column="title"/>
+        <!-- Use custom JsonTypeHandler -->
+        <result property="inspection" column="inspection"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+        <result property="checkTarget" column="checktarget"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+        <result property="checker" column="checker"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>                
+    </resultMap>
+    
+    <resultMap id="HseInspectionsTemplatesDetailResultMap" type="kr.co.igns.mobile.hseInspections.model.HseInspectionsTemplatesDetailVO">
+        <id property="id" column="id"/>
+        <result property="title" column="title"/>
+        <!-- Use custom JsonTypeHandler -->
+        <result property="checkTarget" column="checktarget"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+        <result property="checkList" column="checklist"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>                
+    </resultMap>    
+    
+    <resultMap id="HseInspectionsDetailResultMap" type="kr.co.igns.mobile.hseInspections.model.HseInspectionsDetailVO">
+        <id property="id" column="id"/>
+        <result property="title" column="title"/>
+        <result property="done" column="done"/>
+        <result property="location" column="location"/>
+        <result property="action" column="action"/>
+        <result property="startedAt" column="startedat"/>
+        <result property="endedAt" column="endedat"/>
+        <result property="createdAt" column="createdat"/>
+        <!-- Use custom JsonTypeHandler -->
+        <result property="checkTarget" column="checktarget"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+        <result property="checker" column="checker"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>                
+        <result property="checkList" column="checklist"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>                
+    </resultMap>
+        		
+	<!-- 안전점검 달력 count 조회 -->
+	<select id="getHseInspectionsCalendarCount" parameterType="kr.co.igns.mobile.hseInspections.model.HseInspectionsSearchVO" resultMap="HseInspectionsCalendarResultMap">
+		 <![CDATA[
+			 WITH details_count AS (
+			    SELECT 
+			        sil.write_year,
+			        sil.doc_type,
+			        sil.doc_no,
+			        sil.check_dt,
+			        sil.comp_id,
+			        sil.use_yn,
+			        COUNT(d.doc_seq) AS details_count,
+			        SUM(CASE WHEN d.acceptable_yn = 'Y' OR d.non_compliant_yn = 'Y' THEN 1 ELSE 0 END) AS checked_details_count,
+			        CASE
+			            WHEN COALESCE(COUNT(d.doc_seq), 0) <= COALESCE(SUM(CASE WHEN d.acceptable_yn = 'Y' OR d.non_compliant_yn = 'Y' THEN 1 ELSE 0 END), 0)
+			            THEN TRUE
+			            ELSE FALSE
+			        END AS done
+			    FROM esg.tb_safety_inspection_log sil
+			    LEFT JOIN esg.tb_safety_inspection_log_detail d
+			        ON d.write_year = sil.write_year
+			        AND d.doc_type = sil.doc_type
+			        AND d.doc_no = sil.doc_no
+			    GROUP BY sil.write_year, sil.doc_type, sil.doc_no
+			),
+			inspections AS (
+			    SELECT
+			        dc.write_year,
+			        dc.details_count,
+			        dc.checked_details_count,
+			        TO_CHAR(TO_DATE(dc.check_dt, 'YYYYMMDD'), 'YYYY-MM') AS hse_yyyymm,
+			        TO_CHAR(TO_DATE(dc.check_dt, 'YYYYMMDD'), 'YYYY-MM-DD') AS hse_date,
+			        COUNT(*) AS count,
+			        dc.done
+			    FROM details_count dc
+			    WHERE dc.comp_id = #{compId} -- Example comp_id
+			    AND dc.use_yn = 'Y'
+	     ]]>
+    	    <if test="startDate != null and endDate != null">
+	            AND TO_DATE(dc.check_dt, 'YYYYMMDD') BETWEEN TO_DATE(#{startDate}, 'YYYYMMDD') AND TO_DATE(#{endDate}, 'YYYYMMDD')
+	        </if>	
+    	 <![CDATA[   		    
+			    GROUP BY dc.write_year, TO_CHAR(TO_DATE(dc.check_dt, 'YYYYMMDD'), 'YYYY-MM'),
+			             TO_CHAR(TO_DATE(dc.check_dt, 'YYYYMMDD'), 'YYYY-MM-DD'), dc.details_count, dc.checked_details_count, dc.done
+			),
+			aggregated_counts AS (
+			    SELECT
+			        hse_yyyymm,
+			        hse_date,
+			        SUM(count) AS total_count,
+			        done
+			    FROM inspections
+			    GROUP BY hse_yyyymm, hse_date, done
+			),
+			json_done AS (
+			    SELECT
+			        hse_yyyymm,
+			        jsonb_object_agg(hse_date, total_count) AS done_json
+			    FROM aggregated_counts
+			    WHERE done = TRUE
+			    GROUP BY hse_yyyymm
+			),
+			json_undone AS (
+			    SELECT
+			        hse_yyyymm,
+			        jsonb_object_agg(hse_date, total_count) AS undone_json
+			    FROM aggregated_counts
+			    WHERE done = FALSE
+			    GROUP BY hse_yyyymm
+			)
+			SELECT
+			    COALESCE(jsonb_agg(done_json) FILTER (WHERE done_json IS NOT NULL), '[]'::jsonb) AS done,
+			    COALESCE(jsonb_agg(undone_json) FILTER (WHERE undone_json IS NOT NULL), '[]'::jsonb) AS undone
+			FROM json_done
+			FULL OUTER JOIN json_undone ON json_done.hse_yyyymm = json_undone.hse_yyyymm	 
+		 ]]>
+	</select>
+
+	<!-- 안전점검 조회 -->
+	<select id="getHseInspections" parameterType="kr.co.igns.mobile.hseInspections.model.HseInspectionsSearchVO" resultMap="HseInspectionsResultMap">
+		<![CDATA[	
+			WITH inspections AS (
+			    SELECT
+			        sil.write_year,
+			        sil.doc_type,
+			        sil.doc_no,
+			        scl.title,
+			        sil.std_eq_id,
+			        sil.equipment_id,
+			        ei.equipment_nm,
+			        ei.setup_location AS defaultLocation,
+			        sil.setup_location AS LOCATION,
+			        CASE 
+			            WHEN sil.check_dt IS NOT NULL THEN
+			            CASE 
+			                WHEN sil.check_start IS NOT NULL THEN
+			                    TO_TIMESTAMP(sil.check_dt || ' ' || SUBSTRING(sil.check_start FROM '^\d{2}:\d{2}'), 'YYYYMMDD HH24:MI')::timestamp
+			                ELSE
+			                    TO_TIMESTAMP(sil.check_dt, 'YYYYMMDD')::timestamp
+			            END
+			            ELSE
+			                NULL
+			        END AS started_at,
+			        CASE 
+			            WHEN sil.check_dt IS NOT NULL THEN
+			            CASE 
+			                WHEN sil.check_end IS NOT NULL THEN
+			                    TO_TIMESTAMP(sil.check_dt || ' ' || SUBSTRING(sil.check_end FROM '^\d{2}:\d{2}'), 'YYYYMMDD HH24:MI')::timestamp
+			                ELSE 
+			                    TO_TIMESTAMP(sil.check_dt, 'YYYYMMDD')::timestamp
+			            END
+			            ELSE
+			                NULL
+			        END AS ended_at,
+			        sil.created_at
+			    FROM esg.tb_safety_inspection_log sil
+			    LEFT JOIN esg.tb_safety_checklist scl
+			        ON scl.comp_id = sil.comp_id
+			            AND scl.std_eq_id = sil.std_eq_id
+			    LEFT JOIN esg.tb_equipment_info ei
+			        ON ei.std_eq_id = sil.std_eq_id
+			            AND ei.equipment_id = sil.equipment_id
+			            AND ei.comp_id = sil.comp_id
+			WHERE
+			        sil.comp_id = #{compId} -- :comp_id
+			        AND sil.check_dt BETWEEN #{startDate}
+			        AND #{endDate} -- :start_date, :end_date
+			        AND sil.use_yn = 'Y'
+			),
+			checker AS (
+			    -- 점검자 정보 조회
+			    SELECT
+			        i.write_year,
+			        i.doc_type,
+			        i.doc_no,
+			        MAX(ai.hr_id) AS hr_id,
+			        MAX(ai.hr_nm) AS hr_name,
+			        MAX(ai.jbrp_nm) AS job_title,
+			        MAX(ai.orgn_nm) AS org_name,
+			        MAX(ai.updated_at) AS signed_at,
+			        SUM(
+			            CASE 
+			                WHEN ai.type = 'change' THEN 1
+			                ELSE 0
+			            END
+			        ) AS checker_count,
+			        SUM(
+			            CASE 
+			                WHEN ai.type = 'change' AND ai.signature IS NOT NULL THEN 1
+			                ELSE 0
+			            END
+			        ) AS signed_checker_count
+			    FROM inspections i
+			    LEFT JOIN esg.tb_approval_info ai 
+			        ON ai.target_type = i.doc_type
+			            AND ai.target_id = CONCAT(i.write_year, i.doc_no)
+			    GROUP BY i.write_year, i.doc_type, i.doc_no
+			), 
+			details_count AS ( -- 체크항목의 체크 여부 개수 조회
+			    SELECT
+			        d.write_year,
+			        d.doc_type,
+			        d.doc_no,
+			        COUNT(d.doc_seq) AS details_count,
+			        SUM(CASE WHEN d.acceptable_yn = 'Y' OR d.non_compliant_yn = 'Y' THEN 1 ELSE 0 END) AS checked_details_count
+			    FROM
+			        inspections i
+			    LEFT JOIN esg.tb_safety_inspection_log_detail d ON d.write_year = i.write_year
+			        AND d.doc_type = i.doc_type
+			        AND d.doc_no = i.doc_no
+			    GROUP BY
+			            d.write_year,
+			            d.doc_type,
+			            d.doc_no
+			)			
+			SELECT
+			    CONCAT(i.write_year, '-', i.doc_type, '-', i.doc_no) AS id,
+			    COALESCE(dc.details_count, 0) AS details_count,
+			    COALESCE(dc.checked_details_count, 0) AS checked_details_count,
+			    i.title,
+			    CASE 
+			        WHEN  COALESCE(dc.details_count, 0) <= COALESCE(dc.checked_details_count, 0) THEN TRUE
+			        ELSE FALSE
+			    END AS done,
+			    json_build_object(
+			        'id', i.equipment_id,
+			        'name', i.equipment_nm,
+			        'defaultLocation', i.defaultLocation,
+			        'typeId', i.std_eq_id
+			    ) AS checkTarget,
+			    CASE 
+			        WHEN c.hr_id IS NOT NULL THEN
+			            json_build_object(
+			                'hrId', c.hr_id,
+			                'name', c.hr_name,
+			                'jobTitle', c.job_title,
+			                'orgName', c.org_name,
+			                'signedAt', c.signed_at,
+			                'signed', CASE 
+			                              WHEN c.checker_count > 0
+			                                  AND c.checker_count <= c.signed_checker_count THEN TRUE
+			                              ELSE FALSE
+			                          END
+			                )
+			        ELSE NULL
+			    END AS checker,
+			    i.started_at AS startedAt,
+			    i.ended_at AS endedAt,
+			    i.created_at AS createdAt
+			FROM inspections i
+			LEFT JOIN checker c 
+			    ON c.write_year = i.write_year
+			        AND c.doc_type = i.doc_type
+			        AND c.doc_no = i.doc_no
+			LEFT JOIN details_count dc 
+			    ON dc.write_year = i.write_year
+			        AND dc.doc_type = i.doc_type
+			        AND dc.doc_no = i.doc_no
+			ORDER BY i.created_at DESC	
+       	]]>
+	</select>
+	
+	<!-- 안전점검 점검표 목록 조회 -->
+	<select id="getHseInspectionsTemplates" parameterType="kr.co.igns.mobile.hseInspections.model.HseInspectionsSearchVO" resultMap="HseInspectionsTemplatesResultMap">
+		<![CDATA[	
+			WITH check_list_templates AS (
+			        -- 설비별 안전점검표 목록 조회
+			        SELECT
+			                scl.write_year,
+			                scl.doc_type,
+			                scl.doc_no,
+			                scl.comp_id,
+			                scl.title,
+			                scl.std_eq_id,
+			                ei.equipment_id,
+			                ei.equipment_nm,
+			                ei.setup_location AS default_location
+			        FROM
+			                esg.tb_safety_checklist scl
+			                JOIN esg.tb_equipment_info ei ON ei.comp_id = scl.comp_id
+			                        AND ei.std_eq_id = scl.std_eq_id
+			                        AND ei.use_yn = 'Y'
+			        WHERE
+			                scl.comp_id = #{compId} -- :comp_id
+			                AND scl.use_yn = 'Y'
+			),
+			inpection_logs AS (
+			-- 설비별 수행된 안전점검 정보 조회
+			    SELECT
+			        t.write_year,
+			        t.doc_type,
+			        t.doc_no,
+			        sil.write_year AS inspection_write_year,
+			        sil.doc_type AS inspection_doc_type,
+			        sil.doc_no AS inspection_doc_no,
+			        sil.std_eq_id,
+			        sil.equipment_id,
+			        COUNT(d.doc_seq) AS details_count,
+			        SUM(CASE WHEN d.acceptable_yn = 'Y' OR d.non_compliant_yn = 'Y' THEN 1 ELSE 0 END) AS checked_details_count
+			    FROM check_list_templates t
+			    LEFT JOIN esg.tb_safety_inspection_log sil ON t.comp_id = sil.comp_id
+			        AND t.std_eq_id = sil.std_eq_id
+			        AND t.equipment_id = sil.equipment_id
+			        AND sil.comp_id = #{compId} -- :comp_id
+			        AND sil.check_dt = #{date} -- :check_date
+			        AND sil.use_yn = 'Y'
+			    LEFT JOIN esg.tb_safety_inspection_log_detail d ON d.write_year = sil.write_year
+			        AND d.doc_type = sil.doc_type
+			        AND d.doc_no = sil.doc_no
+			    GROUP BY
+			        t.write_year,
+			        t.doc_type,
+			        t.doc_no,
+			        sil.write_year,
+			        sil.doc_type,
+			        sil.doc_no
+			),
+			checker AS (
+			        -- 점검자 정보 조회
+			        SELECT
+			                i.inspection_write_year,
+			                i.inspection_doc_type,
+			                i.inspection_doc_no,
+			                MAX(ai.hr_id) AS hr_id,
+			                MAX(ai.hr_nm) AS hr_name,
+			                MAX(ai.jbrp_nm) AS job_title,
+			                MAX(ai.orgn_nm) AS org_name,
+			                MAX(ai.updated_at) AS signed_at,
+			                SUM(
+			                        CASE WHEN ai.type = 'change' THEN
+			                                1
+			                        ELSE
+			                                0
+			                        END) AS checker_count,
+			                SUM(
+			                        CASE WHEN ai.type = 'change'
+			                                AND ai.signature IS NOT NULL THEN
+			                                1
+			                        ELSE
+			                                0
+			                        END) AS signed_checker_count
+			        FROM
+			                inpection_logs i
+			        LEFT JOIN esg.tb_approval_info ai ON ai.target_type = i.inspection_doc_type
+			                AND ai.target_id = CONCAT(inspection_write_year,
+			                        inspection_doc_no)
+			        GROUP BY
+			                i.inspection_write_year,
+			                i.inspection_doc_type,
+			                i.inspection_doc_no
+			)
+			SELECT
+			        -- 안전점검표 목록 조회 질의 본문
+			        CONCAT(t.write_year, '-', t.doc_type, '-', t.doc_no) AS id, -- 안전점검표 ID
+			        t.title, -- 안전점검표 제목 (nullable)
+			        CASE WHEN i.inspection_write_year IS NOT NULL
+			                AND i.inspection_doc_type IS NOT NULL
+			                AND i.inspection_doc_no IS NOT NULL THEN
+			                        json_build_object(
+			                                'id', CONCAT(i.inspection_write_year, '-', i.inspection_doc_type, '-', i.inspection_doc_no),
+			                                'done', CASE 
+			                                            WHEN i.details_count <= i.checked_details_count THEN TRUE
+			                                            ELSE FALSE
+			                                        END
+			                        )
+			        ELSE
+			                NULL
+			        END AS inspection, -- 수행된 안전점검 정보 (nullable)
+			        json_build_object(
+			                'id', t.equipment_id, -- 대상 설비 ID
+			                'name', t.equipment_nm, -- 안전점검표 대상 설비명 (nullable)
+			                'defaultLocation', t.default_location, -- 대상 설비 기본 설치 장소 (nullable)
+			                'typeId', t.std_eq_id -- 대상 설비 종류 ID
+			        ) AS checkTarget,
+			        CASE WHEN c.hr_id IS NOT NULL THEN
+			                json_build_object(
+			                        'hrId', c.hr_id, 
+			                        'name', c.hr_name, 
+			                        'jobTitle', c.job_title, 
+			                        'orgName', c.org_name, 
+			                        'signedAt', c.signed_at, 
+			                        'signed', CASE WHEN c.checker_count > 0
+			                                AND c.checker_count <= c.signed_checker_count THEN
+			                                TRUE
+			                        ELSE
+			                                FALSE
+			                        END
+			                )
+			        ELSE
+			                NULL
+			        END AS checker -- 점검자 정보 (nullable)
+			FROM
+			        check_list_templates t
+			        LEFT JOIN inpection_logs i ON t.write_year = i.write_year
+			                AND t.doc_type = i.doc_type
+			                AND t.doc_no = i.doc_no
+			                AND t.std_eq_id = i.std_eq_id
+			                AND t.equipment_id = i.equipment_id
+			        LEFT JOIN checker c ON i.inspection_write_year = c.inspection_write_year
+			                AND i.inspection_doc_type = c.inspection_doc_type
+			                AND i.inspection_doc_no = c.inspection_doc_no
+		]]>	                
+	</select>
+	
+	<!-- 안전점검 점검표 상세 조회 -->
+	<select id="getHseInspectionsTemplatesDetail" parameterType="kr.co.igns.mobile.hseInspections.model.HseInspectionsSearchVO" resultMap="HseInspectionsTemplatesDetailResultMap">
+		<![CDATA[	
+			WITH check_list AS (
+			        SELECT
+			                scl.write_year, -- 안전점검표 문서 작성연도
+			                scl.doc_type, -- 안전점검표 문서 타입
+			                scl.doc_no, -- 안전점검표 문서 번호
+			                scl.title,
+			                scl.comp_id,
+			                ei.std_eq_id,
+			                ei.equipment_id,
+			                ei.equipment_nm,
+			                ei.setup_location
+			        FROM esg.tb_safety_checklist scl 
+			        JOIN esg.tb_equipment_info ei
+			                ON ei.std_eq_id = scl.std_eq_id
+			                        AND ei.equipment_id = #{eqId} -- :eq_id
+			                        AND ei.comp_id = scl.comp_id
+			                        AND ei.use_yn = 'Y'
+			        WHERE scl.comp_id = #{compId} 
+			                AND scl.write_year = #{writeYear} -- :write_year
+			                AND scl.doc_type = #{docType} -- :doc_type
+			                AND scl.doc_no = #{docNo} -- :doc_no
+			                AND scl.use_yn = 'Y'
+			        LIMIT 1
+			), 
+			check_list_items AS (
+			        SELECT
+			                json_agg(
+			                        json_build_object(
+			                                'category', sci.check_item,
+			                                'check', scd.check_list
+			                        )
+			                ) AS items
+			        FROM check_list l 
+			        LEFT JOIN esg.tb_safety_checklist_item sci
+			                ON l.write_year = sci.write_year
+			                        AND l.doc_type = sci.doc_type
+			                        AND l.doc_no = sci.doc_no
+			                        AND sci.use_yn = 'Y'
+			        LEFT JOIN esg.tb_safety_checklist_detail scd 
+			                ON sci.write_year = scd.write_year
+			                        AND sci.doc_type = scd.doc_type
+			                        AND sci.doc_no = scd.doc_no
+			                        AND sci.doc_seq = scd.check_item_seq
+			                        AND scd.use_yn = 'Y'
+			)
+			SELECT 
+			        CONCAT(l.write_year, '-', l.doc_type, '-', l.doc_no) AS id,
+			        l.title,
+			        json_build_object(
+			                'id', l.equipment_id,
+			                'name', l.equipment_nm,
+			                'defaultLocation', l.setup_location,
+			                'typeId', l.std_eq_id
+			        ) AS checkTarget,
+			        i.items AS checkList
+			FROM check_list l 
+			LEFT JOIN check_list_items i ON TRUE	
+		]]>	                
+	</select>	
+	
+	<!-- 안전점검 상세 조회 -->
+	<select id="getHseInspectionsDetail" parameterType="kr.co.igns.mobile.hseInspections.model.HseInspectionsSearchVO" resultMap="HseInspectionsDetailResultMap">
+		<![CDATA[	
+			WITH inspection AS ( -- 안전점검 상세 조회
+			    SELECT
+			        sil.write_year,
+			        sil.doc_type,
+			        sil.doc_no,
+			        scl.title,
+			        sil.std_eq_id,
+			        sil.equipment_id,
+			        ei.equipment_nm,
+			        ei.setup_location AS defaultLocation,
+			        sil.setup_location AS LOCATION,
+			        sil.non_compliance_action AS action,
+			        CASE WHEN sil.check_dt IS NOT NULL THEN
+			            CASE WHEN sil.check_start IS NOT NULL THEN
+			                TO_TIMESTAMP(sil.check_dt || ' ' || SUBSTRING(sil.check_start FROM '^\d{2}:\d{2}'),
+			                    'YYYYMMDD HH24:MI')::timestamp
+			                ELSE
+			                    TO_TIMESTAMP(sil.check_dt, 'YYYYMMDD')::timestamp
+			            END
+			            ELSE
+			                NULL
+			            END AS started_at,
+			        CASE WHEN sil.check_dt IS NOT NULL THEN
+			            CASE WHEN sil.check_end IS NOT NULL THEN
+			                TO_TIMESTAMP(sil.check_dt || ' ' || SUBSTRING(sil.check_end FROM '^\d{2}:\d{2}'),
+			                    'YYYYMMDD HH24:MI')::timestamp
+			                ELSE
+			                    TO_TIMESTAMP(sil.check_dt, 'YYYYMMDD')::timestamp
+			            END
+			            ELSE
+			                NULL
+			        END AS ended_at,
+			        sil.created_at
+			    FROM
+			        esg.tb_safety_inspection_log sil
+			    LEFT JOIN esg.tb_safety_checklist scl ON scl.comp_id = sil.comp_id
+			        AND scl.std_eq_id = sil.std_eq_id
+			        AND scl.comp_id = #{compId} -- :comp_id
+			    LEFT JOIN esg.tb_equipment_info ei ON ei.std_eq_id = sil.std_eq_id
+			        AND ei.equipment_id = sil.equipment_id
+			        AND ei.comp_id = #{compId} -- :comp_id
+			        /* AND ei.use_yn = 'Y' */
+			WHERE
+			    sil.comp_id = #{compId} -- :comp_id
+			    AND sil.write_year = #{writeYear} -- :write_year
+			    AND sil.doc_type = 'SIL' -- :doc_type
+			    AND sil.doc_no = #{docNo} -- :doc_no
+			    AND sil.use_yn = 'Y'
+			LIMIT 1
+			),
+			checker AS ( -- 점검자 정보 조회
+			    SELECT
+			        i.write_year,
+			        i.doc_type,
+			        i.doc_no,
+			        MAX(ai.hr_id) AS hr_id,
+			        MAX(ai.hr_nm) AS hr_name,
+			        MAX(ai.jbrp_nm) AS job_title,
+			        MAX(ai.orgn_nm) AS org_name,
+			        MAX(ai.updated_at) AS signed_at,
+			        SUM(CASE WHEN ai.type = 'change' THEN 1 ELSE 0 END) AS checker_count,
+			        SUM(CASE WHEN ai.type = 'change' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) AS signed_checker_count
+			    FROM
+			        inspection i
+			    LEFT JOIN esg.tb_approval_info ai ON ai.target_type = i.doc_type
+			        AND ai.target_id = CONCAT(i.write_year, i.doc_no)
+			    GROUP BY
+			        i.write_year,
+			        i.doc_type,
+			        i.doc_no
+			),
+			check_list AS ( -- 체크항목 목록 조회
+			    SELECT
+			        json_agg(
+			            json_build_object(
+			                'docSeq', d.doc_seq,
+			                'category', d.check_item,
+			                'check', d.check_list,
+			                'acceptable', CASE 
+			                                WHEN d.acceptable_yn = 'N' AND d.non_compliant_yn = 'N' THEN NULL
+			                                WHEN d.acceptable_yn = 'N' AND d.non_compliant_yn = 'Y' THEN FALSE
+			                                ELSE TRUE
+			                                END
+			            )
+			        ) AS LIST
+			    FROM
+			        inspection i
+			    JOIN esg.tb_safety_inspection_log_detail d ON d.write_year = i.write_year
+			        AND d.doc_type = i.doc_type
+			        AND d.doc_no = i.doc_no
+			    GROUP BY
+			            d.write_year,
+			            d.doc_type,
+			            d.doc_no
+			)
+			-- 안전점검 상세 정보 조회 질의 본문
+			SELECT   
+			    CONCAT(i.write_year, '-', i.doc_type, '-', i.doc_no) AS id,
+			    i.title, -- nullable
+			    CASE WHEN c.checker_count > 0
+			        AND c.checker_count <= c.signed_checker_count THEN TRUE
+			        ELSE FALSE
+			    END AS done,
+			    json_build_object(
+			        'id', i.equipment_id,
+			        'name', i.equipment_nm, -- nullable
+			        'defaultLocation', i.defaultLocation, -- nullable
+			        'typeId', i.std_eq_id) AS checkTarget,
+			    CASE WHEN c.hr_id IS NOT NULL THEN
+			        json_build_object(
+			            'hrId', c.hr_id,
+			            'name', c.hr_name, -- nullable
+			            'jobTitle', c.job_title, -- nullable
+			            'orgName', c.org_name, -- nullable
+			            'signedAt', c.signed_at, -- nullable
+			            'signed', CASE WHEN c.checker_count > 0
+			                        AND c.checker_count <= c.signed_checker_count THEN TRUE
+			                        ELSE FALSE
+			                        END
+			        )
+			        ELSE NULL
+			    END AS checker, -- nullable
+			    i.location, -- nullable
+			    i.action, -- nullable
+			    i.started_at AS startedAt,
+			    i.ended_at AS endedAt,
+			    COALESCE(l.list, '[]'::json) AS checkList,
+			    i.created_at AS createdAt -- nullable
+			FROM
+			    inspection i
+			LEFT JOIN checker c ON TRUE
+			LEFT JOIN check_list l ON TRUE
+		]]>	                
+	</select>	
+	
+	<!-- 안전점검 상세 저장 -->
+    <insert id="saveSafetyInspectionLog" parameterType="map">
+        <selectKey keyProperty="hseInspectionsDetailSaveVO.docNo" resultType="string" order="BEFORE">
+            <![CDATA[
+            SELECT
+                LPAD((COALESCE(MAX(SUBSTRING(doc_no, 1, 5)::INTEGER), 0) + 1)::TEXT, 5, '0') AS docNo
+             FROM esg.tb_safety_inspection_log
+            WHERE write_year = #{hseInspectionsDetailSaveVO.writeYear}
+              AND doc_type = #{hseInspectionsDetailSaveVO.docType}
+         ]]>
+        </selectKey>
+
+        INSERT INTO esg.tb_safety_inspection_log (
+            write_year,
+            doc_type,
+            doc_no,
+            comp_id,
+            std_eq_id,
+            equipment_id,
+            check_dt,
+            check_start,
+            check_end,
+            setup_location,
+            non_compliance_action,
+            use_yn,
+            created_at,
+            created_by
+        )
+        VALUES (
+            #{hseInspectionsDetailSaveVO.writeYear},
+            #{hseInspectionsDetailSaveVO.docType},
+            #{hseInspectionsDetailSaveVO.docNo},  
+            #{hseInspectionsDetailSaveVO.compId},
+            #{hseInspectionsDetailSaveVO.stdEqId},
+            #{hseInspectionsDetailSaveVO.equipmentId},
+            #{hseInspectionsDetailSaveVO.checkDt},
+            #{hseInspectionsDetailSaveVO.checkStart},
+            #{hseInspectionsDetailSaveVO.checkEnd},
+            #{hseInspectionsDetailSaveVO.setupLocation},
+            #{hseInspectionsDetailSaveVO.nonComplianceAction},
+            'Y',
+            now(),
+            #{hseInspectionsDetailSaveVO.createdBy}
+        )
+    </insert>
+    
+	<insert id="saveSafetyInspectionLogDetail" parameterType="map">
+	    <selectKey keyProperty="hseInspectionsDetailSaveVO.docSeq" resultType="string" order="BEFORE">
+	        <![CDATA[
+	        SELECT
+	            LPAD((COALESCE(MAX(SUBSTRING(doc_seq, 1, 5)::INTEGER), 0) + 1)::TEXT, 5, '0') AS docSeq
+	        FROM esg.tb_safety_inspection_log_detail
+	        WHERE write_year = #{hseInspectionsDetailSaveVO.writeYear}
+	          AND doc_type = #{hseInspectionsDetailSaveVO.docType}
+	          AND doc_no = #{hseInspectionsDetailSaveVO.docNo}
+	        ]]>
+	    </selectKey>
+       <![CDATA[
+	    INSERT INTO esg.tb_safety_inspection_log_detail (
+	        write_year,
+	        doc_type,
+	        doc_no,
+	        doc_seq,
+	        ord_seq,
+	        check_item,
+	        check_list,
+	        acceptable_yn,
+	        non_compliant_yn,
+	        created_at,
+	        created_by
+	    ) VALUES (
+            #{hseInspectionsDetailSaveVO.writeYear},
+            #{hseInspectionsDetailSaveVO.docType},
+            #{hseInspectionsDetailSaveVO.docNo},
+            #{hseInspectionsDetailSaveVO.docSeq},
+            1, 
+            #{checkList.category},  
+            #{checkList.check},  
+            #{checkList.acceptableYn},
+            #{checkList.nonCompliantYn},
+            now(),
+            #{hseInspectionsDetailSaveVO.createdBy}
+        )
+       ]]>
+	</insert>
+	
+	<!-- 점검자 저장 -->
+	<insert id="saveChange" parameterType="kr.co.igns.mobile.hseInspections.model.HseInspectionsDetailSaveVO">
+		INSERT INTO esg.tb_approval_info (
+			target_type,
+			target_id,
+			hr_id,
+			param,
+			created_at,
+			created_by,
+			hr_nm,
+			orgn_nm,
+			jbrp_nm
+		) 
+		SELECT 
+			#{docType},
+			CONCAT(#{writeYear}, #{docNo}),
+			h.hr_id,
+			'change',
+			NOW(),
+			#{createdBy},
+		    h.hr_nm,
+			o.orgn_nm,
+			cd.minor_nm AS jbrp_nm
+	    FROM esg.v_hr_info h
+	    LEFT JOIN esg.tb_orgn_info o ON h.orgn_id = o.orgn_id
+	        AND o.comp_id = #{compId}
+	        AND o.use_yn = 'Y'
+	    left join esg.tb_hr_info_jbrp jbrp
+            on jbrp.jbrp_id = h.jbrp
+	        AND cd.use_yn = 'Y'
+	    WHERE h.hr_id = #{hrId}
+	    LIMIT 1		
+	</insert>
+	
+	<!-- 안전점검 상세 업데이트 -->
+    <update id="updateSafetyInspectionLog" parameterType="kr.co.igns.mobile.hseInspections.model.HseInspectionsDetailSaveVO">
+        UPDATE esg.tb_safety_inspection_log 
+        SET check_start = #{checkStart},
+            check_end = #{checkEnd},
+            setup_location = #{setupLocation},
+            non_compliance_action = #{nonComplianceAction},
+            updated_at = NOW(),
+            updated_by = #{updatedBy}
+        WHERE write_year = #{writeYear}
+          AND doc_type = #{docType}
+          AND doc_no = #{docNo}
+          AND comp_id = #{compId}
+    </update>	
+    
+	<update id="updateSafetyInspectionLogDetail" parameterType="map">
+	    UPDATE esg.tb_safety_inspection_log_detail 
+	       SET acceptable_yn = #{checkList.acceptableYn},
+	           non_compliant_yn = #{checkList.nonCompliantYn},
+	           updated_at = NOW(),
+               updated_by = #{hseInspectionsDetailSaveVO.updatedBy}
+         WHERE write_year = #{hseInspectionsDetailSaveVO.writeYear}
+           AND doc_type = #{hseInspectionsDetailSaveVO.docType}
+           AND doc_no = #{hseInspectionsDetailSaveVO.docNo}
+           AND doc_seq = #{checkList.docSeq} 
+	</update>    
+	
+	<!-- 안전점검 상세 삭제 -->
+	<update id="deleteHseInspectionsDetail" parameterType="kr.co.igns.mobile.hseInspections.model.HseInspectionsSearchVO">
+        UPDATE esg.tb_safety_inspection_log 
+        SET use_yn = 'N',
+            updated_at = NOW(),
+            updated_by = #{updatedBy}
+        WHERE write_year = #{writeYear}
+          AND doc_type = #{docType}
+          AND doc_no = #{docNo}
+          AND comp_id = #{compId}
+	</update>    
+</mapper>

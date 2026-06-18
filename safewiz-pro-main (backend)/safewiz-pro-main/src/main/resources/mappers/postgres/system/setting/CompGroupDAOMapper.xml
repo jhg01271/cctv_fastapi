@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.system.setting.dao.postgres.CompGroupDAO">
+
+	<sql id='selectCol'>
+		cg.grp_cd,
+		cg.grp_nm,
+		cg.grp_odr,
+	</sql>
+
+	<sql id="filter">
+		<if test='searchWords != "" and searchWords != null and searchWords.size > 0'>
+			AND
+			(
+			<foreach collection='searchWords' item='searchWord' index='idx' separator='OR' open='(' close=')'>
+				cg.grp_cd LIKE CONCAT('%',#{searchWord},'%')
+			</foreach>
+			OR
+			<foreach collection='searchWords' item='searchWord' index='idx' separator='OR' open='(' close=')'>
+				cg.grp_nm LIKE CONCAT('%',#{searchWord},'%')
+			</foreach>
+			)
+		</if>
+	</sql>
+
+	<select id='searchCount' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='int'>
+
+		SELECT
+		count(1)
+		FROM esg.tb_comp_group cg
+		WHERE 1 = 1
+		 <include refid='kr.co.igns.system.setting.dao.postgres.CompGroupDAO.filter' />
+
+	</select>
+
+	<select id='search' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.setting.model.GroupVO'>
+
+		SELECT
+		<include refid='kr.co.igns.system.setting.dao.postgres.CompGroupDAO.selectCol' />
+		created_at,
+		updated_at,
+		'U' cmd
+		FROM esg.tb_comp_group cg
+		WHERE 1 = 1
+		 <include refid='kr.co.igns.system.setting.dao.postgres.CompGroupDAO.filter' />
+		LIMIT #{listSize, jdbcType=NUMERIC} OFFSET #{listStart, jdbcType=NUMERIC}
+
+	</select>
+
+	<select id='searchLists' resultType='kr.co.igns.system.setting.model.GroupVO'>
+
+		SELECT *
+		FROM esg.tb_comp_group
+		WHERE 1 = 1
+
+	</select>
+
+	<select id='findOne' parameterType='String' resultType='kr.co.igns.system.setting.model.GroupVO'>
+
+		SELECT
+		<include refid='kr.co.igns.system.setting.dao.postgres.CompGroupDAO.selectCol' />
+		created_at,
+		updated_at,
+		'U' cmd
+		FROM esg.tb_comp_group cg
+		WHERE cg.grp_cd = #{grpCd}
+
+	</select>
+
+	<insert id="insert" parameterType="kr.co.igns.system.setting.model.GroupVO" useGeneratedKeys="true" keyProperty="grpCd">
+
+		INSERT INTO
+		esg.tb_comp_group (
+		grp_cd,
+		grp_nm,
+		grp_odr,
+		created_at,
+		created_by
+		) VALUES (
+		#{grpCd},
+		#{grpNm},
+		#{grpOdr},
+		now(),
+		#{createdBy}
+		)
+
+	</insert>
+
+	<update id="update" parameterType="kr.co.igns.system.setting.model.GroupVO">
+
+		UPDATE esg.tb_comp_group
+		SET
+		grp_cd = #{grpCd},
+		grp_nm = #{grpNm},
+		grp_odr = #{grpOdr},
+		updated_at = now(),
+		updated_by = #{updatedBy}
+		WHERE grp_cd = #{grpCd}
+	</update>
+
+	<delete id="delete" parameterType="String">
+
+		DELETE FROM esg.tb_comp_group
+		WHERE grp_cd = #{grpCd}
+
+	</delete>
+</mapper>

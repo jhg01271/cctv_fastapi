@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.system.base.dao.postgres.WpDAO">
+    <select id='getWp' parameterType='kr.co.igns.system.common.model.SpSearchVO'  resultType='kr.co.igns.system.base.model.WpVO'>
+        SELECT twi.*,
+               twi.workplace_nm as name, -- 공통 컴포넌트 (i-card-image 사용용도)
+               sf1.file_id      as thumbnail_id
+        FROM esg.tb_workplace_info twi
+            -- 파일 정보 매핑
+                 LEFT JOIN esg.tb_sys_file sf1
+                           on sf1.target_id = twi.workplace_id and sf1.target_type = 'workplaceThumbnail' AND
+                              sf1.comp_id = #{compId}
+        WHERE 1 = 1
+          AND twi.comp_id = #{compId}
+        ORDER BY twi.use_yn DESC, twi.ord_seq ASC, twi.workplace_id DESC
+    </select>
+
+    <select id='getWpDetail' parameterType='kr.co.igns.system.common.model.SpSearchVO'  resultType='kr.co.igns.system.base.model.WpVO'>
+            SELECT twi.*,
+                   twi.workplace_nm AS name, -- 공통 컴포넌트 (i-card-image 사용용도)
+                   sf1.file_id AS thumbnail_id
+            FROM esg.tb_workplace_info twi
+                -- 파일 정보 매핑
+                     LEFT JOIN esg.tb_sys_file sf1 ON sf1.target_id = twi.workplace_id
+                AND sf1.target_type = 'workplaceThumbnail'
+                AND sf1.comp_id = #{compId}
+        WHERE 1=1
+          AND workplace_id = #{searchText}
+    </select>
+
+
+    <insert id="insertWp" parameterType="kr.co.igns.system.base.model.WpVO">
+        <selectKey keyProperty="workplaceId" resultType="kr.co.igns.system.base.model.WpVO" order="BEFORE">
+            select to_char(now(), 'yyyymmdd') ||
+				   lpad(
+					   (coalesce(max(substring(workplace_id from 9 for 4))::int, 0) + 1)::text,
+					   4,
+					   '0'
+				   ) as workplace_id
+			from esg.tb_workplace_info
+			where workplace_id like to_char(now(), 'YYYYMMDD') || '%'
+    	</selectKey>
+        INSERT INTO esg.tb_workplace_info (
+            comp_id,
+            workplace_id,
+            workplace_nm,
+            workplace_area,
+            workplace_alias,
+            ord_seq,
+            remark,
+            created_at,
+            created_by,
+            use_yn
+        )
+        VALUES (
+            #{compId},
+            #{workplaceId},
+            #{workplaceNm},
+            #{workplaceArea},
+            #{workplaceAlias},
+            #{ordSeq},
+            #{remark},
+            now(),
+            #{createdBy},
+            #{useYn}
+        )
+
+    </insert>
+
+    <update id="updateWp" parameterType="kr.co.igns.system.base.model.WpVO">
+
+        UPDATE esg.tb_workplace_info
+        SET
+            workplace_nm = #{workplaceNm},
+            workplace_area = #{workplaceArea},
+            workplace_alias = #{workplaceAlias},
+            ord_seq = #{ordSeq},
+            remark = #{remark},
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE workplace_id = #{workplaceId}
+
+    </update>
+
+    <select id='getWpById' parameterType='String' resultType='kr.co.igns.system.base.model.WpVO'>
+
+        SELECT *
+        FROM esg.tb_workplace_info
+        WHERE 1=1
+          AND workplace_id = #{workplaceId}
+
+    </select>
+
+    <delete id="deleteWp" parameterType="kr.co.igns.system.base.model.WpVO">
+
+        UPDATE esg.tb_workplace_info
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE workplace_id = #{workplaceId}
+
+    </delete>
+
+    <select id='getWpMap' parameterType='kr.co.igns.system.base.model.BaseMapVO' resultType='kr.co.igns.system.base.model.BaseMapVO'>
+
+        SELECT twm.*
+             , twm.workplace_id as id
+             , twi.workplace_nm as nm
+        FROM esg.tb_workplace_map twm
+        LEFT JOIN esg.tb_workplace_info twi on twi.workplace_id = twm.workplace_id
+        WHERE 1=1
+          AND twm.target_id = #{targetId}
+          AND twm.target_type = #{targetType}
+
+    </select>
+
+    <select id='getWpMapByUseYn' parameterType='kr.co.igns.system.base.model.BaseMapVO' resultType='kr.co.igns.system.base.model.BaseMapVO'>
+
+        SELECT twm.*
+             , twm.workplace_id as id
+             , twi.workplace_nm as nm
+        FROM esg.tb_workplace_map twm
+                 LEFT JOIN esg.tb_workplace_info twi on twi.workplace_id = twm.workplace_id
+        WHERE 1=1
+          AND twm.target_id = #{targetId}
+          AND twm.target_type = #{targetType}
+          AND twm.use_yn = 'Y'
+        ORDER BY twm.workplace_id ASC
+
+    </select>
+
+    <insert id="addWpMap" parameterType="kr.co.igns.system.base.model.BaseMapVO">
+
+        INSERT INTO esg.tb_workplace_map (
+            target_type,
+            target_id,
+            workplace_id,
+            created_at,
+            created_by,
+            use_yn
+        )
+        VALUES (
+                   #{targetType},
+                   #{targetId},
+                   #{id},
+                   now(),
+                   #{createdBy},
+                   #{useYn}
+               )
+
+    </insert>
+
+    <update id="updateWpMap" parameterType="kr.co.igns.system.base.model.BaseMapVO">
+
+        UPDATE esg.tb_workplace_map
+        SET
+            workplace_id = #{id},
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE target_id = #{targetId}
+        AND target_type = #{targetType}
+
+    </update>
+
+    <update id="updateUseYnWpMap" parameterType="kr.co.igns.system.base.model.BaseMapVO">
+
+        UPDATE esg.tb_workplace_map
+        SET
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE target_id = #{targetId}
+          AND target_type = #{targetType}
+          AND workplace_id = #{id}
+
+    </update>
+
+    <delete id="deleteWpMap" parameterType="kr.co.igns.system.base.model.BaseMapVO">
+
+        UPDATE esg.tb_workplace_map
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE target_id = #{targetId}
+          AND target_type = #{targetType}
+          AND use_yn = 'Y'
+
+    </delete>
+
+</mapper>

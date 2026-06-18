@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.system.common.dao.postgres.FileDAO">
+	
+	<!-- 년도 조회 -->
+	<select id='getFileIdMax' parameterType='kr.co.igns.system.common.model.FileVO' resultType='kr.co.igns.system.common.model.FileVO'>
+		select max(file_id) as file_id
+		from esg.tb_sys_file
+		where SUBSTRING(file_id, 1 , 8) = TO_CHAR(CURRENT_DATE, 'YYYYMMDD')
+    </select>
+
+	<select id='getFileList' resultType='kr.co.igns.system.common.model.FileVO' parameterType='String'>
+		select sf.file_id,
+        sf.file_nm as fileName,
+        sf.file_size,
+		sf.extension
+		from esg.tb_sys_file sf
+		where sf.target_id = #{targetId} AND sf.target_type = #{targetType}
+	</select>
+	<select id='getFileListById' resultType='kr.co.igns.system.common.model.FileVO' parameterType='String'>
+		select sf.*
+		from esg.tb_sys_file sf
+		where sf.file_id = #{fileId}
+	</select>
+
+	<update id='updateMoveFile' parameterType='String'>
+		update esg.tb_sys_file set
+			comp_id = #{compId},
+			file_path = #{filePath}
+		where file_id = #{fileId}
+	</update>
+
+</mapper> 

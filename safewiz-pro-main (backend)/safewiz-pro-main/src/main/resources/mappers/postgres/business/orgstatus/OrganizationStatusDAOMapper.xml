@@ -1,0 +1,447 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.orgstatus.dao.postgres.OrganizationStatusDAO">
+	<!-- 신규 추가 김성현 -->
+	<!--  -->
+	<sql id="filter">
+		<if test="delYn != null and delYn != ''">
+	    	<![CDATA[			AND ci.del_yn = #{delYn}		]]>
+		</if>				
+		<if test="compId != null and compId != ''">
+	    	<![CDATA[			AND ci.up_comp_id = #{compId}		]]>
+		</if>				
+		<if test='searchWords != "" and searchWords != null and searchWords.size > 0'>
+			AND
+			(
+			<foreach collection='searchWords' item='searchWord' index='idx' separator='OR' open='(' close=')'>
+				ci.comp_id LIKE CONCAT('%',#{searchWord},'%')
+			</foreach>
+			OR
+			<foreach collection='searchWords' item='searchWord' index='idx' separator='OR' open='(' close=')'>
+				ci.comp_nm LIKE CONCAT('%',#{searchWord},'%')
+			</foreach>
+			OR
+			<foreach collection='searchWords' item='searchWord' index='idx' separator='OR' open='(' close=')'>
+				ci.rpst_nm LIKE CONCAT('%',#{searchWord},'%')
+			</foreach>
+			OR
+			<foreach collection='searchWords' item='searchWord' index='idx' separator='OR' open='(' close=')'>
+				ci.chrg_prsn LIKE CONCAT('%',#{searchWord},'%')
+			</foreach>
+
+			)
+
+		</if>
+	</sql>
+
+	<sql id='selectCol'>
+		ci.comp_id,
+		ci.comp_nm,
+		ci.comp_rmk,
+		ci.rgst_no,
+		ci.corp_no,
+		ci.rpst_nm,
+		ci.zip_cd,
+		ci.addrs1,
+		ci.addrs2,
+		ci.chrg_prsn,
+		ci.tel_no,
+		ci.biz_nm,
+		ci.biz_cd,
+		ci.main_prdt,
+		ci.prd_amt,
+		ci.photo_file_id,
+		ci.cmplt_de,
+		ci.fl_area,
+		ci.sales_amt,
+		ci.full_empl_cnt,
+		ci.avrg_work_hr,
+		ci.up_comp_id,
+		ci.del_yn,
+		ci.attach_id,
+		ci.invite_key,
+	</sql>
+	
+	<!-- useGeneratedKeys eqpId 에서 compId 로 변경-->
+	<insert id="insert" parameterType="kr.co.igns.business.orgstatus.model.OrganizationStatusVO" useGeneratedKeys="true" keyProperty="docNo">
+
+		INSERT INTO esg.tb_orgn_status 
+		 (
+			write_year,
+			doc_type,
+			doc_no,
+			write_dt,
+			comp_id,
+			orgn_id,
+			use_yn,
+			created_at,
+			created_by
+  		 )
+  		VALUES
+  		 (
+  		 	#{writeYear},
+			'ORGST',
+			(select COALESCE(LPAD(TRIM(TO_CHAR(MAX(doc_no)::INTEGER + 1, '99999')), 5, '0'), '00001') 
+			   from esg.tb_orgn_status 
+			  WHERE write_year = TO_CHAR(now(), 'YYYY')		  
+			    AND doc_type = 'ORGST'),
+			#{writeDt},
+			#{compId},
+			#{orgnId},
+			'Y',
+			now(),
+			#{createdBy}
+		 )
+		 RETURNING doc_no
+	</insert>
+	
+	<!-- useGeneratedKeys eqpId 에서 compId 로 변경-->
+	<insert id="insertDetail" parameterType="kr.co.igns.business.orgstatus.model.OrganizationStatusVO">
+
+		INSERT INTO esg.tb_orgn_status_detail 
+		 (
+			write_year,
+			doc_type,
+			doc_no,
+			doc_seq,
+			comp_id,
+			gubun,
+			work_desc,
+			issue,
+			risk,
+			chance,
+			use_yn,
+			created_at,
+			created_by
+  		 )
+  		VALUES
+  		 (
+			#{writeYear},
+			#{docType},
+			#{docNo},
+			(SELECT COALESCE(LPAD(TRIM(TO_CHAR(MAX(doc_seq)::INTEGER + 1, '99999')), 5, '0'), '00001') 
+			   FROM esg.tb_orgn_status_detail 
+			  WHERE write_year = #{writeYear}		  
+			    AND doc_type = #{docType}
+			    AND doc_no = #{docNo} ),
+			#{compId},
+			#{gubun},
+			#{workDesc},
+			#{issue},
+			#{risk},
+			#{chance},
+			'Y',
+			now(),
+			#{createdBy}
+		 )
+	</insert>
+	
+	<insert id="insertSignature" parameterType="kr.co.igns.business.utils.model.UtilsVO">
+		INSERT INTO esg.tb_approval_info 
+		 (
+			target_type,
+			target_id,
+			hr_id,
+			signature,
+			param,
+			created_at,
+			created_by
+  		 )
+  		VALUES
+  		 (
+			'ORGST',
+			#{targetId},
+			#{hrId},
+			#{signature},
+			#{param},
+			now(),
+			#{createdBy}
+		 )
+	</insert>
+	
+	<update id="update" parameterType="kr.co.igns.business.orgstatus.model.OrganizationStatusVO">
+
+		UPDATE esg.tb_orgn_status
+		   SET write_dt = #{writeDt},	
+		   	   orgn_id = #{orgnId},	
+		       use_yn = #{useYn},		   
+			   updated_at = now(),
+			   updated_by = #{updatedBy}
+		 WHERE write_year = #{writeYear}
+		   AND doc_type = #{docType}
+		   AND doc_no = #{docNo}
+	</update>
+	
+	<update id="updateDetail" parameterType="kr.co.igns.business.orgstatus.model.OrganizationStatusVO">
+
+		UPDATE esg.tb_orgn_status_detail
+		   SET gubun = #{gubun},
+			   work_desc = #{workDesc},
+			   issue = #{issue},
+			   risk = #{risk},
+			   chance = #{chance},
+			   use_yn = #{useYn},
+			   updated_at = now(),
+			   updated_by = #{updatedBy}
+		 WHERE write_year = #{writeYear}
+		   AND doc_type = #{docType}
+		   AND doc_no = #{docNo}
+		   AND doc_seq = #{docSeq}
+	</update>
+	
+	<update id="updateSignature" parameterType="kr.co.igns.business.utils.model.UtilsVO">
+		UPDATE esg.tb_approval_info
+		   SET hr_Id = #{hrId}
+		     , signature = #{signature}
+		 WHERE target_type = #{targetType}
+		   AND target_id = #{targetId}
+		   AND param = #{param}
+	</update>
+	  
+	<update id="updateUseYn" parameterType="String">
+
+		UPDATE tb_comp_info
+		SET
+		use_yn = 'N',
+		updated_at = now(),
+		updated_by = #{updatedBy}
+		WHERE comp_id = #{compId}
+		 
+	</update>
+	
+	<update id="changeUseNOrg" parameterType="kr.co.igns.business.orgstatus.model.OrganizationStatusVO">
+		UPDATE esg.tb_orgn_status
+		   SET use_yn = 'N'
+		     , updated_at = now()
+		     , updated_by = #{updatedBy}
+		 WHERE write_year = #{writeYear}
+		   AND doc_type = #{docType}
+		   AND doc_no = #{docNo};
+	</update>
+	
+	<update id="changeUseNOrgDetail" parameterType="kr.co.igns.business.orgstatus.model.OrganizationStatusVO">
+		UPDATE esg.tb_orgn_status_detail
+		   SET use_yn = 'N'
+		     , updated_at = now()
+		     , updated_by = #{updatedBy}
+		 WHERE write_year = #{writeYear}
+		   AND doc_type = #{docType}
+		   AND doc_no = #{docNo}
+		   AND doc_seq = #{docSeq}
+	</update>
+	
+	<delete id="deleteOrg" parameterType="kr.co.igns.business.orgstatus.model.OrganizationStatusVO">
+		DELETE 
+		  FROM esg.tb_orgn_status
+		 WHERE write_year = #{writeYear}
+		   AND doc_type = #{docType}
+		   AND doc_no = #{docNo};
+	</delete>
+	
+	<delete id="deleteOrgDetail" parameterType="kr.co.igns.business.orgstatus.model.OrganizationStatusVO">
+		DELETE 
+		  FROM esg.tb_orgn_status_detail
+		 WHERE write_year = #{writeYear}
+		   AND doc_type = #{docType}
+		   AND doc_no = #{docNo}
+		   AND doc_seq = #{docSeq}
+	</delete>
+	
+	<delete id="deleteSignature" parameterType="kr.co.igns.business.utils.model.UtilsVO">
+
+		DELETE 
+		  FROM esg.tb_approval_info
+		 WHERE target_type = #{targetType}
+		   AND target_id = #{targetId}
+		   AND param = #{param}
+	</delete>
+
+	<select id='searchHrId' parameterType='kr.co.igns.business.orgstatus.model.OrganizationStatusVO' resultType='kr.co.igns.business.utils.model.UtilsVO'>
+		SELECT hr_id, hr_nm created_by
+		  from esg.tb_hr_info
+		 where user_id = #{userId}
+	</select>
+	
+	<select id='searchSignatureCnt' parameterType='kr.co.igns.business.utils.model.UtilsVO' resultType='int'>
+		SELECT COUNT(1)
+		  FROM esg.tb_approval_info
+		 WHERE target_type = #{targetType}
+		   AND target_id = #{targetId}
+		   AND param = #{param}
+	</select>
+	
+	<select id='searchCount' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='int'>
+
+		SELECT count(1)
+		  FROM esg.tb_orgn_status
+		 where 1=1
+	</select>
+
+	<select id='search' parameterType='kr.co.igns.business.orgstatus.model.OrganizationStatusVO' resultType='kr.co.igns.business.orgstatus.model.OrganizationStatusVO'>
+
+		  WITH rec_all
+		    AS (SELECT TRIM(TO_CHAR(EXTRACT(YEAR FROM COALESCE(r.updated_at, r.created_at)), '9999')) years,
+		    	       r.write_year,
+		    	       r.doc_type,
+		    	       r.doc_no,
+		    	       r.write_dt,
+		               r.orgn_id,
+		               r.use_yn,
+				       (SELECT orgn_nm
+				          FROM esg.tb_orgn_info z
+				         WHERE z.orgn_id = r.orgn_id) orgn_nm,
+						 TO_CHAR(COALESCE(r.updated_at, r.created_at), 'YYYY-MM-DD') created_at,
+				       (SELECT hr_nm 
+					      FROM esg.tb_hr_info
+					     WHERE user_id = r.created_by) created_by,
+					   '' approval_key
+				  FROM esg.tb_orgn_status r
+				 WHERE comp_id = #{compId}
+				)
+		 SELECT a.years,
+		 	    a.write_year,
+		 	    a.doc_type,
+		 	    a.doc_no,
+		 	    a.write_dt,
+		        a.orgn_id,
+		        a.orgn_nm,
+		        a.use_yn,
+		        (select COUNT(doc_seq) 
+		           from esg.tb_orgn_status_detail c 
+		          where a.write_year = c.write_year
+		            and a.doc_type = c.doc_type
+		            and a.doc_no = c.doc_no) as cnt,
+		        a.created_at,
+		        a.created_by,
+		        a.approval_key,
+				esg.fn_getapprovalstatus(a.doc_type,a.write_year||a.doc_no) as approval_status,
+				tai.hr_nm as writer
+		   FROM rec_all a
+	  LEFT JOIN esg.tb_approval_info tai on tai.target_type = a.doc_type and tai.target_id = a.write_year || a.doc_no and param = 'writer'
+		  WHERE 1=1
+		    AND (
+			     (a.created_at      LIKE '%' || '' || '%') OR 
+		         (a.orgn_nm         LIKE '%' || '' || '%')
+		        )
+
+		order by write_year desc, use_yn desc, doc_no desc
+	</select>
+	
+	<select id='searchDetail' parameterType='kr.co.igns.business.orgstatus.model.OrganizationStatusVO' resultType='kr.co.igns.business.orgstatus.model.OrganizationStatusVO'>
+
+	  SELECT tosd.write_year,
+	  		 tosd.doc_type,
+	  		 tosd.doc_no,
+	  		 tosd.doc_seq,
+	  		 tosd.comp_id,
+	         tosd.gubun,
+	         tosd.work_desc,
+	         tosd.issue,
+	         tosd.risk,
+	         tosd.chance,
+	         tosd.use_yn,
+	         tosd.created_at,
+	         tosd.created_by,
+	         tosd.updated_at,
+	         tosd.updated_by,
+	         tos.write_dt,
+	         tos.orgn_id,
+			 tos.use_yn as useYnM,
+			 toi.orgn_nm
+	    FROM esg.tb_orgn_status_detail tosd
+  INNER JOIN esg.tb_orgn_status tos
+	      ON tos.write_year = tosd.write_year
+	     AND tos.doc_type = tosd.doc_type
+		 AND tos.doc_no = tosd.doc_no
+  INNER JOIN esg.tb_orgn_info toi
+	      ON toi.orgn_id = tos.orgn_id
+	   WHERE tosd.write_year = #{writeYear}
+	   	 AND tosd.doc_type = #{docType}
+	   	 AND tosd.doc_no = #{docNo}
+	   ORDER BY tosd.use_yn desc, tosd.write_year, tosd.doc_seq
+	
+	</select>
+
+   <select id='getReportData' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.orgstatus.model.OrganizationStatusVO'>
+
+     SELECT tos.write_year,
+     		tos.doc_type,
+     		tos.doc_no,
+     		tos.write_dt,
+     		toi.comp_id,
+     	    toi.orgn_nm,
+            tos.created_at,
+            tos.created_by,
+            tos.updated_at,
+            tos.updated_by            
+       FROM esg.tb_orgn_status tos
+       join esg.tb_orgn_info toi 
+         on toi.comp_id = tos.comp_id
+        and toi.orgn_id = tos.orgn_id
+      WHERE tos.comp_id = #{compId}
+        and tos.write_year = #{writeYear}
+        and tos.doc_type = #{docType}
+        and tos.doc_no = #{docNo}
+      
+   </select>
+
+   <select id='getReportGridData' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.orgstatus.model.OrganizationStatusVO'>
+
+     SELECT esg.fn_getsystemcodeminornm('C0004',gubun) as gubunNm,
+            work_desc,
+            issue,
+            risk,
+            chance            
+       FROM esg.tb_orgn_status_detail
+      WHERE comp_id = #{compId}
+        and write_year = #{writeYear}
+        and doc_type = #{docType}
+        and doc_no = #{docNo}
+	    and use_yn = 'Y'
+   
+   </select>
+
+	<select id='findOne' parameterType='String' resultType='kr.co.igns.business.orgstatus.model.OrganizationStatusVO'>
+
+		SELECT
+		<include refid='kr.co.igns.business.orgstatus.dao.postgres.OrganizationStatusDAO.selectCol' />
+		created_at,
+		created_by,
+		updated_at,
+		updated_by,
+		'U' cmd
+		FROM tb_orgn_status
+		<!-- WHERE clnt_id = #{clntId} 에서 변경 -->
+		WHERE status_cd = #{statusCd}
+
+	</select>
+
+	<select id='findByInviteKey' parameterType='String' resultType='kr.co.igns.business.orgstatus.model.OrganizationStatusVO'>
+
+		SELECT
+		<include refid='kr.co.igns.business.orgstatus.dao.postgres.OrganizationStatusDAO.selectCol' />
+		created_at,
+		created_by,
+		updated_at,
+		updated_by,
+		'U' cmd
+		<!--  tb_company_info 에서 tb_comp_info로 변경 -->
+		FROM tb_comp_info ci
+		<!-- WHERE clnt_id = #{clntId} 에서 변경 -->
+		WHERE invite_key = #{inviteKey}
+
+	</select>
+
+	<select id='getAllReport' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.common.model.SpSearchVO'>
+		select t1.write_year
+			, t1.doc_type
+			, t1.doc_no
+			, t1.comp_id
+		from esg.tb_orgn_status t1
+		where t1.write_year = #{writeYear}
+			and t1.comp_id  = #{compId}
+			and t1.use_yn = 'Y'
+			and t1.orgn_id = #{searchText}
+    </select>
+</mapper>

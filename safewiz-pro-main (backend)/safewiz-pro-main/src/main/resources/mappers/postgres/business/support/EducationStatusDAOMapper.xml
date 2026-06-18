@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.support.dao.postgres.EducationStatusDAO">
+    <select id='getEducationStatus' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.support.model.EducationStatusVO'>
+        with roles_data as(
+            select t1.write_year
+                 , t1.doc_no
+                 , t2.comp_id
+                 , t1.hr_id
+                 , t1.hr_nm
+                 , t2.orgn_role_type
+                 , t2.orgn_role_id
+                 , case when t2.orgn_role_type = 'safety'
+                        then safety.orgn_role_nm
+                        when t2.orgn_role_type = 'risk'
+                        then risk.orgn_role_nm
+                        else null
+                    end as orgn_role_nm
+                 , case when t2.orgn_role_type = 'safety'
+                        then safety.ord_seq
+                        when t2.orgn_role_type = 'risk'
+                        then risk.ord_seq
+                        else null
+                    end as orgn_role_ord_seq
+            from esg.tb_safety_duties_doc_user t1
+            left join esg.tb_safety_duties_doc t2
+                on t1.write_year = t2.write_year
+                and t1.doc_type = t2.doc_type
+                and t1.doc_no = t2.doc_no
+            left join esg.tb_safety_health_org_chart_orgn_role safety
+                on t2.orgn_role_type = 'safety'
+                and t2.orgn_role_id = safety.orgn_role_id
+                and t2.comp_id = safety.comp_id
+            left join esg.tb_risk_assessment_organ_chart_orgn_role risk
+                on t2.orgn_role_type = 'risk'
+                and t2.orgn_role_id = risk.orgn_role_id
+                and t2.comp_id = risk.comp_id
+            where t1.write_year = #{writeYear}
+                and t2.comp_id = #{compId}
+                and t1.use_yn = 'Y'
+            )
+            select
+                t2.write_year
+                , t2.doc_no
+                , t2.title as training_nm
+                , t1.hr_id
+                , t1.hr_nm
+                , t1.jbrp_nm
+                , t4.orgn_id
+                , t4.orgn_nm
+                , coalesce(t4.ord_seq, 999) as orgn_ord_seq
+                , roles.orgn_role_type
+                , roles.orgn_role_id
+                , roles.orgn_role_nm
+                , coalesce(roles.orgn_role_ord_seq,999) as orgn_role_ord_seq
+                , (extract(EPOCH FROM (t2.training_end::time - t2.training_start::time)) / 60) :: integer as training_minutes
+                , case
+                    when t1.signature is not null then 'Y'
+                    else 'N'
+                end as education_status
+            from esg.tb_approval_info t1
+            left join esg.tb_training_result_report t2
+                on substring(t1.target_id, 0, 5) = t2.write_year
+                and substring(t1.target_id, 5, 5) = t2.doc_no
+            left join esg.tb_hr_info t3
+                on t1.hr_id = t3.hr_id
+            left join esg.tb_orgn_info t4
+                on t3.orgn_id = t4.orgn_id
+            left join roles_data roles
+                on t1.hr_id = roles.hr_id and t1.target_id = roles.write_year || roles.doc_no
+            where t1.target_type = 'TRR'
+                and t1.target_id like #{writeYear}||'%'
+                and t1.type = 'attendee'
+                and t2.comp_id = #{compId}
+            order by t1.hr_id asc, t2.doc_no asc
+    </select>
+
+</mapper>

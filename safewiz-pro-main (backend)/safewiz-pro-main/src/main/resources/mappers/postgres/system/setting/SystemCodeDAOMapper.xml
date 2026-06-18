@@ -1,0 +1,478 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.system.setting.dao.postgres.SystemCodeDAO">
+	<resultMap id="SystemMinorCodeWithFilesResultMap" type="kr.co.igns.system.setting.model.SystemMinorCodeVO">
+	    <id     property="minorCd"     column="minor_cd"/>
+	    <result property="majorCd"     column="major_cd"/>
+	    <result property="majorNm"     column="major_nm"/>
+	    <result property="minorNm"     column="minor_nm"/>
+	    <result property="minorDesc"  column="minor_desc"/>
+	    <result property="createdAt"  column="created_at"/>
+	    <result property="createdBy"  column="created_by"/>
+	    <result property="updatedAt"  column="updated_at"/>
+	    <result property="updatedBy"  column="updated_by"/>
+	    <result property="ordSeq"     column="ord_seq"/>
+	    <result property="extra1"     column="extra_1"/>
+	    <result property="extra2"     column="extra_2"/>
+	    <result property="extra3"     column="extra_3"/>
+	    <result property="extra4"     column="extra_4"/>
+	    <result property="extra5"     column="extra_5"/>
+	    <result property="remark"     column="remark"/>
+	    <result property="useYn"      column="use_yn"/>	
+	    <!-- 파일 목록 (1:N) -->
+	    <collection property="files" ofType="kr.co.igns.system.common.model.FileVO">
+	        <id     property="fileId"    column="file_id"/>
+	        <result property="fileName"  column="file_name"/>
+	        <result property="fileSize"  column="file_size"/>
+	        <result property="extension" column="extension"/>
+	    </collection>
+	</resultMap>	
+    <sql id="filter">
+        <if test="useYn != null and useYn != ''">
+            <![CDATA[			AND sc.use_yn = #{useYn}		]]>
+        </if>
+        <if test='searchWords != "" and searchWords != null and searchWords.size > 0'>
+            AND
+            (
+            <foreach collection='searchWords' item='searchWord' index='idx' separator='OR' open='(' close=')'>
+                sc.major_cd LIKE CONCAT('%',#{searchWord},'%')
+            </foreach>
+            OR
+            <foreach collection='searchWords' item='searchWord' index='idx' separator='OR' open='(' close=')'>
+                sc.major_nm LIKE CONCAT('%',#{searchWord},'%')
+            </foreach>
+            )
+        </if>
+    </sql>
+
+    <sql id="filterDetail">
+        <if test='searchWords != "" and searchWords != null and searchWords.size > 0'>
+            AND
+            (
+            <foreach collection='searchWords' item='searchWord' index='idx' separator='OR' open='(' close=')'>
+                sc.minor_cd LIKE CONCAT('%',#{searchWord},'%')
+            </foreach>
+            OR
+            <foreach collection='searchWords' item='searchWord' index='idx' separator='OR' open='(' close=')'>
+                sc.minor_nm LIKE CONCAT('%',#{searchWord},'%')
+            </foreach>
+            )
+        </if>
+    </sql>
+   <insert id="createMasterCode" parameterType="kr.co.igns.system.setting.model.SystemCodeVO" useGeneratedKeys="true" keyProperty="majorCd">
+
+        INSERT INTO
+        esg.tb_common_m (
+        major_cd,
+        major_type,
+        major_nm,
+        remark,
+        use_yn,
+        created_at,
+        created_by
+        ) VALUES (
+        #{majorCd},
+        #{majorType},
+        #{name},
+        #{remark},
+        'Y',
+        now(),
+        #{createdBy}
+        )
+
+    </insert>
+
+    <update id="updateMasterCode" parameterType="kr.co.igns.system.setting.model.SystemCodeVO">
+
+        UPDATE esg.tb_common_m
+        SET
+        major_nm = #{name},
+        remark = #{remark},
+        updated_at = now(),
+        updated_by = #{updatedBy}
+        WHERE major_cd = #{majorCd}
+    </update>
+
+    <insert id="createDetailCode" parameterType="kr.co.igns.system.setting.model.SystemMinorCodeVO" useGeneratedKeys="true" keyProperty="majorCd">
+
+        INSERT INTO
+            esg.tb_common_d (
+        comp_id,
+        major_cd,
+        minor_cd,
+        minor_nm,
+        remark,
+        extra_1,
+        extra_2,
+        extra_3,
+        extra_4,
+        extra_5,
+        use_yn,
+        ord_seq,
+        created_at,
+        created_by
+        ) VALUES (
+        #{compId},
+        #{majorCd},
+        #{minorCd},
+        #{name},
+        #{remark},
+        #{extra1},
+        #{extra2},
+        #{extra3},
+        #{extra4},
+        #{extra5},
+        'Y',
+        #{ordSeq},
+        now(),
+        #{createdBy}
+        )
+
+    </insert>
+
+    <update id="updateDetailCode" parameterType="kr.co.igns.system.setting.model.SystemMinorCodeVO">
+
+        UPDATE esg.tb_common_d
+        SET
+        minor_nm = #{name},
+        remark = #{remark},
+        ord_seq = #{ordSeq},
+        extra_1 = #{extra1},
+        extra_2 = #{extra2},
+        extra_3 = #{extra3},
+        extra_4 = #{extra4},
+        extra_5 = #{extra5},
+        updated_at = now(),
+        updated_by = #{updatedBy}
+        WHERE 1 = 1
+          AND comp_id = #{compId}
+          AND major_cd = #{majorCd}
+          AND minor_cd = #{minorCd}
+          AND comp_id = '999999999999'
+
+    </update>
+
+    <update id="deleteMaster" parameterType="String">
+
+        UPDATE esg.tb_common_m
+        SET
+        use_yn = 'N',
+        updated_at = now(),
+        updated_by = #{updatedBy}
+        WHERE major_cd = #{majorCd}
+
+    </update>
+
+    <delete id="deleteDetail" parameterType="String">
+
+        DELETE FROM esg.tb_common_d
+        WHERE minor_cd = #{minorCd}
+          AND major_cd = #{majorCd}
+          AND comp_id = '999999999999'
+
+    </delete>
+
+    <delete id="deleteDetailAll" parameterType="String">
+
+        DELETE FROM esg.tb_common_d
+          WHERE major_cd = #{majorCd}
+            AND comp_id = '999999999999'
+
+    </delete>
+
+    <select id='searchCount' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='int'>
+
+        SELECT
+        count(1)
+        FROM esg.tb_common_m sc
+        WHERE 1=1
+        <include refid='kr.co.igns.system.setting.dao.postgres.SystemCodeDAO.filter' />
+
+    </select>
+
+    <select id='search' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.setting.model.SystemCodeVO'>
+
+        SELECT
+        major_cd,
+        created_at,
+        created_by,
+        updated_at,
+        updated_by,
+        major_div,
+        major_nm,
+        major_type,
+        remark,
+        use_yn
+        FROM esg.tb_common_m sc
+        WHERE 1=1
+        <include refid='kr.co.igns.system.setting.dao.postgres.SystemCodeDAO.filter' />
+        ORDER BY sc.major_cd desc
+        LIMIT #{listSize, jdbcType=NUMERIC} OFFSET #{listStart, jdbcType=NUMERIC}
+    </select>
+
+    <select id='findDetail' parameterType='String' resultMap='SystemMinorCodeWithFilesResultMap'>
+
+        SELECT
+        tdcd.major_cd,
+        tdcm.major_nm,
+        tdcd.minor_cd,
+        tdcd.created_at,
+        tdcd.created_by,
+        tdcd.updated_at,
+        tdcd.updated_by,
+        tdcd.minor_nm,
+        tdcd.minor_desc,
+        tdcd.ord_seq,
+        tdcd.extra_1,
+        tdcd.extra_2,
+        tdcd.extra_3,
+        tdcd.extra_4,
+        tdcd.extra_5,
+        tdcd.remark,
+        tdcd.use_yn,       
+	    -- 파일 정보	
+        sf.file_id,
+        sf.file_nm AS file_name,
+        sf.file_size,
+        sf.extension
+	    FROM esg.tb_common_d tdcd
+	    LEFT JOIN esg.tb_common_m tdcm
+	           ON tdcd.major_cd = tdcm.major_cd
+	    LEFT JOIN esg.tb_sys_file sf
+	           ON sf.target_id = tdcd.minor_cd AND sf.target_type = tdcd.major_cd
+	    WHERE tdcd.major_cd = #{majorCd}
+	      AND tdcd.comp_id = '999999999999'
+	    ORDER BY tdcd.ord_seq
+    </select>
+    
+    <select id='findDetailTaskSign' parameterType='String' resultType='kr.co.igns.system.setting.model.SystemMinorCodeVO'>
+
+        SELECT
+        tdcd.major_cd,
+        tdcm.major_nm,
+        tdcd.minor_cd,
+        tdcd.created_at,
+        tdcd.created_by,
+        tdcd.updated_at,
+        tdcd.updated_by,
+        tdcd.minor_nm,
+        tdcd.minor_desc,
+        tdcd.ord_seq,
+        tdcd.extra_1,
+        tdcd.extra_2,
+        tdcd.extra_3,
+        tdcd.extra_4,
+        tdcd.extra_5,
+        tdcd.remark,
+        tdcd.use_yn
+        FROM esg.tb_common_d tdcd
+        LEFT JOIN esg.tb_common_m tdcm
+            ON tdcd.major_cd = tdcm.major_cd
+        WHERE tdcd.major_cd = #{majorCd} 
+        	AND tdcd.minor_cd like 'sign%'
+            AND tdcd.comp_id = '999999999999'
+        ORDER BY ord_seq
+
+    </select>
+
+    <select id='findDetailPage' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultMap='SystemMinorCodeWithFilesResultMap'>
+
+        SELECT
+            sc.major_cd,
+            sc.minor_cd,
+            sc.created_at,
+            sc.created_by,
+            sc.updated_at,
+            sc.updated_by,
+            sc.minor_nm,
+            sc.minor_desc,
+            sc.ord_seq,
+            sc.extra_1,
+            sc.extra_2,
+            sc.extra_3,
+            sc.extra_4,
+            sc.extra_5,
+            sc.remark,
+            sc.use_yn,        
+	        -- 파일 정보
+	        sf.file_id,
+	        sf.file_nm AS file_name,
+	        sf.file_size,
+	        sf.extension
+        FROM esg.tb_common_d sc
+        LEFT JOIN esg.tb_sys_file sf
+        	ON sf.target_id = sc.minor_cd AND sf.target_type = sc.major_cd
+        WHERE sc.major_cd = #{searchCd}
+            AND sc.comp_id = '999999999999'
+        <include refid='kr.co.igns.system.setting.dao.postgres.SystemCodeDAO.filterDetail' />
+        ORDER BY ord_seq
+        LIMIT #{listSize, jdbcType=NUMERIC} OFFSET #{listStart, jdbcType=NUMERIC}
+
+    </select>
+
+    <select id='findDatasetCode' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.setting.model.SystemMinorCodeVO'>
+
+        SELECT
+            major_cd,
+            minor_cd,
+            created_at,
+            created_by,
+            updated_at,
+            updated_by,
+            minor_nm,
+            minor_desc,
+            ord_seq,
+            extra_1,
+            extra_2,
+            extra_3,
+            extra_4,
+            extra_5,
+            remark,
+            use_yn
+        FROM esg.tb_common_d sc
+        WHERE sc.major_cd = #{searchCd}
+            AND sc.comp_id = '999999999999'
+        <include refid='kr.co.igns.system.setting.dao.postgres.SystemCodeDAO.filterDetail' />
+        ORDER BY ord_seq
+        LIMIT #{listSize, jdbcType=NUMERIC} OFFSET #{listStart, jdbcType=NUMERIC}
+
+    </select>
+
+    <select id='searchCountDetail' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='int'>
+
+        SELECT
+        count(1)
+        FROM esg.tb_common_d sc
+        WHERE 1=1
+          AND sc.major_cd = #{searchCd}
+          AND sc.comp_id = '999999999999'
+        <include refid='kr.co.igns.system.setting.dao.postgres.SystemCodeDAO.filterDetail' />
+
+    </select>
+
+    <select id='findEsgCommonDetail' parameterType='String' resultType='kr.co.igns.system.setting.model.SystemMinorCodeVO'>
+
+        SELECT
+            a.comp_id,
+            a.major_cd,
+            m.major_nm,
+            a.minor_cd,
+            a.created_at,
+            a.created_by,
+            a.updated_at,
+            a.updated_by,
+            a.minor_nm,
+            a.minor_desc,
+            a.ord_seq,
+            a.extra_1,
+            a.extra_2,
+            a.extra_3,
+            a.extra_4,
+            a.extra_5,
+            a.remark,
+            a.use_yn,
+            b.file_id
+        FROM esg.tb_common_d a
+        left join esg.tb_common_m m
+            on a.major_cd = m.major_cd
+        left join esg.tb_sys_file b
+            on b.target_type = a.major_cd
+            and b.target_id = a.minor_cd
+        WHERE a.major_cd = #{majorCd}
+          AND a.comp_id = #{compId}
+        ORDER BY ord_seq
+
+    </select>
+
+    <insert id="createEsgDetailCode" parameterType="kr.co.igns.system.setting.model.SystemMinorCodeVO" useGeneratedKeys="true" keyProperty="majorCd">
+    
+	    <selectKey keyProperty="minorCd" resultType="kr.co.igns.system.setting.model.SystemMinorCodeVO" order="BEFORE">
+            <![CDATA[
+            SELECT
+                LPAD((COALESCE(MAX(SUBSTRING(minor_cd, 1, 5)::INTEGER), 0) + 1)::TEXT, 5, '0') AS minorCd
+              FROM esg.tb_common_d
+             WHERE comp_id = #{compId}
+               AND major_cd = #{majorCd}
+         ]]>
+        </selectKey>
+        
+        INSERT INTO
+            esg.tb_common_d (
+            comp_id,
+            major_cd,
+            minor_cd,
+            minor_nm,
+            remark,
+            use_yn,
+            ord_seq,
+            extra_1,
+            extra_2,
+            extra_3,
+            extra_4,
+            extra_5,
+            created_at,
+            created_by
+        ) VALUES (
+                     #{compId},
+                     #{majorCd},
+                     #{minorCd},
+                     #{name},
+                     #{remark},
+                     #{useYn},
+                     #{ordSeq},
+                     #{extra1},
+                     #{extra2},
+                     #{extra3},
+                     #{extra4},
+                     #{extra5},
+                     now(),
+                     #{createdBy}
+                 )
+
+    </insert>
+
+    <update id="updateEsgDetailCode" parameterType="kr.co.igns.system.setting.model.SystemMinorCodeVO">
+
+        UPDATE esg.tb_common_d
+        SET
+            minor_nm = #{name},
+            use_yn = #{useYn},
+            remark = #{remark},
+            ord_seq = #{ordSeq},
+            extra_1 = #{extra1},
+            extra_2 = #{extra2},
+            extra_3 = #{extra3},
+            extra_4 = #{extra4},
+            extra_5 = #{extra5},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE 1 = 1
+          AND major_cd = #{majorCd}
+          AND minor_cd = #{minorCd}
+          AND comp_id = #{compId}
+
+    </update>
+
+    <delete id="deleteEsgDetailCode" parameterType="kr.co.igns.system.setting.model.SystemMinorCodeVO">
+
+        UPDATE esg.tb_common_d
+        SET 
+        	use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE minor_cd = #{minorCd}
+          AND major_cd = #{majorCd}
+          AND comp_id = #{compId}
+
+    </delete>
+
+    <delete id="deleteEsgDetailCodeAll" parameterType="kr.co.igns.system.setting.model.SystemMinorCodeVO">
+
+        DELETE FROM esg.tb_common_d
+        WHERE major_cd = #{majorCd}
+          AND comp_id = #{compId}
+
+    </delete>
+
+</mapper>

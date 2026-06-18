@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.evaluation.dao.postgres.MonitoringCtrlDAO">
+    <select id='getMonitoringCtrl' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.evaluation.model.MonitoringCtrlVO'>
+        SELECT
+            'evaluationReport' AS title
+            ,'/EvaluationReport' AS route
+            ,'evaluationReportDesc' AS description
+            , CASE WHEN evaluationReport.exist then 'Y'
+            	ELSE 'N'
+            	END AS activeYn
+        FROM
+        (
+            SELECT EXISTS (
+            	SELECT 1
+                FROM esg.tb_approval_info tai
+                LEFT JOIN esg.tb_evaluation_report taco
+                	ON tai.target_type = 'ER'
+                	AND tai.param = 'approver'
+                	--AND tai.target_id = taco.write_year || taco.doc_no
+                WHERE taco.comp_id  = #{compId}
+                    AND	taco.write_year = #{searchText}
+            ) AS exist
+        ) AS evaluationReport
+        UNION ALL
+	        SELECT
+	            'performanceEvaluationTable' AS title
+	            ,'/PerformanceEvaluationTable' AS route
+	            ,'performanceEvaluationTableDesc' AS description
+	            , CASE WHEN performanceEvaluationTable.exist THEN 'Y'
+	            	ELSE 'N'
+	            	END AS activeYn
+	        FROM
+	        (
+	            SELECT EXISTS (
+	                SELECT 1
+	                FROM esg.tb_approval_info tai
+	                LEFT JOIN esg.tb_evaluation_report taco
+	                	on tai.target_type = 'ERP'
+	                	--AND tai.param = 'approver'
+	                	--AND tai.target_id = taco.write_year || taco.doc_no
+	                LEFT JOIN esg.tb_evaluation_report_detail tao
+	                	ON taco.write_year = tao.write_year
+	                	AND taco.doc_no = taco.doc_no
+	                	AND taco.doc_type = taco.doc_type
+	                WHERE taco.comp_id = #{compId}
+		  			  AND taco.write_year = #{searchText}
+	            ) AS exist
+	        ) AS performanceEvaluationTable
+        UNION ALL
+	        SELECT
+	            'complianceEvaluationTable' AS title
+	            ,'/ComplianceEvaluationTable' AS route
+	            ,'complianceEvaluationTableDesc' AS description
+	            , CASE WHEN complianceEvaluationTable.exist then 'Y'
+	            	ELSE 'N'
+	            	END AS activeYn
+	        FROM
+	        (
+	            SELECT EXISTS (
+	                SELECT 1
+	                FROM esg.tb_approval_info tai
+	                LEFT JOIN esg.tb_legal_comlpliance_evaluation taco
+	                	ON tai.target_type = 'LCE'
+	                	AND tai.param = 'approver'
+	                WHERE taco.comp_id = #{compId}
+	                    AND	taco.write_year = #{searchText}
+	                    -- AND tai.target_id = taco.write_year || taco.doc_no
+	            ) AS exist
+	        ) AS complianceEvaluationTable
+        UNION ALL
+        	SELECT
+				'evaluationCorrectiveActionRequest' AS title
+				,'/EvaluationCorrectiveActionRequest' AS route
+				,'evaluationCorrectiveActionRequestDesc' AS description
+				, CASE WHEN evaluationCorrectiveActionRequest.exist THEN 'Y'
+			    	ELSE 'N'
+			    	END as activeYn
+			from
+			(
+				SELECT EXISTS (
+				   SELECT 1
+					 FROM esg.tb_corrective_action_request a
+					WHERE a.comp_id = #{compId}
+		 			  AND a.doc_type = 'CAR'
+					  AND a.car_type = 'E'
+					  AND a.write_year = #{searchText}
+				) AS exist
+			) AS evaluationCorrectiveActionRequest
+        
+    </select>
+</mapper>
+

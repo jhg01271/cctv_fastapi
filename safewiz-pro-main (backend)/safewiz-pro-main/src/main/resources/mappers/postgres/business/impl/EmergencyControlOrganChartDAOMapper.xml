@@ -1,0 +1,268 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.impl.dao.postgres.EmergencyControlOrganChartDAO">
+    <select id='getEmergencyOrgChartList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.EmergencyControlOrganChartVO'>
+        SELECT tecoc.*
+        FROM esg.tb_emergency_control_org_chart tecoc
+        WHERE tecoc.comp_id = #{compId}
+        <if test="writeYear != null and !writeYear.equals('')">
+            AND write_year = #{writeYear}
+        </if>
+        <if test="searchText != null and !searchText.equals('')">
+            AND tecoc.chart_id = #{searchText}
+        </if>
+        order by tecoc.use_yn DESC, tecoc.confirm_at DESC, tecoc.updated_at DESC, tecoc.created_at DESC
+    </select>
+
+    <select id='getEmergencyTypeList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.EmergencyRoleVO'>
+        SELECT tdt.*
+        FROM esg.tb_dataset_typeofemergency tdt
+        WHERE tdt.comp_id = #{compId}
+        order by tdt.use_yn DESC, tdt.ord_seq ASC
+    </select>
+
+    <select id='getEmergencyRoleList' parameterType='kr.co.igns.business.impl.model.EmergencyRoleVO' resultType='kr.co.igns.business.impl.model.EmergencyRoleVO'>
+        SELECT tdt.*
+        FROM esg.tb_dataset_typeofemergencyroles tdt
+        WHERE tdt.comp_id = #{compId}
+            AND tdt.type_id = #{typeId}
+            AND tdt.use_yn = 'Y'
+        order by tdt.use_yn DESC, tdt.ord_seq ASC
+    </select>
+
+    <insert id="insertEmergencyOrgChart" parameterType="kr.co.igns.business.impl.model.EmergencyControlOrganChartVO">
+    <selectKey keyProperty="chartId" resultType="kr.co.igns.business.impl.model.EmergencyControlOrganChartVO" order="BEFORE">
+				SELECT TO_CHAR(now(), 'YYYYMMDD') || LPAD((COALESCE(SUBSTRING(MAX(chart_id), LENGTH(MAX(chart_id)) - 3, 4)::INTEGER, 0) + 1)::TEXT, 4, '0') AS chartId
+                FROM esg.tb_emergency_control_org_chart
+				WHERE chart_id like to_char(now(), 'YYYYMMDD') || '%'
+	</selectKey>
+        INSERT INTO esg.tb_emergency_control_org_chart (
+            write_year,
+            chart_id,
+            chart_nm,
+            comp_id,
+            chart_data,
+            org_count,
+            emergency_type,
+            emergency_type_nm,
+            confirm_yn,
+            use_yn,
+            created_at,
+            created_by,
+            chart_blob_data
+        )
+        VALUES (
+            #{writeYear},
+            #{chartId},
+            #{chartNm},
+            #{compId},
+            #{chartData},
+            #{orgCount},
+            #{emergencyType},
+            #{emergencyTypeNm},
+            #{confirmYn},
+            #{useYn},
+            now(),
+            #{createdBy},
+            #{chartBlobData}
+        )
+    </insert>
+
+    <update id="confirmEmergencyOrgChart" parameterType="kr.co.igns.business.impl.model.EmergencyControlOrganChartVO">
+        UPDATE esg.tb_emergency_control_org_chart SET
+            confirm_yn = #{confirmYn},
+        <if test='confirmYn.equals("Y") and (confirmAt == null or confirmAt.equals(""))'>
+            confirm_at = now(),
+        </if>
+        <if test='confirmYn.equals("N") or confirmYn.equals("") or confirmYn == null'>
+            confirm_at = null,
+        </if>
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+            AND chart_id = #{chartId}
+            AND write_year = #{writeYear}
+    </update>
+
+    <update id="updateEmergencyOrgChart" parameterType="kr.co.igns.business.impl.model.EmergencyControlOrganChartVO">
+        UPDATE esg.tb_emergency_control_org_chart SET
+            chart_nm = #{chartNm},
+            chart_data = #{chartData},
+            org_count = #{orgCount},
+            emergency_type = #{emergencyType},
+            emergency_type_nm = #{emergencyTypeNm},
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy},
+            chart_blob_data = #{chartBlobData}
+        WHERE comp_id = #{compId}
+            AND chart_id = #{chartId}
+            AND write_year = #{writeYear}
+    </update>
+
+    <update id="deleteEmergencyOrgChart" parameterType="kr.co.igns.business.impl.model.EmergencyControlOrganChartVO">
+        UPDATE esg.tb_emergency_control_org_chart SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+            AND chart_id = #{chartId}
+            AND write_year = #{writeYear}
+    </update>
+
+    <select id='getEmergencyType' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.EmergencyRoleVO'>
+        SELECT tdt.*
+        FROM esg.tb_dataset_typeofemergency tdt
+        WHERE tdt.comp_id = #{compId}
+        order by tdt.use_yn DESC, tdt.ord_seq ASC
+
+    </select>
+
+    <select id='getEmergencyRole' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.EmergencyRoleVO'>
+        SELECT tdt.*
+        FROM esg.tb_dataset_typeofemergencyroles tdt
+        WHERE tdt.comp_id = #{compId}
+            AND tdt.type_id = #{searchText}
+        order by tdt.use_yn DESC, tdt.ord_seq ASC
+    </select>
+
+    <select id='getEmergencyTypeDataset' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.EmergencyRoleVO'>
+        SELECT tdt.*
+        FROM dataset.tb_dataset_typeofemergency tdt
+        WHERE tdt.use_yn = 'Y'
+        order by tdt.use_yn DESC, tdt.ord_seq ASC
+
+    </select>
+
+    <select id='getEmergencyRoleDataset' parameterType='kr.co.igns.business.impl.model.EmergencyRoleVO' resultType='kr.co.igns.business.impl.model.EmergencyRoleVO'>
+        SELECT tdt.*
+        FROM dataset.tb_dataset_typeofemergencyroles tdt
+        WHERE tdt.type_id = #{typeId}
+            AND use_yn = 'Y'
+        order by tdt.use_yn DESC, tdt.ord_seq ASC
+    </select>
+
+     <update id="deleteEmergencyType" parameterType="kr.co.igns.business.impl.model.EmergencyRoleVO">
+        UPDATE esg.tb_dataset_typeofemergency SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+            AND type_id= #{typeId};
+    </update>
+
+    <insert id="insertEmergencyType" parameterType="kr.co.igns.business.impl.model.EmergencyRoleVO">
+    <selectKey keyProperty="typeId" resultType="kr.co.igns.business.impl.model.EmergencyRoleVO" order="BEFORE">
+        select
+                case when #{typeId} is null or #{typeId} = ''
+				    then to_char(now(), 'yyyymmdd') || lpad((coalesce(max(substring(type_id from 9 for 4))::int, 0) + 1)::text, 4, '0')
+                else #{typeId}::varchar
+                end as typeId
+			from esg.tb_dataset_typeofemergency
+			where type_id like to_char(now(), 'YYYYMMDD') || '%'
+                and comp_id = #{compId}
+	</selectKey>
+        INSERT INTO esg.tb_dataset_typeofemergency (
+            comp_id,
+            type_id,
+            type_nm,
+            use_yn,
+            ord_seq,
+            created_at,
+            created_by
+        ) VALUES(
+            #{compId},
+            #{typeId},
+            #{typeNm},
+            #{useYn},
+            #{ordSeq},
+            now(),
+            #{createdBy}
+        )
+    </insert>
+
+    <update id="updateEmergencyType" parameterType="kr.co.igns.business.impl.model.EmergencyRoleVO">
+        UPDATE esg.tb_dataset_typeofemergency SET
+            type_nm = #{typeNm},
+            use_yn = #{useYn},
+            ord_seq = #{ordSeq},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+            AND type_id= #{typeId};
+    </update>
+
+    <update id="deleteAllEmergencyRole" parameterType="kr.co.igns.business.impl.model.EmergencyRoleVO">
+        UPDATE esg.tb_dataset_typeofemergencyroles SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+            AND type_id= #{typeId};
+    </update>
+
+    <update id="deleteEmergencyRole" parameterType="kr.co.igns.business.impl.model.EmergencyRoleVO">
+        UPDATE esg.tb_dataset_typeofemergencyroles SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+            AND type_id= #{typeId}
+            AND role_id = #{roleId}
+    </update>
+
+    <insert id="insertEmergencyRole" parameterType="kr.co.igns.business.impl.model.EmergencyRoleVO">
+    <selectKey keyProperty="roleId" resultType="kr.co.igns.business.impl.model.EmergencyRoleVO" order="BEFORE">
+        select
+            case when #{roleId} is null or #{roleId} = ''
+				    then to_char(now(), 'yyyymmdd') || lpad((coalesce(max(substring(role_id from 9 for 4))::int, 0) + 1)::text, 4, '0')
+                else #{roleId}::varchar
+                end as roleId
+			from esg.tb_dataset_typeofemergencyroles
+			where role_id like to_char(now(), 'YYYYMMDD') || '%'
+                and comp_id = #{compId}
+                and type_id = #{typeId}
+	</selectKey>
+        INSERT INTO esg.tb_dataset_typeofemergencyroles (
+            comp_id,
+            type_id,
+            role_id,
+            role_nm,
+            use_yn,
+            ord_seq,
+            created_at,
+            created_by
+        ) VALUES(
+            #{compId},
+            #{typeId},
+            #{roleId},
+            #{roleNm},
+            #{useYn},
+            #{ordSeq},
+            now(),
+            #{createdBy}
+        )
+    </insert>
+    <update id="updateEmergencyRole" parameterType="kr.co.igns.business.impl.model.EmergencyRoleVO">
+        UPDATE esg.tb_dataset_typeofemergencyroles SET
+            role_nm = #{roleNm},
+            use_yn = #{useYn},
+            ord_seq = #{ordSeq},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+            AND type_id = #{typeId}
+            AND role_id = #{roleId}
+    </update>
+
+    <select id='getAllReport' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.common.model.SpSearchVO'>
+        select t1.write_year
+            , t1.chart_id as searchText
+        from esg.tb_emergency_control_org_chart t1
+        where t1.write_year = #{writeYear}
+            and t1.comp_id = #{compId}
+            and t1.confirm_yn = 'Y'
+            and t1.use_yn = 'Y'
+    </select>
+</mapper>

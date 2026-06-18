@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.support.dao.postgres.SafetyAndHealthCommPlanDAO">
+    <select id='getShCommPlanList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.support.model.SafetyAndHealthCommPlanVO'>
+        SELECT tshcp.*
+        FROM esg.tb_safety_health_comm_plan tshcp
+        WHERE tshcp.comp_id = #{compId}
+        <if test="docNo != null and !docNo.equals('')">
+            AND tshcp.write_year = #{writeYear}
+            AND tshcp.doc_type = #{docType}
+            AND tshcp.doc_no = #{docNo}
+        </if>
+        ORDER BY tshcp.write_year DESC, tshcp.doc_no DESC, tshcp.use_yn DESC
+    </select>
+
+    <select id='getShCommPlanDetail' parameterType='kr.co.igns.business.support.model.SafetyAndHealthCommPlanVO' resultType='kr.co.igns.business.support.model.SafetyAndHealthCommPlanDetailVO'>
+        SELECT tshcpd.*
+        FROM esg.tb_safety_health_comm_plan_detail tshcpd
+        WHERE tshcpd.comp_id = #{compId}
+            AND tshcpd.write_year = #{writeYear}
+            AND tshcpd.doc_type = #{docType}
+            AND tshcpd.doc_no = #{docNo}
+            AND tshcpd.content_type = #{contentType}
+        ORDER BY tshcpd.use_yn DESC, tshcpd.ord_seq ASC
+    </select>
+
+    <insert id="insertShCommPlan" parameterType="kr.co.igns.business.support.model.SafetyAndHealthCommPlanVO">
+    <selectKey keyProperty="docNo" resultType="kr.co.igns.business.support.model.SafetyAndHealthCommPlanVO" order="BEFORE">
+				SELECT
+					LPAD((COALESCE(MAX(doc_no::INTEGER), 0) + 1)::TEXT, 5, '0') AS docNo
+			    FROM esg.tb_safety_health_comm_plan
+				WHERE write_year = #{writeYear}
+					AND doc_type = #{docType}
+	</selectKey>
+        INSERT INTO esg.tb_safety_health_comm_plan (
+            write_year,
+            doc_type,
+            doc_no,
+            comp_id,
+            title,
+            hr_id,
+            hr_nm,
+            write_dt,
+            use_yn,
+            created_at,
+            created_by
+        )
+        VALUES (
+            #{writeYear},
+            #{docType},
+            #{docNo},
+            #{compId},
+            #{title},
+            #{hrId},
+            #{hrNm},
+            #{writeDt},
+            #{useYn},
+            now(),
+            #{createdBy}
+        )
+    </insert>
+
+    <update id="updateShCommPlan" parameterType="kr.co.igns.business.support.model.SafetyAndHealthCommPlanVO">
+        UPDATE esg.tb_safety_health_comm_plan
+        SET
+            title = #{title},
+            hr_id = #{hrId},
+            hr_nm = #{hrNm},
+            write_dt = #{writeDt},
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE write_year = #{writeYear}
+          AND doc_type = #{docType}
+          AND doc_no = #{docNo}
+          AND comp_id = #{compId}
+    </update>
+
+    <update id="deleteShCommPlan" parameterType="kr.co.igns.business.support.model.SafetyAndHealthCommPlanVO">
+        UPDATE esg.tb_safety_health_comm_plan
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE write_year = #{writeYear}
+          AND doc_type = #{docType}
+          AND doc_no = #{docNo}
+          AND comp_id = #{compId}
+    </update>
+
+    <insert id="insertShCommPlanDetail" parameterType="kr.co.igns.business.support.model.SafetyAndHealthCommPlanDetailVO">
+    <selectKey keyProperty="docSeq" resultType="kr.co.igns.business.support.model.SafetyAndHealthCommPlanDetailVO" order="BEFORE">
+				SELECT
+					LPAD((COALESCE(MAX(doc_seq::INTEGER), 0) + 1)::TEXT, 5, '0') AS docSeq
+			    FROM esg.tb_safety_health_comm_plan_detail
+				WHERE write_year = #{writeYear}
+					AND doc_type = #{docType}
+                    AND doc_no = #{docNo}
+	</selectKey>
+        INSERT INTO esg.tb_safety_health_comm_plan_detail (
+            write_year,
+            doc_type,
+            doc_no,
+            doc_seq,
+            comp_id,
+            content_type,
+            content,
+            period,
+            subject,
+            method,
+            ord_seq,
+            use_yn,
+            created_at,
+            created_by
+        )
+        VALUES (
+            #{writeYear},
+            #{docType},
+            #{docNo},
+            #{docSeq},
+            #{compId},
+            #{contentType},
+            #{content},
+            #{period},
+            #{subject},
+            #{method},
+            #{ordSeq},
+            #{useYn},
+            now(),
+            #{createdBy}
+        )
+    </insert>
+
+    <update id="updateShCommPlanDetail" parameterType="kr.co.igns.business.support.model.SafetyAndHealthCommPlanDetailVO">
+        UPDATE esg.tb_safety_health_comm_plan_detail
+        SET
+            content = #{content},
+            period = #{period},
+            subject = #{subject},
+            method = #{method},
+            ord_seq = #{ordSeq},
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE write_year = #{writeYear}
+          AND doc_type = #{docType}
+          AND doc_no = #{docNo}
+          AND doc_seq = #{docSeq}
+          AND comp_id = #{compId}
+    </update>
+
+    <update id="deleteShCommPlanDetail" parameterType="kr.co.igns.business.support.model.SafetyAndHealthCommPlanVO">
+        UPDATE esg.tb_safety_health_comm_plan_detail
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE write_year = #{writeYear}
+          AND doc_type = #{docType}
+          AND doc_no = #{docNo}
+          AND doc_seq = #{docSeq}
+          AND comp_id = #{compId}
+    </update>
+</mapper>

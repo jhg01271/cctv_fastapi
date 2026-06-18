@@ -1,0 +1,233 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.mobile.hseInquries.dao.postgres.V1HseInquriesDAO">
+    <resultMap id="HseInquriesResultMap" type="kr.co.igns.mobile.hseInquries.model.HseInquriesVO">
+        <id property="id" column="id"/>
+        <result property="content" column="content"/>
+        <result property="receiptedAt" column="receiptedat"/>
+        <result property="repliedAt" column="repliedat"/>
+        <result property="actionedAt" column="actionedat"/>
+        <result property="action" column="action"/>
+        <result property="remark" column="remark"/>
+        <result property="createdAt" column="createdat"/>
+        <!-- Use custom JsonTypeHandler -->
+        <result property="writer" column="writer"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+        <result property="actor" column="actor"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>                             
+    </resultMap>
+    
+	<!-- 안전보건 상담 목록 조회 -->
+	<select id="getHseInquriesList" parameterType="kr.co.igns.mobile.hseInquries.model.HseInquriesSearchVO" resultMap="HseInquriesResultMap">
+		WITH my_organization AS (
+		    SELECT 
+		        orgn_id 
+		    FROM esg.tb_hr_info 
+		    WHERE hr_id = #{hrId} -- :hr_id
+		        AND use_yn = 'Y'
+		    LIMIT 1
+		) 
+		SELECT 
+		    CONCAT(r.write_year, '-', r.doc_type, '-', r.doc_no) AS id,
+		    r.key_content AS content, -- nullable
+		    json_build_object (
+		        'hrId', r.hr_id,
+		        'name', r.hr_nm,
+		        'jobTitle', r.jbrp_nm,
+		        'orgName', r.orgn_nm,
+		        'profileImageId', wi.file_id -- nullable
+		    ) AS writer,
+		    CASE 
+		        WHEN COALESCE(r.receipt_dt, '') != '' THEN
+		            TO_TIMESTAMP(r.receipt_dt, 'YYYYMMDD')::TIMESTAMP
+		            ELSE NULL
+		    END AS receiptedAt, -- nullable
+		    CASE 
+		        WHEN COALESCE(r.reply_dt, '') != '' THEN
+		            TO_TIMESTAMP(r.reply_dt, 'YYYYMMDD')::TIMESTAMP
+		            ELSE NULL
+		    END AS repliedAt, -- nullable
+		    CASE 
+		        WHEN COALESCE(r.action_dt, '') != '' THEN
+		            TO_TIMESTAMP(r.action_dt, 'YYYYMMDD')::TIMESTAMP
+		        ELSE NULL
+		    END AS actionedAt, -- nullable
+		    r.action_content AS action, -- nullable
+		    r.remark, -- nullable
+		    CASE 
+		        WHEN r.action_orgn_id IS NOT NULL THEN json_build_object(
+		            'id', r.action_orgn_id,
+		            'name', r.action_orgn_nm -- nullable
+		            ) 
+		        ELSE NULL
+		    END AS actor, -- nullable
+		    r.created_at AS createdAt-- nullable
+		FROM esg.tb_safety_health_info_register r 
+		LEFT JOIN esg.tb_sys_file wi 
+		    ON wi.comp_id = r.comp_id 
+		        AND wi.target_type = 'hrImg' 
+		        AND wi.target_id = r.hr_id
+		        AND wi.del_yn = 'N'
+		WHERE r.comp_id = #{compId} -- :comp_id
+		    /* :write_year; 특정 연도만 조회할 때 주석 해제 */
+		<if test="year != null">    
+		    AND r.write_year = #{year} -- :write_year
+	    </if>
+		    /* :only_mine; 내가 관련된 상담만 조회시 주석 해제 */
+        <if test="onlyMine == true">
+  			AND (r.action_orgn_id = (SELECT orgn_id FROM my_organization) OR r.hr_id = #{hrId}) -- :hr_id
+	    </if>
+		    /* :only_undone; 미조치, 미회신건만 조회시 주석 해제 */
+		    -- AND (COALESCE(r.action_dt, '') = '' OR COALESCE(r.reply_dt, '') = '')
+		    AND r.use_yn = 'Y' 
+		ORDER BY r.created_at DESC	
+	</select>
+
+	<!-- 안전보건 상담 상세 조회 -->
+	<select id="getHseInquriesDetail" parameterType="kr.co.igns.mobile.hseInquries.model.HseInquriesSearchVO" resultMap="HseInquriesResultMap">
+		SELECT 
+		        CONCAT(r.write_year, '-', r.doc_type, '-', r.doc_no) AS id,
+		        r.key_content AS content, -- nullable
+		        json_build_object (
+		                'hrId', r.hr_id,
+		                'name', r.hr_nm,
+		                'jobTitle', r.jbrp_nm,
+		                'orgName', r.orgn_nm,
+		                'profileImageId', wi.file_id -- nullable
+		        ) AS writer,
+		        CASE 
+		                WHEN COALESCE(r.receipt_dt, '') != '' THEN
+		                        TO_TIMESTAMP(r.receipt_dt, 'YYYYMMDD')::TIMESTAMP
+		                ELSE NULL
+		        END AS receiptedAt, -- nullable
+		        CASE 
+		                WHEN COALESCE(r.reply_dt, '') != '' THEN
+		                        TO_TIMESTAMP(r.reply_dt, 'YYYYMMDD')::TIMESTAMP
+		                ELSE NULL
+		        END AS repliedAt, -- nullable
+		        CASE 
+		                WHEN COALESCE(r.action_dt, '') != '' THEN
+		                        TO_TIMESTAMP(r.action_dt, 'YYYYMMDD')::TIMESTAMP
+		                ELSE NULL
+		        END AS actionedAt, -- nullable
+		        r.action_content AS action, -- nullable
+		        r.remark, -- nullable
+		        CASE 
+		                WHEN r.action_orgn_id IS NOT NULL THEN json_build_object(
+		                                'id', r.action_orgn_id,
+		                                'name', r.action_orgn_nm -- nullable
+		                        ) 
+		                ELSE NULL
+		        END AS actor, -- nullable
+		        r.created_at AS createdAt-- nullable
+		FROM esg.tb_safety_health_info_register r 
+		LEFT JOIN esg.tb_sys_file wi 
+		        ON wi.comp_id = r.comp_id 
+		                AND wi.target_type = 'hrImg' 
+		                AND wi.target_id = r.hr_id
+		                AND wi.del_yn = 'N'
+		WHERE r.comp_id = #{compId} -- :comp_id
+		        AND r.write_year = #{writeYear} -- :write_year
+		        AND r.doc_type = #{docType} -- :doc_type
+		        AND r.doc_no =#{docNo} -- :doc_no
+		        AND r.use_yn = 'Y' 
+		ORDER BY r.created_at DESC	
+	</select>
+	
+	<!-- 안전보건 상담 등록 -->
+    <insert id="saveHseInquries" parameterType="kr.co.igns.mobile.hseInquries.model.HseInquriesSaveVO">
+    <selectKey keyProperty="docNo" resultType="string" order="BEFORE">
+		SELECT
+			LPAD((COALESCE(MAX(doc_no::INTEGER), 0) + 1)::TEXT, 5, '0') AS docNo
+	    FROM esg.tb_safety_health_info_register
+		WHERE write_year = #{writeYear}
+			AND doc_type = #{docType}
+	</selectKey>
+	    INSERT INTO esg.tb_safety_health_info_register (
+	        write_year,
+	        doc_type,
+	        doc_no,
+	        comp_id,
+	        hr_id,
+	        hr_nm,
+	        orgn_id,
+	        orgn_nm,
+	        jbrp_id,
+	        jbrp_nm,
+	        use_yn,
+	        key_content,
+	        receipt_dt,
+	        created_at,
+	        created_by
+	    )
+	    SELECT
+	        #{writeYear},  -- These values are passed as parameters
+	        #{docType},
+	        #{docNo},
+	        #{compId},
+	        h.hr_id,
+	        h.hr_nm,
+	        h.orgn_id,
+	        o.orgn_nm,
+            h.jbrp AS jbrp_id,
+            jbrp.jbrp_nm,
+	        'Y',  -- Static value 'Y'
+	        #{keyContent},  -- This value is passed as a parameter
+	        #{receiptDt},   -- This value is passed as a parameter
+	        NOW(),          -- Current timestamp
+	        #{createdBy}    -- This value is passed as a parameter
+	    FROM esg.v_hr_info h
+	    LEFT JOIN esg.tb_orgn_info o ON h.orgn_id = o.orgn_id
+	        AND o.comp_id = #{compId}
+	        AND o.use_yn = 'Y'
+	    left join esg.tb_hr_info_jbrp jbrp
+            on jbrp.jbrp_id = t.jbrp
+	        AND jbrp.use_yn = 'Y'
+	    WHERE h.hr_id = #{hrId}
+	    LIMIT 1
+    </insert>
+    
+    <!-- 안전보건 상담 변경 -->
+    <update id="updateHseInquries" parameterType="kr.co.igns.mobile.hseInquries.model.HseInquriesSaveVO">
+        UPDATE esg.tb_safety_health_info_register
+        SET key_content = #{keyContent},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE write_year = #{writeYear}
+          AND doc_type = #{docType}
+          AND doc_no = #{docNo}
+          AND comp_id = #{compId}
+    </update>    
+    
+    <!-- 안전보건 상담 삭제 -->
+    <update id="deleteHseInquries" parameterType="kr.co.igns.mobile.hseInquries.model.HseInquriesSearchVO">
+        UPDATE esg.tb_safety_health_info_register
+        SET use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE write_year = #{writeYear}
+          AND doc_type = #{docType}
+          AND doc_no = #{docNo}
+    </update>   
+    
+    <!-- 안전보건 상담 조치 등록/변경 -->
+	<update id="updateHseInquriesAction" parameterType="kr.co.igns.mobile.hseInquries.model.HseInquriesActionVO">
+	    UPDATE esg.tb_safety_health_info_register
+	    SET action_content = #{actionContent},
+	        action_dt = #{actionDt},
+	        reply_dt = #{replyDt},
+	        updated_at = now(),
+	        updated_by = #{updatedBy},
+	        action_orgn_id = #{actionOrgnId},
+	        action_orgn_nm = (
+	            SELECT toi.orgn_nm
+	            FROM esg.tb_orgn_info toi
+	            WHERE toi.orgn_id = #{actionOrgnId}
+	            LIMIT 1
+	        )
+	    WHERE write_year = #{writeYear}
+	      AND doc_type = #{docType}
+	      AND doc_no = #{docNo}
+	</update>    
+</mapper>

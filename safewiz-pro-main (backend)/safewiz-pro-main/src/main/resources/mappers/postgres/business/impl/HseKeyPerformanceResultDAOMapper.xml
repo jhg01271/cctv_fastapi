@@ -1,0 +1,360 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.impl.dao.postgres.HseKeyPerformanceResultDAO">
+
+
+<select id='getHsePerformance' parameterType="kr.co.igns.system.common.model.SpSearchVO" resultType='kr.co.igns.business.planning.model.RiskAssessmentVO'>
+	SELECT
+            'hseKeyPerformanceResults' AS title
+            ,'/HseKeyPerformanceResults' AS route
+            ,'hseKeyPerformanceResultsDesc' AS description
+            , case when hseKeyPerformanceResults.exist then 'Y'
+            	else 'N'
+            	end as activeYn
+        FROM
+        (
+            SELECT EXISTS (
+                SELECT 1
+                FROM esg.tb_safety_health_objectives tsho
+                WHERE tsho.comp_id  = #{compId}
+                    AND tsho.write_year = #{writeYear}
+            ) as exist
+        ) AS hseKeyPerformanceResults
+</select>
+<select id='getSafetyAndHealthObjectives' resultType='kr.co.igns.business.planning.model.SafetyAndHealthObjectivesVO'>
+		SELECT A.comp_id
+			 , A.write_year
+			 , A.doc_type
+			 , A.doc_no
+			 , A.orgn_id
+			 , (select Z.orgn_nm
+		          from esg.tb_orgn_info Z
+		         where Z.orgn_id = A.orgn_id
+		       ) AS orgn_nm
+			 , A.revised_dt
+		     , A.enacted_dt
+		     , COUNT(DISTINCT B.doc_seq) AS doc_count
+			 , COUNT(CASE WHEN F.use_yn = 'Y' THEN F.doc_seq END) AS res_count
+             , SUM(CASE WHEN F.use_yn = 'Y' THEN F.percent::integer ELSE 0 END) AS progress_sum
+		     , A.use_yn
+             , esg.fn_getapprovalstatus('KPR',  A.write_year || A.doc_no) AS approval_status
+		  FROM esg.tb_safety_health_objectives A
+		LEFT JOIN esg.tb_safety_health_objectives_detail B 
+			   ON B.doc_type = A.doc_type
+			  AND B.doc_no = A.doc_no
+			  AND B.orgn_id = A.orgn_id
+		LEFT JOIN esg.tb_hse_key_performance_result F
+			  ON B.doc_no = F.doc_no
+			  AND B.write_year = F.write_year
+			  AND B.doc_seq = F.doc_seq
+		WHERE A.comp_id = #{compId} AND  A.use_yn = 'Y' and B.use_yn='Y'
+		GROUP BY A.comp_id, A.write_year, A.doc_type, A.doc_no, A.orgn_id
+		ORDER BY A.write_year DESC, A.doc_no DESC;
+    </select>
+    
+    <!-- 상세 조회 -->
+    <select id='getSafetyAndHealthObjectivesDetail' parameterType='kr.co.igns.business.planning.model.SafetyAndHealthObjectivesVO' resultType='kr.co.igns.business.planning.model.SafetyAndHealthObjectivesVO'>
+		SELECT A.orgn_id
+			 , A.write_year
+			 , A.doc_type
+			 , A.doc_no
+			 , A.doc_seq
+			 , A.safety_health_goal
+			 , A.detail_goal_method
+			 , A.hr_id
+			 , (select Z.hr_nm
+			      from esg.tb_hr_info Z
+			     where Z.hr_id = A.hr_id
+			   ) AS hr_nm
+			 , (select Z.orgn_nm
+		          from esg.tb_orgn_info Z
+		         where Z.orgn_id = A.orgn_id
+		       ) AS orgn_nm
+             , B.revised_dt
+		     , B.enacted_dt
+			 , A.required_resource
+			 , A.evaluation_method
+			 , A.remark
+			 , A.use_yn
+ 			 , action_doc_type
+			 , action_doc_no
+			 , action_doc_seq
+			 , action_doc_detail_seq
+			 , A.action_schedule1
+			 , A.action_schedule2
+			 , A.action_schedule3
+			 , A.action_schedule4
+			 , A.action_schedule5
+			 , A.action_schedule6
+			 , A.action_schedule7
+			 , A.action_schedule8
+			 , A.action_schedule9
+			 , A.action_schedule10
+			 , A.action_schedule11
+			 , A.action_schedule12
+             , taco.company_objective
+             , taop.action_objective
+             , tadp.detail_plan
+             , tadi.detail_item
+             , tadp.detail_item_id
+            FROM esg.tb_safety_health_objectives_detail A
+            LEFT JOIN esg.tb_safety_health_objectives B ON A.doc_type = B.doc_type AND A.write_year = B.write_year AND A.doc_no = B.doc_no 
+            LEFT JOIN esg.tb_action_objective_plan taop
+             ON A.write_year = taop.write_year
+            AND A.action_doc_type = taop.doc_type
+            AND A.action_doc_no = taop.doc_no
+            AND A.action_doc_seq = taop.doc_seq 
+            AND A.comp_id = taop.comp_id
+            LEFT join esg.tb_action_company_objective taco
+             ON taco.comp_objective_id = taop.comp_objective_id
+             LEFT JOIN esg.tb_action_detail_plan tadp
+             ON A.write_year = tadp.write_year
+            AND A.action_doc_type = tadp.doc_type
+            AND A.action_doc_no = tadp.doc_no
+            AND A.action_doc_seq = tadp.doc_seq 
+            AND A.action_doc_detail_seq = tadp.doc_detail_seq 
+            AND A.comp_id = tadp.comp_id
+            AND taop.doc_seq  = tadp.doc_seq
+            LEFT JOIN esg.tb_action_detail_item tadi
+             ON tadi.detail_item_id = tadp.detail_item_id
+		    WHERE A.doc_type = #{docType}
+		   AND A.doc_no = #{docNo}
+		    AND A.write_year = #{writeYear}
+		 ORDER BY A.doc_seq DESC, A.use_yn = 'N' ASC;
+    </select>
+	<select id='getSafetyAndHealthObjectivesReport' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.planning.model.SafetyAndHealthObjectivesVO'>
+		SELECT A.orgn_id
+			 , A.write_year
+			 , A.doc_type
+			 , A.doc_no
+			 , A.doc_seq
+			 , A.safety_health_goal
+			 , A.detail_goal_method
+			 , A.hr_id
+			 , (select Z.hr_nm
+			      from esg.tb_hr_info Z
+			     where Z.hr_id = A.hr_id
+			   ) AS hr_nm
+			 , (select Z.orgn_nm
+		          from esg.tb_orgn_info Z
+		         where Z.orgn_id = A.orgn_id
+		       ) AS orgn_nm
+             , B.revised_dt
+		     , B.enacted_dt
+			 , A.required_resource
+			 , A.evaluation_method
+			 , A.remark
+			 , A.use_yn as use_yn_main
+ 			 , action_doc_type
+			 , action_doc_no
+			 , action_doc_seq
+			 , action_doc_detail_seq
+			 , A.action_schedule1
+			 , A.action_schedule2
+			 , A.action_schedule3
+			 , A.action_schedule4
+			 , A.action_schedule5
+			 , A.action_schedule6
+			 , A.action_schedule7
+			 , A.action_schedule8
+			 , A.action_schedule9
+			 , A.action_schedule10
+			 , A.action_schedule11
+			 , A.action_schedule12
+			 , B.use_yn
+        FROM esg.tb_safety_health_objectives_detail A
+   LEFT JOIN esg.tb_safety_health_objectives B ON A.doc_type = B.doc_type AND A.write_year = B.write_year AND A.doc_no = B.doc_no
+    	WHERE A.write_year = #{writeYear}
+    	  AND A.doc_type = #{docType}
+    	  AND A.doc_no = #{docNo}
+    	  AND A.orgn_id = #{orgnId}
+		 <if test="docSeq != null">
+			AND A.doc_seq = #{docSeq}
+		 </if>
+	 ORDER BY A.doc_seq DESC;
+    </select>
+
+     <select id='getDetail' parameterType='kr.co.igns.business.planning.model.SafetyAndHealthObjectivesVO'  resultType='kr.co.igns.business.impl.model.HseKeyPerformanceResultVO'>
+        select tkpr.*, thi.hr_nm from esg.tb_hse_key_performance_result tkpr
+		LEFT JOIN esg.tb_hr_info thi on tkpr.hr_id = thi.hr_id 
+        where tkpr.doc_seq = #{docSeq} and tkpr.doc_no = #{docNo}
+		order by tkpr.doc_seq_detail ASC
+     </select>
+	<delete id='delete' parameterType='kr.co.igns.business.impl.model.HseKeyPerformanceResultVO'>
+		update esg.tb_hse_key_performance_result
+		SET use_yn = 'N'
+		, updated_at = now()
+		, updated_by = #{updatedBy}
+		WHERE doc_no = #{docNo}
+		AND write_year = #{writeYear}
+		AND doc_seq = #{docSeq}
+		AND doc_seq_detail = #{docSeqDetail};
+		
+	 </delete>
+
+	 <update id='update' parameterType='kr.co.igns.business.impl.model.HseKeyPerformanceResultVO'>
+		update esg.tb_hse_key_performance_result
+		SET hr_id = #{hrId},
+        check_dt = #{checkDt},
+	    percent = #{percent},
+		content = #{content},
+		action_result1= #{actionResult1},
+		action_result2= #{actionResult2},
+		action_result3= #{actionResult3},
+		action_result4= #{actionResult4},
+		action_result5= #{actionResult5},
+		action_result6= #{actionResult6},
+		action_result7= #{actionResult7},
+		action_result8= #{actionResult8},
+		action_result9= #{actionResult9},
+		action_result10= #{actionResult10},
+		action_result11= #{actionResult11},
+		action_result12= #{actionResult12},
+	  	use_yn= #{ useYn},
+		updated_at = now(),
+		updated_by = #{updatedBy}
+		WHERE doc_no = #{docNo}
+		AND write_year = #{writeYear}
+		AND doc_seq = #{docSeq}
+		AND doc_seq_detail = #{docSeqDetail};
+		
+	 </update>
+     <insert id='insert' parameterType='kr.co.igns.business.impl.model.HseKeyPerformanceResultVO'>
+        <selectKey keyProperty="docSeqDetail" resultType="kr.co.igns.business.impl.model.HseKeyPerformanceResultVO" order="BEFORE">
+            <![CDATA[
+            SELECT
+                LPAD((COALESCE(MAX(SUBSTRING(doc_seq_detail, 1, 5)::INTEGER), 0) + 1)::TEXT, 5, '0') AS docSeqDetail
+                FROM esg.tb_hse_key_performance_result
+         ]]>
+        </selectKey>
+        INSERT INTO esg.tb_hse_key_performance_result (
+            write_year,
+            doc_no,
+            doc_type,
+            doc_seq,
+            doc_seq_detail,
+            hr_id,
+            check_dt,
+            percent,
+            content,
+            action_result1,
+            action_result2,
+            action_result3,
+            action_result4,
+            action_result5,
+            action_result6,
+            action_result7,
+            action_result8,
+            action_result9,
+            action_result10,
+            action_result11,
+            action_result12,
+            use_yn,
+            created_at,
+            created_by
+        )
+        VALUES (
+            #{writeYear},
+            #{docNo},
+            #{docType},
+            #{docSeq},
+            #{docSeqDetail},
+            #{hrId},
+            #{checkDt},
+            #{percent},
+            #{content},
+            #{actionResult1},
+            #{actionResult2},
+            #{actionResult3},
+            #{actionResult4},
+            #{actionResult5},
+            #{actionResult6},
+            #{actionResult7},
+            #{actionResult8},
+            #{actionResult9},
+            #{actionResult10},
+            #{actionResult11},
+            #{actionResult12},
+            #{useYn},
+            now(),
+            #{createdBy}
+        )
+     </insert>
+     
+	 <select id='getReportData' parameterType='kr.co.igns.business.planning.model.SafetyAndHealthObjectivesVO' resultType='kr.co.igns.business.planning.model.SafetyAndHealthObjectivesVO'>
+		SELECT A.orgn_id
+			 , A.write_year
+			 , A.doc_type
+			 , A.doc_no
+			 , A.doc_seq
+			 , A.safety_health_goal
+			 , A.detail_goal_method
+			 , A.hr_id
+			 , (select Z.hr_nm
+			      from esg.tb_hr_info Z
+			     where Z.hr_id = A.hr_id
+			   ) AS hr_nm
+			 , (select Z.orgn_nm
+		          from esg.tb_orgn_info Z
+		         where Z.orgn_id = A.orgn_id
+		       ) AS orgn_nm
+             , B.revised_dt
+		     , B.enacted_dt
+			 , A.required_resource
+			 , A.evaluation_method
+			 , A.remark
+			 , A.use_yn
+            FROM esg.tb_safety_health_objectives_detail A
+            LEFT JOIN esg.tb_safety_health_objectives B ON A.doc_type = B.doc_type AND A.write_year = B.write_year AND A.doc_no = B.doc_no 
+		    WHERE A.doc_type = #{docType}
+		   AND A.doc_no = #{docNo}
+		   AND A.orgn_id = #{orgnId}
+		   AND A.doc_seq = #{docSeq}
+		 ORDER BY A.doc_seq DESC, A.use_yn = 'N' ASC;
+    </select>
+
+	<select id='getAllReport' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.common.model.SpSearchVO'>
+		select t1.write_year
+			, t1.comp_id
+			, t1.doc_type
+			, t1.doc_no
+			, t1.orgn_id
+		from esg.tb_safety_health_objectives t1
+		where t1.write_year = #{writeYear}
+			and t1.comp_id = #{compId}
+			and t1.use_yn = 'Y'
+	</select>
+	
+	<select id='getTaskList' parameterType='kr.co.igns.business.impl.model.HseKeyPerformanceResultVO' resultType="kr.co.igns.business.task.model.TaskVO">
+    	SELECT tmd.*
+    	FROM esg.tb_task_manager tm
+    	LEFT JOIN esg.tb_task_manager_detail tmd
+    	ON tm.comp_id = tmd.comp_id
+    	AND tm.user_id = tmd.user_id
+    	AND tm.task_year = tmd.task_year
+    	AND tm.task_month = tmd.task_month
+    	AND tm.task_day = tmd.task_day
+    	AND tm.task_seq = tmd.task_seq
+    	WHERE tmd.req_info_key = #{reqInfoKey}
+    	AND tmd.task_detail_div = #{taskDetailDiv}
+    	AND tmd.cancel_dt is null
+    	AND tmd.complete_dt is null
+    </select>
+    
+    <update id='updateTask' parameterType="kr.co.igns.business.task.model.TaskVO">
+    	UPDATE esg.tb_task_manager_detail
+    	SET complete_dt = now()
+    	WHERE user_id = #{userId}
+    	AND comp_id = #{compId} 
+    	AND task_year = #{taskYear}
+    	AND task_month = #{taskMonth}
+    	AND task_day = #{taskDay}
+    	AND task_seq = #{taskSeq}
+    	AND detail_seq = #{detailSeq};
+    	
+    	
+    
+    </update>
+    
+</mapper>

@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.participation.dao.postgres.HseObjectivesDAO">
+    <select id='getHseObjectives' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.participation.model.HseObjectivesVO'>
+        SELECT
+            'hsePolicy' AS title
+            ,'/HsePolicy' AS route
+            ,'hsePolicyDesc' AS description
+            , case when hsePolicy.exist then 'Y'
+            	else 'N'
+            	end as activeYn
+        FROM
+        (
+            SELECT EXISTS (
+                SELECT 1
+                FROM esg.tb_hse_policy thp
+                WHERE thp.comp_id  = #{compId}
+                    AND confirm_yn = 'Y'
+            ) as exist
+        ) AS hsePolicy
+        UNION ALL
+        SELECT
+            'objectivesAndActionPlan' AS title
+            ,'/ObjectivesAndActionPlan' AS route
+            ,'objectivesAndActionPlanDesc' AS description
+            , CASE WHEN objectivesAndActionPlan.exist THEN 'Y'
+            	ELSE 'N'
+            	END AS activeYn
+        FROM
+        (
+            SELECT EXISTS (
+            	SELECT 1
+                from esg.tb_approval_info tai
+	                left join esg.tb_action_objective_plan taco
+		                on taco.doc_type = tai.target_type
+		                and taco.write_year = LEFT(tai.target_id, 4)
+                        and taco.doc_no = right(tai.target_id, 5)
+	                where LEFT(tai.target_id, 4) = #{searchText}
+                	and taco.doc_type = 'OBJ'
+                	and tai.param = 'approver'
+                 	and taco.comp_id  = #{compId}
+                 	and tai.signature is not null
+            ) as exist
+        ) AS objectivesAndActionPlan
+        UNION ALL
+        SELECT
+            'detailedActionPlan' AS title
+            ,'/DetailedActionPlan' AS route
+            ,'detailedActionPlanDesc' AS description
+            , CASE WHEN DetailedActionPlan.exist THEN 'Y'
+            	ELSE 'N'
+            	END AS activeYn
+        FROM
+        (
+           SELECT EXISTS (
+                SELECT 1 
+                from esg.tb_approval_info tai
+	                left join esg.tb_action_objective_plan taco
+		                on taco.write_year = LEFT(tai.target_id, 4)
+                        and taco.doc_no = right(tai.target_id, 5)
+               	 	where LEFT(tai.target_id, 4) = #{searchText}
+	                	and tai.target_type = 'OBJP'
+	                	and tai.param = 'approver'
+	                 	and taco.comp_id  = #{compId}
+	                 	and tai.signature is not null
+            ) as exist
+        ) AS DetailedActionPlan
+    </select>
+
+
+
+    <select id='getHseOrganizationChart' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.participation.model.HseObjectivesVO'>
+        SELECT
+            'safetyAndHealthOrganChart' AS title
+             ,'/SafetyAndHealthOrganChart' AS route
+             ,'safetyAndHealthOrganChartDesc' AS description
+             , case when safetyAndHealthOrganChart.exist then 'Y'
+                    else 'N'
+            end as activeYn
+        FROM
+            (
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM esg.tb_safety_health_org_chart thp
+                    WHERE thp.comp_id  = #{compId}
+                      AND thp.use_yn = 'Y'
+                ) as exist
+            ) AS safetyAndHealthOrganChart
+    </select>
+
+
+</mapper>

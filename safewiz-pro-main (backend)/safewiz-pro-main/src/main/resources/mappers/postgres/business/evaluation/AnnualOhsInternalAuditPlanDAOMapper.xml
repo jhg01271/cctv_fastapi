@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.evaluation.dao.postgres.AnnualOhsInternalAuditPlanDAO">
+    <select id='getAnnualOhsInternalAuditPlan' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.evaluation.model.AnnualOhsInternalAuditPlanVO'>
+        select t1.*
+            , t2.orgn_nm
+        from esg.tb_annual_ohs_internal_audit_plan t1
+        left join esg.tb_orgn_info t2
+            on t1.comp_id = t2.comp_id
+            and t1.orgn_id = t2.orgn_id
+        where t1.comp_id = #{compId}
+            and t1.write_year = #{writeYear}
+        order by t1.use_yn desc, t1.created_at desc
+    </select>
+
+    <select id='getAnnualOhsInternalAuditDetailPlan' parameterType='kr.co.igns.business.evaluation.model.AuditExecutionPlanVO' resultType='kr.co.igns.business.evaluation.model.AnnualOhsInternalAuditPlanDetailVO'>
+        select t1.*
+        FROM esg.tb_annual_ohs_internal_audit_plan_detail t1
+        WHERE write_year = #{writeYear}
+          AND doc_type = #{docType}
+          AND doc_no = #{docNo}
+        ORDER BY t1.month ASC
+    </select>
+
+    <insert id="insertAnnualOhsInternalAuditPlan" parameterType="kr.co.igns.business.evaluation.model.AnnualOhsInternalAuditPlanVO">
+    <selectKey keyProperty="docNo" resultType="kr.co.igns.business.evaluation.model.AnnualOhsInternalAuditPlanVO" order="BEFORE">
+				select LPAD((coalesce(MAX(SUBSTRING(doc_no, 1, 5)::INTEGER), 0) + 1)::text, 5, '0') as docNo
+                from esg.tb_annual_ohs_internal_audit_plan
+                where write_year = #{writeYear}
+                    and doc_type = #{docType}
+	</selectKey>
+        insert into esg.tb_annual_ohs_internal_audit_plan (
+            write_year,
+            doc_type,
+            doc_no,
+            comp_id,
+            orgn_id,
+            audit_schedule1,
+            audit_schedule2,
+            audit_schedule3,
+            audit_schedule4,
+            audit_schedule5,
+            audit_schedule6,
+            audit_schedule7,
+            audit_schedule8,
+            audit_schedule9,
+            audit_schedule10,
+            audit_schedule11,
+            audit_schedule12,
+            use_yn,
+            created_at,
+            created_by
+        ) values (
+            #{writeYear},
+            #{docType},
+            #{docNo},
+            #{compId},
+            #{orgnId},
+            #{auditSchedule1},
+            #{auditSchedule2},
+            #{auditSchedule3},
+            #{auditSchedule4},
+            #{auditSchedule5},
+            #{auditSchedule6},
+            #{auditSchedule7},
+            #{auditSchedule8},
+            #{auditSchedule9},
+            #{auditSchedule10},
+            #{auditSchedule11},
+            #{auditSchedule12},
+            #{useYn},
+            now(),
+            #{createdBy}
+        )
+    </insert>
+    <update id="updateAnnualOhsInternalAuditPlan" parameterType="kr.co.igns.business.evaluation.model.AnnualOhsInternalAuditPlanVO">
+        update esg.tb_annual_ohs_internal_audit_plan set
+            orgn_id = #{orgnId},
+            audit_schedule1 = #{auditSchedule1},
+            audit_schedule2 = #{auditSchedule2},
+            audit_schedule3 = #{auditSchedule3},
+            audit_schedule4 = #{auditSchedule4},
+            audit_schedule5 = #{auditSchedule5},
+            audit_schedule6 = #{auditSchedule6},
+            audit_schedule7 = #{auditSchedule7},
+            audit_schedule8 = #{auditSchedule8},
+            audit_schedule9 = #{auditSchedule9},
+            audit_schedule10 = #{auditSchedule10},
+            audit_schedule11 = #{auditSchedule11},
+            audit_schedule12 = #{auditSchedule12},
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        where write_year = #{writeYear}
+            and doc_type = #{docType}
+            and doc_no = #{docNo}
+    </update>
+
+    <update id="deleteAnnualOhsInternalAuditPlan" parameterType="kr.co.igns.business.evaluation.model.AnnualOhsInternalAuditPlanVO">
+        update esg.tb_annual_ohs_internal_audit_plan set
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        where write_year = #{writeYear}
+            and doc_type = #{docType}
+            and doc_no = #{docNo}
+    </update>
+
+    <delete id="deleteAnnualOhsInternalAuditPlanDetail" parameterType="kr.co.igns.business.evaluation.model.AnnualOhsInternalAuditPlanVO">
+        delete from esg.tb_annual_ohs_internal_audit_plan_detail
+        where write_year = #{writeYear}
+            and doc_type = #{docType}
+            and doc_no = #{docNo}
+	</delete>
+
+    <insert id="insertAnnualOhsInternalAuditPlanDetail" parameterType="kr.co.igns.business.evaluation.model.AnnualOhsInternalAuditPlanDetailVO">
+        insert into esg.tb_annual_ohs_internal_audit_plan_detail (
+            write_year,
+            doc_type,
+            doc_no,
+            month,
+            remark,
+            created_at,
+            created_by
+        ) values (
+            #{writeYear},
+            #{docType},
+            #{docNo},
+            #{month},
+            #{remark},
+            now(),
+            #{createdBy}
+        )
+    </insert>
+
+</mapper>

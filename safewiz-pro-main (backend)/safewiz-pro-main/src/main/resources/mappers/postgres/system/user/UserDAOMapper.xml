@@ -1,0 +1,432 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.system.user.dao.postgres.UserDAO">
+	<sql id="filter">
+		<if test="useYn != null and useYn != ''">
+	    	<![CDATA[			AND tui.use_yn = #{useYn}		]]>
+		</if>
+		 <!--
+		<if test="userId != null and userId != ''">
+	    	<![CDATA[			AND us.user_id = #{userId}		]]>
+		</if>
+		-->
+		<if test='searchWords != "" and searchWords != null and searchWords.size > 0'>
+			AND
+			(
+			<foreach collection='searchWords' item='searchWord' index='idx' separator='OR' open='(' close=')'>
+				tui.user_id LIKE CONCAT('%',#{searchWord},'%')
+			</foreach>
+			OR
+			<foreach collection='searchWords' item='searchWord' index='idx' separator='OR' open='(' close=')'>
+				tui.user_nm LIKE CONCAT('%',#{searchWord},'%')
+			</foreach>
+
+			)
+
+		</if>
+	</sql>
+
+	<sql id='selectCol'>
+		tui.clnt_id,
+		tui.uuid as uid,
+		tui.user_id,
+		tui.user_nm,
+		tui.user_ps,
+		tui.last_ps_date,
+		tui.use_yn,
+		tui.login_fail_cnt,
+		tui.auth_group_cd as role,
+		tui.phone,
+		tui.signature,
+	</sql>
+
+	<insert id="insert" parameterType="kr.co.igns.system.user.model.UserVO">
+
+		INSERT INTO
+		esg.tb_user_info (
+		user_id,
+		user_nm,
+		user_ps,
+		auth_group_cd,
+		phone,
+		last_ps_date,
+		login_fail_cnt,
+		created_at,
+		created_by
+		) VALUES (
+		#{userId},
+		#{userNm},
+		#{userPs},
+		#{role},
+		#{phone},
+		now(),
+		0,
+		now(),
+		#{createdBy}
+		)
+
+	</insert>
+
+	<update id="update" parameterType="kr.co.igns.system.user.model.UserVO">
+
+		UPDATE esg.tb_user_info tui
+		SET
+		user_nm = #{userNm},
+		user_ps = #{userPs},
+		auth_group_cd = #{role},
+		phone = #{phone},
+		login_fail_cnt = #{loginFailCnt},
+		updated_at = now(),
+		updated_by = #{updatedBy},
+		signature = #{signature}
+		WHERE user_id = #{userId}
+	</update>
+
+	<update id="updateUseYn" parameterType="String">
+
+		UPDATE esg.tb_user_info
+		SET
+		use_yn = 'N',
+		updated_at = now(),
+		updated_by = #{updatedBy}
+		WHERE user_id = #{userId}
+
+	</update>
+
+	<delete id="delete" parameterType="String">
+
+		DELETE FROM esg.tb_user_info
+		WHERE user_id = #{userId}
+
+	</delete>
+
+	<select id='searchCount' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='int'>
+
+		SELECT
+		count(1)
+		FROM esg.tb_user_info tui
+
+		<!--  where 1=1 추가 -->
+		where 1=1
+		<!--  필터가 있다면 추가 -->
+
+	</select>
+
+	<select id='search' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.user.model.UserVO'>
+
+		SELECT
+		<include refid='kr.co.igns.system.user.dao.postgres.UserDAO.selectCol' />
+		created_at,
+		created_by,
+		updated_at,
+		updated_by,
+		'U' cmd
+		FROM esg.tb_user_info tui
+		WHERE 1=1
+		<!-- 필터가 있다면 추가 -->
+		<include refid='kr.co.igns.system.user.dao.postgres.UserDAO.filter' />
+		<!--  정렬순서 -->
+		ORDER BY ${sortColumn} ${sortAsc}
+		LIMIT #{listSize, jdbcType=NUMERIC} OFFSET #{listStart, jdbcType=NUMERIC}
+
+	</select>
+
+	<select id='findOne' parameterType='String' resultType='kr.co.igns.system.user.model.UserVO'>
+
+		SELECT
+		<include refid='kr.co.igns.system.user.dao.postgres.UserDAO.selectCol' />
+		sf.file_id as logoId,
+		tui.created_at,
+		tui.created_by,
+		tui.updated_at,
+		tui.updated_by,
+		thi.hr_id,
+		toi.comp_id,
+		toi.orgn_id,
+		toi.orgn_nm,
+		tui.fcm_token,
+		'U' cmd,
+		thi.jbrp,
+		tui.fcm_token,
+		tui.user_id as login_id
+		--hij.jbrp_nm
+		FROM esg.tb_user_info tui
+		LEFT JOIN esg.tb_hr_info thi ON thi.user_id = tui.user_id
+		LEFT JOIN esg.tb_orgn_info toi ON thi.orgn_id = toi.orgn_id
+		LEFT JOIN esg.tb_sys_file sf ON sf.target_id = thi.hr_id AND sf.target_type='hrImg'
+		--LEFT JOIN esg.tb_hr_info_jbrp hij ON hij.jbrp_id = hi.jbrp
+		WHERE tui.user_id = #{userId}
+
+	</select>
+
+
+	<select id='findByUid' parameterType='String' resultType='kr.co.igns.system.user.model.UserVO'>
+
+		SELECT
+		<include refid='kr.co.igns.system.user.dao.postgres.UserDAO.selectCol' />
+		tui.created_at,
+		tui.created_by,
+		tui.updated_at,
+		tui.updated_by,
+		'U' cmd,
+		thi.hr_id
+		FROM esg.tb_user_info tui
+		LEFT JOIN esg.tb_hr_info thi ON thi.user_id = tui.user_id
+		WHERE uuid = #{uid}
+	</select>
+
+	<select id='findId' parameterType='kr.co.igns.system.user.model.UserVO' resultType='kr.co.igns.system.user.model.UserVO'>
+
+		SELECT
+		<include refid='kr.co.igns.system.user.dao.postgres.UserDAO.selectCol' />
+		created_at,
+		created_by,
+		updated_at,
+		updated_by
+		FROM esg.tb_user_info tui
+		WHERE tui.email = #{email}
+		  AND tui.user_nm = #{userNm}
+
+	</select>
+
+	<select id='findPassword' parameterType='kr.co.igns.system.user.model.UserVO' resultType='int'>
+
+		SELECT COUNT(*)
+		FROM esg.tb_user_info
+		WHERE email = #{email}
+		  AND user_id = #{userId}
+
+	</select>
+
+	<select id='searchMyInfo' parameterType='kr.co.igns.system.user.model.UserVO' resultType='kr.co.igns.system.user.model.UserVO'>
+		SELECT a.user_id,
+			   a.user_nm,
+			   a.email,
+			   a.phone,
+			   a.auth_group_cd,
+			   b.sex_div,
+			   b.birth_dt,
+			   b.zip_cd,
+			   b.addrs1,
+			   b.addrs2,
+			   a.signature,
+			   c.orgn_id,
+			   c.orgn_nm,
+			   a.fcm_token,
+			   STRING_AGG(g.grp_nm, ', ') AS grp_nm,
+			   cg.grp_nm AS auth_group_nm
+		  FROM esg.tb_user_info a
+		  LEFT JOIN esg.tb_hr_info b
+		    ON b.user_id = a.user_id
+		  LEFT JOIN esg.tb_orgn_info c
+		    ON c.orgn_id = b.orgn_id
+		  LEFT JOIN esg.tb_group_hr_map ghm
+		    ON b.hr_id = ghm.hr_id
+		  LEFT JOIN esg.tb_group g
+		    ON g.comp_id = ghm.comp_id AND g.grp_id = ghm.grp_id
+		  LEFT JOIN esg.tb_comp_group cg
+		    ON cg.grp_cd = a.auth_group_cd
+		 WHERE a.user_id = #{userId}
+		 GROUP BY a.user_id, a.user_nm, a.email, a.phone, a.auth_group_cd,
+				  b.sex_div, b.birth_dt, b.zip_cd, b.addrs1, b.addrs2,
+				  a.signature, c.orgn_id, c.orgn_nm, a.fcm_token, cg.grp_nm
+	</select>
+
+	<update id="saveMyInfo" parameterType="kr.co.igns.system.user.model.UserVO">
+		update esg.tb_user_info
+		   set email = #{email}
+		     , phone = #{phone}
+		     , signature = #{signature}
+		<if test="userPs != null and !''.equals(userPs)">
+		     , user_ps = #{userPs}
+		     , last_ps_date = now()
+		     , login_fail_cnt = 0
+		</if>
+		     , updated_at = now()
+		     , updated_by = #{userId}
+		 where user_id = #{userId};
+
+		update esg.tb_hr_info
+		   set sex_div = #{sexDiv}
+		     , birth_dt = #{birthDt}
+		     , zip_cd = #{zipCd}
+		     , addrs1 = #{addrs1}
+		     , addrs2 = #{addrs2}
+		     , updated_at = now()
+		     , updated_by = #{userId}
+		 where user_id = #{userId};
+	</update>
+
+	<select id='getOrgnHead' parameterType='String' resultType='kr.co.igns.system.user.model.UserVO'>
+		select a.hr_id as orgnHeadId,
+			   b.hr_nm as orgnHeadNm
+		from esg.tb_hr_incharge_map a
+		left join esg.tb_hr_info b on a.hr_id = b.hr_id
+		where
+
+		  a.target_id = (select orgn_id from esg.tb_hr_info where hr_id = #{hrId})
+		  and a.gubun = 'HEAD'
+		  and a.target_type = 'orgn'
+	</select>
+
+	<select id='getJbrpByUserId' parameterType='kr.co.igns.system.user.model.UserVO' resultType='kr.co.igns.system.user.model.UserVO'>
+		select c.jbrp_id, c.jbrp_nm
+		  from esg.tb_hr_info a
+     left join esg.tb_hr_info_comp_map b on a.hr_id = b.hr_id and b.user_id = #{userId}
+	 left join esg.tb_hr_info_jbrp c on b.comp_id = c.comp_id and a.jbrp = c.jbrp_id
+		 where b.orgn_comp_yn = 'Y'
+	</select>
+
+	<insert id="saveLoginHistory" parameterType="kr.co.igns.system.setting.model.LoginHistoryVO">
+
+		INSERT INTO esg.tb_user_login_hi (
+			login_dt,
+			user_id,
+			login_date,
+			login_ip,
+			login_device,
+			login_success_yn
+		)
+		VALUES (
+				   TO_CHAR(NOW(), 'YYYYMM'),
+				   #{userId},
+				   now(),
+				   #{loginIp},
+				   #{loginDevice},
+				   #{loginSuccessYn}
+			   )
+
+	</insert>
+
+	<update id="updateLoginUserInfo" parameterType="kr.co.igns.system.setting.model.LoginHistoryVO">
+        update esg.tb_user_info set
+			last_login_date = now(),
+        	last_login_os = #{loginDevice},
+        	user_ip = #{loginIp},
+        	login_fail_cnt = 0
+        where user_id = #{userId}
+    </update>
+
+	<!-- 로그인 실패 시 - 로그인 실패 횟수 증가 -->
+	<update id="increaseLoginFailCnt" parameterType="kr.co.igns.system.setting.model.LoginHistoryVO">
+		update esg.tb_user_info
+	    set login_fail_cnt = coalesce(login_fail_cnt, 0) + 1
+	    where user_id = #{userId}
+    </update>
+	<!--  로그인 실패 횟수 초기화 -->
+	<update id="resetLoginFailCnt" parameterType="kr.co.igns.system.setting.model.LoginHistoryVO">
+		update esg.tb_user_info
+	    set login_fail_cnt = 0
+	    where user_id = #{userId}
+    </update>
+
+	<update id="updateFcmToken" parameterType="kr.co.igns.system.user.model.UserVO">
+		update esg.tb_user_info
+		set fcm_token = #{fcmToken}
+		where user_id = #{userId};
+	</update>
+	<select id='getAllTokenUser' parameterType='kr.co.igns.system.user.model.UserVO' resultType='kr.co.igns.system.user.model.UserVO'>
+		select b.user_id
+		from esg.tb_hr_info a
+				 left join esg.tb_user_info b on a.user_id = b.user_id
+				 left join esg.tb_hr_info_comp_map c on a.hr_id = c.hr_id
+		where b.fcm_token is not null
+		  and c.comp_id = #{compId}
+		  and c.orgn_comp_yn = 'Y'
+	</select>
+
+	<select id='getTokenByUserId' parameterType='java.lang.String' resultType='java.lang.String'>
+		select b.fcm_token
+		from esg.tb_hr_info a
+				 left join esg.tb_user_info b on a.user_id = b.user_id
+				 left join esg.tb_hr_info_comp_map c on a.hr_id = c.hr_id
+		where b.fcm_token is not null
+		  and b.user_id = #{userId}
+		  and c.orgn_comp_yn = 'Y'
+	</select>
+
+	<select id='getMyLastLoginDevice' parameterType='java.lang.String' resultType='java.lang.String'>
+		select login_device
+		  from esg.tb_user_login_hi
+		 where user_id = #{userId}
+	  order by login_date desc
+		 limit 1
+	</select>
+
+
+
+	<!-- 임시 파일 디렉토리 변경용도 -->
+	<select id='getSystemFileList' resultType='kr.co.igns.system.common.model.FileVO'>
+		select *
+		from esg.tb_sys_file
+		where target_type = 'clientLogo'
+			or target_type = 'compLogo'
+			or target_type = 'CF001'
+	</select>
+	<update id="updateSystemFile" parameterType="String">
+		update esg.tb_sys_file
+		set
+			file_path = '개발실\■ Project\ESG경영\ESG_File_Upload\safewizpro\system\' || target_type || '\' || target_id
+		where file_id = #{fileId}
+	</update>
+
+	<select id='getBaseFileList' resultType='kr.co.igns.system.common.model.FileVO'>
+		select *
+		from esg.tb_sys_file
+		where target_type != 'clientLogo'
+			and target_type != 'compLogo'
+			and target_type != 'CF001'
+	</select>
+	<update id="updateBaseFile" parameterType="String">
+		update esg.tb_sys_file
+		set
+			file_path = '개발실\■ Project\ESG경영\ESG_File_Upload\safewizpro\' || comp_id || '\' || target_type  || '\' || target_id
+		where file_id = #{fileId}
+	</update>
+
+	<select id='getNormalFileList' resultType='kr.co.igns.system.common.model.FileVO'>
+		select *
+		from esg.tb_sys_file
+		where target_type != 'clientLogo'
+			and target_type != 'compLogo'
+			and target_type != 'CF001'
+			and target_type != 'partnerLogo'
+			and target_type != 'partnerLocation'
+			and target_type != 'hrImg'
+			and target_type != 'workplaceThumbnail'
+			and target_type != 'equipment'
+			and target_type != 'process'
+			and target_type != 'msds'
+			and target_type != 'facilityEquip'
+	</select>
+
+	<update id="updateNormalFile" parameterType="String">
+		update esg.tb_sys_file
+		set
+			file_path = '개발실\■ Project\ESG경영\ESG_File_Upload\safewizpro\' || comp_id || '\' || #{year} || '\'  || target_type  || '\' || target_id
+		where file_id = #{fileId}
+	</update>
+
+    <insert id="insertApiTokenUser" parameterType="String">
+        INSERT INTO esg.tb_user_info (
+            clnt_id,
+            user_id,
+            user_nm,
+            user_ps,
+            auth_group_cd,
+            created_at,
+            created_by
+        )
+        VALUES (
+                   '999999999999',
+                   #{userId},
+                   '외부 API 사용 임시 계정',
+                   '999999999999',
+                   'USER',
+                   now(),
+                   'SYSTEM'
+               )
+
+    </insert>
+</mapper>

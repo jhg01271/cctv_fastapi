@@ -1,0 +1,447 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.improvement.dao.postgres.ProvisionAndMgmtPPEDAO">
+
+	<!-- 마스터 목록 조회 -->
+	<select id="getProvisionAndMgmtPPEList" parameterType="kr.co.igns.system.common.model.SpSearchVO" resultType="kr.co.igns.business.improvement.model.ProvisionAndMgmtPPEVO">
+	    SELECT *
+	    FROM (
+	        SELECT 
+	            SUBSTRING(tpm.receipt_dt, 1, 8) AS receipt,
+	            SUBSTRING(tpm.receipt_dt, 5, 2) AS receipt_month,
+	            SUBSTRING(tpm.receipt_dt, 1, 6) AS receipt_month_group,  -- yyyyMM 단위
+	            tpm.ppe_id,
+	            tdp.ppe_nm,
+	
+	            -- 해당 월의 가장 최신 receipt_dt
+	            MAX(tpm.receipt_dt) OVER (PARTITION BY tpm.ppe_id, SUBSTRING(tpm.receipt_dt, 1, 6)) AS receipt_dt,
+	
+	            (
+	                SELECT store_qty
+	                FROM esg.tb_ppe_manage
+	                WHERE comp_id = #{compId}
+	                  AND ppe_id = tpm.ppe_id
+	                ORDER BY write_year DESC, doc_no DESC
+	                LIMIT 1
+	            ) AS store_qty,
+	
+	            (
+	                SELECT MAX(receipt_dt)
+	                FROM esg.tb_ppe_manage
+	                WHERE comp_id = #{compId}
+	                  AND ppe_id = tpm.ppe_id
+	            ) AS last_receipt_dt,
+	
+	            COUNT(*) OVER (PARTITION BY tpm.ppe_id, SUBSTRING(tpm.receipt_dt, 1, 6)) AS receipt_cnt, -- 월별 건수
+	            ROW_NUMBER() OVER (PARTITION BY tpm.ppe_id, SUBSTRING(tpm.receipt_dt, 1, 6) ORDER BY tpm.receipt_dt DESC) AS rn, -- 최신순으로 추출
+	
+	            #{writeYear} AS write_year,
+	            tdp.use_yn
+	        FROM esg.tb_ppe_manage tpm
+	        JOIN esg.tb_ppe_items tdp
+	          ON tpm.ppe_id = tdp.ppe_id
+	         AND tpm.comp_id = tdp.comp_id
+	        WHERE tpm.comp_id = #{compId}
+	        <if test="writeYear != null and writeYear != ''">
+	            AND tpm.write_year = #{writeYear}
+	        </if>
+	        <if test="docDetailSeq != null and docDetailSeq != ''">
+	            AND tpm.receipt_dt = #{docDetailSeq}
+	        </if>
+	        <if test="docSeq != null and docSeq != ''">
+	            AND tpm.ppe_id = #{docSeq}
+	        </if>
+	    ) sub
+	    WHERE rn = 1
+	    ORDER BY use_yn desc, receipt_month_group desc, ppe_id
+	</select>
+
+	<!-- 상세 목록 조회 -->
+    <select id='getProvisionAndMgmtPPEDetailList' parameterType='kr.co.igns.business.improvement.model.ProvisionAndMgmtPPEVO'  resultType='kr.co.igns.business.improvement.model.ProvisionAndMgmtPPEVO'>
+		select tpm.write_year
+			 , tpm.doc_type 
+			 , tpm.doc_no 
+			 , tpm.comp_id
+			 , tpm.orgn_id
+			 , (select orgn_nm from esg.tb_orgn_info toi where orgn_id= tpm.orgn_id) as orgn_nm
+			 , tpm.receipt_dt 
+			 , tpm.ppe_id 
+			 , tdp.ppe_nm 
+			 , tdp.provision_standard
+			 , tdp.provision_target
+			 , (tpm.store_qty - tpm.in_qty + tpm.out_qty ) as last_store_qty  
+			 , tpm.in_qty 
+			 , tpm.out_qty 
+			 , tpm.store_qty
+			 , tpm.remark
+			 , tpm.created_at 
+			 , tpm.created_by 
+			 , tpm.updated_at 
+			 , tpm.updated_by 
+			 , case when (select write_year || doc_no from esg.tb_ppe_manage where ppe_id = tpm.ppe_id order by write_year desc, doc_no desc limit 1) = (tpm.write_year || tpm.doc_no) then 'Y'
+			        else 'N'
+			    end islast
+		  from esg.tb_ppe_manage tpm 
+		  join esg.tb_ppe_items tdp on tpm.ppe_id = tdp.ppe_id and tpm.comp_id = tdp.comp_id
+		where tpm.comp_id = #{compId}
+           and tpm.ppe_id = #{ppeId}
+           and tpm.write_year = #{writeYear}
+           and SUBSTRING(TPM.RECEIPT_DT,0,7) = #{receiptMonth}
+           order by doc_no desc
+    </select>
+
+	<!-- 안전보호구 지급 및 관리  추가 -->
+	<insert id="insertProvisionAndMgmtPPE" parameterType="kr.co.igns.business.improvement.model.ProvisionAndMgmtPPEVO" useGeneratedKeys="true" keyProperty="docNo">
+
+		<selectKey keyProperty="docNo" resultType="string" order="BEFORE">
+    	     SELECT case when max(doc_no) is null then '00001'
+				         else LPAD(CAST(max(doc_no)::BIGINT +1 as TEXT),5,'0')
+				          end as doc_no
+			   FROM esg.tb_ppe_manage
+			   where write_year = SUBSTRING(#{receiptDt}, 1, 4)
+    	</selectKey>
+
+		INSERT INTO esg.tb_ppe_manage 
+		 (
+			write_year,
+			doc_type,
+			doc_no,
+			comp_id,
+			ppe_id,
+			orgn_id,
+			receipt_dt,
+			in_qty,
+			out_qty,
+			store_qty,
+			remark,
+			created_at,
+			created_by
+  		 )
+  		VALUES
+  		 (
+			SUBSTRING(#{receiptDt}, 1, 4),
+			'PPE',
+			#{docNo},
+			#{compId},
+			#{ppeId},
+			#{orgnId},
+			#{receiptDt},
+			#{inQty},
+			#{outQty},
+			#{storeQty},
+			#{remark},
+			now(),
+			#{createdBy}
+		 )
+	</insert>
+
+	<!-- 안전보호구 지급 및 관리  삭제 -->
+    <delete id="deleteProvisionAndMgmtPPE" parameterType="kr.co.igns.business.improvement.model.ProvisionAndMgmtPPEVO">
+    	delete from esg.tb_ppe_manage
+		 WHERE write_year = #{writeYear}
+		   AND doc_type = #{docType}
+		   AND doc_no = #{docNo}
+	</delete>
+
+	<!-- Report 출력 용 -->
+    <select id='getReportDataProvisionAndMgmt' parameterType='kr.co.igns.business.improvement.model.ProvisionAndMgmtPPEVO'  resultType='kr.co.igns.business.improvement.model.ProvisionAndMgmtPPEVO'>
+		WITH PPE_DATA AS (
+			SELECT
+				ppe_id,
+				in_qty,
+				out_qty,
+				store_qty,
+				(store_qty - in_qty + out_qty) AS last_store_qty,
+				orgn_id,
+				receipt_dt,
+				write_year,
+				doc_type,
+				doc_no,
+				comp_id
+			FROM esg.tb_ppe_manage
+			WHERE receipt_dt LIKE #{writeYear} || #{receiptMonth} || '%'
+			  AND ppe_id = #{ppeId}
+		)
+		SELECT
+			ppe_nm,
+			COALESCE(receipt_dt, FIRST_VALUE(receipt_dt) OVER ()) AS receipt_dt,
+			ordseq,
+			gubun,
+			COALESCE(CAST(qty AS varchar), '') AS qty,
+			COALESCE(orgn_nm, FIRST_VALUE(orgn_nm) OVER ()) AS orgn_nm,
+			COALESCE(manager_nm, FIRST_VALUE(manager_nm) OVER ()) AS manager_nm,
+			signature,
+			doc_no,
+			ppe_id,
+			ord AS ppeOrd
+		FROM (
+			SELECT
+				ppe_nm,
+				receipt_dt,
+				ordseq,
+				ord,
+				gubun,
+				qty,
+				orgn_nm || ' / ' || result_cnt || '명' AS orgn_nm,
+				manager_nm,
+		        signature,
+				doc_no,
+				ppe_id
+			FROM (
+				-- 입고
+				SELECT
+					ppe_nm,
+					receipt_dt,
+					ordSeq,
+					gubun,
+					SUM(qty) AS qty,
+					orgn_nm,
+					manager_nm,
+		            signature,
+					MAX(doc_no) AS doc_no,
+					ppe_id,
+					ord,
+					result_cnt
+				FROM (
+					SELECT
+						A.ppe_nm,
+						SUBSTRING(B.receipt_dt,5,2) || '월 ' || SUBSTRING(B.receipt_dt,7,2) || '일' AS receipt_dt,
+						1 AS ordSeq,
+						'입고' AS gubun,
+						B.in_qty AS qty,
+						(SELECT orgn_nm FROM esg.tb_orgn_info toi WHERE orgn_id = B.orgn_id) AS orgn_nm,
+						(SELECT thi.hr_nm
+						 FROM esg.tb_hr_info thi
+						 JOIN esg.tb_approval_info tai
+						   ON thi.hr_id = tai.hr_id
+						  AND tai.target_type = 'PPE'
+						  AND tai.target_id = (B.write_year || B.doc_no || B.ppe_id)
+						 LIMIT 1) AS manager_nm,
+						(SELECT tai.signature
+						 FROM esg.tb_approval_info tai
+						 JOIN esg.tb_hr_info thi ON thi.hr_id = tai.hr_id
+						 WHERE tai.target_type = 'PPE'
+						   AND tai.target_id = (B.write_year || B.doc_no || B.ppe_id)
+						 LIMIT 1) AS signature,
+						B.doc_no,
+						A.ppe_id,
+						A.ord_seq AS ord,
+						(SELECT COUNT(*) FROM esg.tb_hr_info thi WHERE thi.orgn_id = B.orgn_id) AS result_cnt
+					FROM ESG.tb_ppe_items A
+					FULL OUTER JOIN PPE_DATA B
+					  ON A.ppe_id = B.ppe_id
+					 AND A.comp_id = B.comp_id
+					WHERE A.use_yn = 'Y'
+					  AND A.ppe_id = #{ppeId}
+				) intable
+				GROUP BY ppe_nm, receipt_dt, ordSeq, gubun, orgn_nm, manager_nm, signature, ppe_id, ord, result_cnt, doc_no
+
+				UNION ALL
+
+				-- 지급
+				SELECT
+					ppe_nm,
+					receipt_dt,
+					ordSeq,
+					gubun,
+					SUM(qty) AS qty,
+					orgn_nm,
+					manager_nm,
+		            signature,
+					MAX(doc_no) AS doc_no,
+					ppe_id,
+					ord,
+					result_cnt
+				FROM (
+					SELECT
+						A.ppe_nm,
+						SUBSTRING(B.receipt_dt,5,2) || '월 ' || SUBSTRING(B.receipt_dt,7,2) || '일' AS receipt_dt,
+						2 AS ordSeq,
+						'지급' AS gubun,
+						B.out_qty AS qty,
+						(SELECT orgn_nm FROM esg.tb_orgn_info toi WHERE orgn_id = B.orgn_id) AS orgn_nm,
+						(SELECT thi.hr_nm
+						 FROM esg.tb_hr_info thi
+						 JOIN esg.tb_approval_info tai
+						   ON thi.hr_id = tai.hr_id
+						  AND tai.target_type = 'PPE'
+						  AND tai.target_id = (B.write_year || B.doc_no || B.ppe_id)
+						 LIMIT 1) AS manager_nm,
+						(SELECT tai.signature
+						 FROM esg.tb_approval_info tai
+						 JOIN esg.tb_hr_info thi ON thi.hr_id = tai.hr_id
+						 WHERE tai.target_type = 'PPE'
+						   AND tai.target_id = (B.write_year || B.doc_no || B.ppe_id)
+						 LIMIT 1) AS signature,
+						B.doc_no,
+						A.ppe_id,
+						A.ord_seq AS ord,
+						(SELECT COUNT(*) FROM esg.tb_hr_info thi WHERE thi.orgn_id = B.orgn_id) AS result_cnt
+					FROM ESG.tb_ppe_items A
+					FULL OUTER JOIN PPE_DATA B
+					  ON A.ppe_id = B.ppe_id
+					 AND A.comp_id = B.comp_id
+					WHERE A.use_yn = 'Y'
+					  AND A.ppe_id = #{ppeId}
+				) outtable
+				GROUP BY ppe_nm, receipt_dt, ordSeq, gubun, orgn_nm, manager_nm, signature, ppe_id, ord, result_cnt, doc_no
+
+				UNION ALL
+
+				-- 현재고
+-- 				SELECT DISTINCT ON (ppe_nm, receipt_dt, orgn_nm, manager_nm) *
+ 				SELECT *
+				FROM (
+					SELECT
+						A.ppe_nm,
+						SUBSTRING(B.receipt_dt,5,2) || '월 ' || SUBSTRING(B.receipt_dt,7,2) || '일' AS receipt_dt,
+						3 AS ordSeq,
+						'현재고' AS gubun,
+						(FIRST_VALUE(B.last_store_qty) OVER (
+							 PARTITION BY B.ppe_id, B.orgn_id
+							 ORDER BY B.doc_no
+							 ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+						 )
+						 + SUM(COALESCE(B.in_qty,0) - COALESCE(B.out_qty,0)) OVER (
+							 PARTITION BY B.ppe_id, B.orgn_id
+							 ORDER BY B.doc_no
+							 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+						 )) AS qty,
+						(SELECT orgn_nm FROM esg.tb_orgn_info toi WHERE orgn_id = B.orgn_id) AS orgn_nm,
+						(SELECT thi.hr_nm
+						 FROM esg.tb_hr_info thi
+						 JOIN esg.tb_approval_info tai
+						   ON thi.hr_id = tai.hr_id
+						  AND tai.target_type = 'PPE'
+						  AND tai.target_id = (B.write_year || B.doc_no || B.ppe_id)
+						 LIMIT 1) AS manager_nm,
+						(SELECT tai.signature
+						 FROM esg.tb_approval_info tai
+						 JOIN esg.tb_hr_info thi ON thi.hr_id = tai.hr_id
+						 WHERE tai.target_type = 'PPE'
+						   AND tai.target_id = (B.write_year || B.doc_no || B.ppe_id)
+						 LIMIT 1) AS signature,
+						B.doc_no,
+						A.ppe_id,
+						A.ord_seq AS ord,
+						(SELECT COUNT(*) FROM esg.tb_hr_info thi WHERE thi.orgn_id = B.orgn_id) AS result_cnt
+					FROM ESG.tb_ppe_items A
+					FULL OUTER JOIN PPE_DATA B
+					  ON A.ppe_id = B.ppe_id
+					 AND A.comp_id = B.comp_id
+					WHERE A.use_yn = 'Y'
+					  AND A.ppe_id = #{ppeId}
+				) nowtable
+				ORDER BY ppe_nm, orgn_nm, manager_nm, receipt_dt DESC
+			) t1
+			ORDER BY receipt_dt DESC NULLS LAST, ppe_id, doc_no DESC, ordSeq ASC
+		) t
+		ORDER BY ord;
+    </select>
+	
+	
+	
+	<!-- 안전보호구 품목 조회 -->
+    <select id='getDatasetPPEList' parameterType='kr.co.igns.system.common.model.SpSearchVO'  resultType='kr.co.igns.business.improvement.model.ProvisionAndMgmtPPEVO'>
+		select tdp.*
+		     , (select MAX(receipt_dt) from esg.tb_ppe_manage where comp_id = #{compId} and ppe_id = tdp.ppe_id) as last_receipt_dt
+			 , (select store_qty from esg.tb_ppe_manage where comp_id = #{compId} and ppe_id = tdp.ppe_id order by write_year desc, doc_no desc limit 1) as store_qty
+		  from esg.tb_ppe_items tdp
+		  where comp_id = #{compId}
+		  order by ord_seq
+    </select>
+    
+    <!-- 안전보호구 품목 조회 (리포트에선 use_yn = Y인것만) -->
+    <select id='getDatasetPPEListReport' parameterType='kr.co.igns.system.common.model.SpSearchVO'  resultType='kr.co.igns.business.improvement.model.ProvisionAndMgmtPPEVO'>
+		select tdp.*
+		     , (select MAX(receipt_dt) from esg.tb_ppe_manage where comp_id = #{compId} and ppe_id = tdp.ppe_id) as last_receipt_dt
+			 , (select store_qty from esg.tb_ppe_manage where comp_id = #{compId} and ppe_id = tdp.ppe_id order by write_year desc, doc_no desc limit 1) as store_qty
+		  from esg.tb_ppe_items tdp
+		  where comp_id = #{compId}
+		    and use_yn = 'Y'
+		  order by ord_seq
+    </select>
+    
+    <!-- 안전보호구 품목 조회 (체크박스에 선택 된 것만) -->
+<select id="getReportPPEManagementchk" parameterType="map" resultType="kr.co.igns.business.improvement.model.ProvisionAndMgmtPPEVO">
+    SELECT tdp.*,
+           (SELECT MAX(receipt_dt)
+            FROM esg.tb_ppe_manage
+            WHERE comp_id = #{compId}
+            AND ppe_id = tdp.ppe_id) AS last_receipt_dt,
+           (SELECT store_qty
+            FROM esg.tb_ppe_manage
+            WHERE comp_id = #{compId}
+            AND ppe_id = tdp.ppe_id
+            ORDER BY write_year DESC, doc_no DESC
+            LIMIT 1) AS store_qty
+    FROM esg.tb_ppe_items tdp
+    WHERE comp_id = #{compId}
+      AND use_yn = 'Y'
+      AND ppe_id IN
+      <foreach item="ppeId" collection="ppeIdList" open="(" separator="," close=")">
+          #{ppeId}
+      </foreach>
+    ORDER BY ord_seq
+</select>
+	
+	<!-- 안전보호구 품목  추가 -->
+	<insert id="insertDatasetPPE" parameterType="kr.co.igns.business.improvement.model.ProvisionAndMgmtPPEVO" useGeneratedKeys="true" keyProperty="ppeId">
+
+		<selectKey keyProperty="ppeId" resultType="string" order="BEFORE">
+			SELECT TO_CHAR(now(), 'yyyymmdd') || lpad((COALESCE(MAX(SUBSTRING(ppe_id from 9 for 4))::int, 0) + 1)::text , 4, '0') as ppe_id
+			  FROM esg.tb_ppe_items
+			 WHERE ppe_id like to_char(now(), 'yyyymmdd') || '%'
+    	</selectKey>
+
+		INSERT INTO esg.tb_ppe_items
+		 (
+			comp_id,
+			ppe_id, 
+			ppe_nm,
+			provision_standard,
+			provision_target,
+			use_yn,
+			ord_seq,
+			created_at,
+			created_by
+  		 )
+  		VALUES
+  		 (
+			#{compId},
+			#{ppeId},
+			#{ppeNm},
+			#{provisionStandard},
+			#{provisionTarget},
+			#{useYn},
+			#{ordSeq},
+			now(),
+			#{createdBy}
+		 )
+	</insert>
+	
+	<!-- 안전보호구 품목  수정 -->
+	<update id="updateDatasetPPE" parameterType="kr.co.igns.business.improvement.model.ProvisionAndMgmtPPEVO">
+		UPDATE esg.tb_ppe_items
+		   SET ppe_nm = #{ppeNm}
+		     , provision_standard = #{provisionStandard}	
+			 , provision_target= #{provisionTarget}	
+			 , use_yn = #{useYn}	
+			 , ord_seq = #{ordSeq}
+			 , updated_at = now()
+			 , updated_by = #{createdBy}	
+		 WHERE comp_id = #{compId}
+		   AND ppe_id = #{ppeId}
+	</update>
+	
+	<!-- 안전보호구 품목  삭제 -->
+    <delete id="deleteDatasetPPE" parameterType="kr.co.igns.business.improvement.model.ProvisionAndMgmtPPEVO">
+    	update esg.tb_ppe_items
+    	   set use_yn = 'N'
+			 , updated_at = now()
+			 , updated_by = #{createdBy}
+		 WHERE comp_id = #{compId}
+		   AND ppe_id = #{ppeId}
+	</delete>
+</mapper>

@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.comp.master.dao.postgres.CompCodeDAO">
+
+    <sql id='selectCol'>
+        cc.code_seq,
+        cc.code,
+        cc.code_nm,
+        cc.code_odr,
+        cc.code_rmk,
+        cc.up_code_seq,
+        cc.del_yn
+    </sql>
+
+    <sql id="filter">
+        <if test="delYn != null and delYn != ''">
+            <![CDATA[			AND cc.del_yn = #{delYn}		]]>
+        </if>
+        <if test='searchWords != "" and searchWords != null and searchWords.size > 0'>
+            AND
+            (
+            <foreach collection='searchWords' item='searchWord' index='idx' separator='OR' open='(' close=')'>
+                cc.code LIKE CONCAT('%',#{searchWord},'%')
+            </foreach>
+            OR
+            <foreach collection='searchWords' item='searchWord' index='idx' separator='OR' open='(' close=')'>
+                cc.code_nm LIKE CONCAT('%',#{searchWord},'%')
+            </foreach>
+            )
+        </if>
+    </sql>
+
+    <insert id="insert" parameterType="kr.co.igns.business.comp.master.model.CompCodeVO" useGeneratedKeys="true" keyProperty="compCodeSeq">
+
+        INSERT INTO
+        esg.tb_comp_code (
+        up_code_seq,
+        comp_id,
+        code,
+        code_nm,
+        code_rmk,
+        code_odr,
+        del_yn,
+        created_at,
+        created_by
+        ) VALUES (
+        #{upCodeSeq},
+        #{compId},
+        #{code},
+        #{codeNm},
+        #{codeRmk},
+        #{codeOdr},
+        'N',
+        now(),
+        #{createdBy}
+        )
+
+    </insert>
+
+    <update id="update" parameterType="kr.co.igns.business.comp.master.model.CompCodeVO">
+
+        UPDATE esg.tb_comp_code
+        SET
+        up_code_seq = #{upCodeSeq},
+        code = #{code},
+        code_nm = #{codeNm},
+        code_rmk = #{codeRmk},
+        code_odr = #{codeOdr},
+        del_yn = #{delYn},
+        updated_at = now(),
+        updated_by = #{updatedBy}
+        WHERE code_seq = #{codeSeq}
+
+    </update>
+
+    <update id="updateDelYn" parameterType="Long">
+
+        UPDATE esg.tb_comp_code
+        SET
+        del_yn = 'Y',
+        updated_at = now(),
+        updated_by = #{updatedBy}
+        WHERE code_seq = #{codeSeq}
+
+    </update>
+
+    <delete id="delete" parameterType="Long">
+        DELETE FROM esg.tb_comp_code
+        WHERE code_seq = #{codeSeq}
+    </delete>
+
+    <select id='searchCount' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='int'>
+
+        SELECT
+        count(1)
+        FROM esg.tb_comp_code cc
+        WHERE cc.comp_id = #{compId}
+        <include refid='kr.co.igns.business.comp.master.dao.postgres.CompCodeDAO.filter' />
+    </select>
+    
+    <select id='search' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.comp.master.model.CompCodeVO'>
+
+        SELECT
+        created_at,
+        updated_at,
+        'U' cmd,
+        <include refid='kr.co.igns.business.comp.master.dao.postgres.CompCodeDAO.selectCol' />
+        FROM esg.tb_comp_code cc
+        WHERE cc.comp_id = #{compId}
+        <include refid='kr.co.igns.business.comp.master.dao.postgres.CompCodeDAO.filter' />
+        ORDER BY cc.code_odr
+    </select>
+
+    <select id='findOne' parameterType='Long' resultType='kr.co.igns.business.comp.master.model.CompCodeVO'>
+
+        SELECT
+        <include refid='kr.co.igns.business.comp.master.dao.postgres.CompCodeDAO.selectCol' />
+        FROM esg.tb_comp_code cc
+        WHERE cc.code_seq = #{codeSeq}
+
+    </select>
+
+    <select id='findByUpCode' parameterType='String' resultType='kr.co.igns.business.comp.master.model.CompCodeVO'>
+
+        SELECT
+        created_at,
+        updated_at,
+        'U' cmd,
+        <include refid='kr.co.igns.business.comp.master.dao.postgres.CompCodeDAO.selectCol' />
+        FROM esg.tb_comp_code cc
+        WHERE cc.up_code_seq = (
+						        SELECT code_seq
+						        FROM esg.tb_comp_code
+						        WHERE comp_id = #{compId}
+						        AND code = #{code}
+						        )
+        AND cc.del_yn = 'N'
+    </select>
+
+</mapper>

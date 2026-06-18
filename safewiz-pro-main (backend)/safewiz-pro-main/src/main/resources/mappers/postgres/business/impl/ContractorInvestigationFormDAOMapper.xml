@@ -1,0 +1,414 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.impl.dao.postgres.ContractorInvestigationFormDAO">
+    <select id='getInvestigationFormList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.ContractorInvestigationFormVO'>
+        select t1.write_year
+        ,t1.doc_type
+        ,t1.doc_no
+        ,t1.comp_id
+        ,t1.part_comp_id
+        ,part_comp_nm
+        , t1.desc
+        , t1.part_comp_item
+        , t1.zip_cd
+        , t1.addrs1
+        , t1.addrs2
+        , t1.exam_dt
+        , t1.use_yn
+        , t1.created_at
+        , t1.created_by
+        , t1.updated_at
+        , t1.updated_by
+        , t2.part_comp_item_nm as partCompItemNm
+        <if test="docNo != null and !docNo.equals('')">
+            , t3.signature as investigator1Sign
+            , t4.signature as investigator2Sign
+        </if>
+        , t3.hr_nm as investigator1Nm
+        , t4.hr_nm as investigator2Nm
+        , case
+        when t3.hr_id is not null and t3.signature is not null and t4.hr_id is null and t4.signature is null then 'Y'
+        when t3.hr_id is not null and t3.signature is not null and t4.hr_id is not null and t4.signature is null then 'I'
+        when t3.hr_id is not null and t3.signature is not null and t4.hr_id is not null and t4.signature is not null then 'Y'
+        when t3.hr_id is not null and t3.signature is null and t4.hr_id is null and t4.signature is null then 'C'
+        when t3.hr_id is not null and t3.signature is null and t4.hr_id is not null and t4.signature is not null then 'I'
+        when t3.hr_id is null and t3.signature is null and t4.hr_id is not null and t4.signature is null then 'C'
+        when t3.hr_id is null and t3.signature is null and t4.hr_id is not null and t4.signature is not null then 'Y'
+        when t3.hr_id is null and t3.signature is null and t4.hr_id is null and t4.signature is null then 'C'
+        end as approvalStatus
+        , t1.reg_dt
+        from esg.tb_contractor_investigation_form t1
+        left join esg.tb_partner_comp_item t2
+        on t1.comp_id = t2.comp_id
+        and t1.part_comp_item = t2.part_comp_item_id
+        left join esg.tb_approval_info t3
+        on t3.target_type = 'CIF'
+        and t3.target_id = t1.write_year || t1.doc_no
+        and t3.type = 'investigator1'
+        left join esg.tb_approval_info t4
+        on t4.target_type = 'CIF'
+        and t4.target_id = t1.write_year || t1.doc_no
+        and t4.type = 'investigator2'
+        where t1.comp_id = #{compId}
+        and t1.write_year = #{writeYear}
+        <if test="docNo != null and !docNo.equals('')">
+            and t1.doc_type = #{docType}
+            and t1.doc_no = #{docNo}
+        </if>
+        order by t1.use_yn desc, t1.created_at desc
+    </select>
+
+    <select id='getInvestigationFormDetail' parameterType='kr.co.igns.business.impl.model.ContractorInvestigationFormVO' resultType='kr.co.igns.business.impl.model.ContractorInvestigationFormDetailVO'>
+        select t1.*
+             , row_number() over(order by t1.doc_seq asc) as ordSeq
+        from esg.tb_contractor_investigation_form_detail t1
+        where t1.comp_id = #{compId}
+          and t1.write_year = #{writeYear}
+          and t1.doc_type = #{docType}
+          and t1.doc_no = #{docNo}
+        order by t1.doc_seq asc
+    </select>
+
+    <select id='getFinalUseInspectionType' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.ContractorInvestigationFormDetailVO'>
+        select t1.*
+             ,t2.*
+        from esg.tb_dataset_contractor_checklist t1
+                 left join esg.tb_dataset_contractor_checklist_detail t2
+                           on t1.comp_id = t2.comp_id
+                               and t1.inspection_id = t2.inspection_id
+        where t1.comp_id = #{compId}
+          and t1.use_yn = 'Y'
+          and t2.use_yn = 'Y'
+        order by t1.ord_seq asc, t2.ord_seq asc
+    </select>
+
+    <insert id="insertInvestigationForm" parameterType="kr.co.igns.business.impl.model.ContractorInvestigationFormVO">
+
+        <selectKey keyProperty="docNo" resultType="kr.co.igns.business.impl.model.ContractorInvestigationFormVO" order="BEFORE">
+            SELECT LPAD((COALESCE(MAX(doc_no)::INTEGER, 0) + 1)::TEXT,5,'0') AS docNo
+            FROM esg.tb_contractor_investigation_form
+            WHERE write_year = #{writeYear}
+        </selectKey>
+        insert into esg.tb_contractor_investigation_form (
+        write_year,
+        doc_type,
+        doc_no,
+        comp_id,
+        part_comp_id,
+        part_comp_nm,
+        "desc",
+        part_comp_item,
+        zip_cd,
+        addrs1,
+        addrs2,
+        exam_dt,
+        use_yn,
+        created_at,
+        created_by,
+        reg_dt
+        ) values (
+        #{writeYear},
+        #{docType},
+        #{docNo},
+        #{compId},
+        #{partCompId},
+        #{partCompNm},
+        #{desc},
+        #{partCompItem},
+        #{zipCd},
+        #{addrs1},
+        #{addrs2},
+        #{examDt},
+        #{useYn},
+        now(),
+        #{createdBy},
+        #{regDt}
+        )
+
+    </insert>
+    <update id="updateInvestigationForm" parameterType="kr.co.igns.business.impl.model.ContractorInvestigationFormDetailVO">
+        UPDATE esg.tb_contractor_investigation_form
+           SET part_comp_id = #{partCompId},
+               part_comp_nm = #{partCompNm},
+               "desc" = #{desc},
+               part_comp_item = #{partCompItem},
+               zip_cd = #{zipCd},
+               addrs1 = #{addrs1},
+               addrs2 = #{addrs2},
+               exam_dt = #{examDt},
+               use_yn = #{useYn},
+               updated_at = now(),
+               updated_by = #{updatedBy},
+               reg_dt = #{regDt}
+         WHERE write_year = #{writeYear}
+           AND doc_type = #{docType}
+           AND doc_no = #{docNo}
+           AND comp_id = #{compId}
+    </update>
+    <update id="updateInvestigationFormToPartCompId" parameterType="kr.co.igns.business.impl.model.ContractorInvestigationFormDetailVO">
+        UPDATE esg.tb_contractor_investigation_form
+           SET part_comp_id = #{partCompId}
+         WHERE write_year = #{writeYear}
+           AND doc_type = #{docType}
+           AND doc_no = #{docNo}
+           AND comp_id = #{compId}
+    </update>
+    <update id="deleteInvestigationForm" parameterType="kr.co.igns.business.impl.model.ContractorInvestigationFormVO">
+        UPDATE esg.tb_contractor_investigation_form
+           SET use_yn = 'N',
+               updated_at = now(),
+               updated_by = #{updatedBy}
+         WHERE write_year = #{writeYear}
+           AND doc_type = #{docType}
+           AND doc_no = #{docNo}
+           AND comp_id = #{compId}
+    </update>
+
+    <insert id="insertInvestigationFormDetail" parameterType="kr.co.igns.business.impl.model.ContractorInvestigationFormDetailVO">
+        <selectKey keyProperty="docSeq" resultType="kr.co.igns.business.impl.model.ContractorInvestigationFormDetailVO" order="BEFORE">
+            SELECT lpad((coalesce(max(substring(doc_seq, 1, 5)::integer), 0) + 1)::text, 5, '0') as docSeq
+            FROM esg.tb_contractor_investigation_form_detail
+            WHERE write_year = #{writeYear}
+            and doc_type = #{docType}
+            and doc_no = #{docNo}
+        </selectKey>
+        insert into esg.tb_contractor_investigation_form_detail (
+        write_year,
+        doc_type,
+        doc_no,
+        doc_seq,
+        comp_id,
+        inspection_id,
+        inspection_nm,
+        inspection_item_id,
+        inspection_item_nm,
+        upper_score,
+        middle_score,
+        lower_score,
+        "comment",
+        score,
+        created_at,
+        created_by
+        ) values (
+        #{writeYear},
+        #{docType},
+        #{docNo},
+        #{docSeq},
+        #{compId},
+        #{inspectionId},
+        #{inspectionNm},
+        #{inspectionItemId},
+        #{inspectionItemNm},
+        #{upperScore},
+        #{middleScore},
+        #{lowerScore},
+        #{comment},
+        #{score},
+        now(),
+        #{createdBy}
+        )
+
+    </insert>
+    <!--    <update id="updateInvestigationFormDetail" parameterType="kr.co.igns.business.impl.model.ContractorInvestigationFormDetailVO">-->
+    <!--        update esg.tb_contractor_investigation_form set-->
+    <!--            inspection_id = #{inspectionId},-->
+    <!--            inspection_nm = #{inspectionNm},-->
+    <!--            detail = #{inspectionItemId},-->
+    <!--            detail_content = #{detailContent},-->
+    <!--            upper_score = #{upperScore},-->
+    <!--            middle_score = #{middleScore},-->
+    <!--            lower_score = #{lowerScore},-->
+    <!--            "comment" = #{comment},-->
+    <!--            score = #{score},-->
+    <!--            updated_at = now(),-->
+    <!--            updated_by = #{updatedBy}-->
+    <!--        where write_year = #{writeYear}-->
+    <!--            and doc_type = #{docType}-->
+    <!--            and doc_no = #{docNo}-->
+    <!--            and comp_id = #{compId}-->
+    <!--    </update>-->
+
+    <delete id="deleteInvestigationFormDetail" parameterType="kr.co.igns.business.impl.model.ContractorInvestigationFormVO">
+        DELETE FROM esg.tb_contractor_investigation_form_detail
+         WHERE write_year = #{writeYear}
+           AND doc_type = #{docType}
+           AND doc_no = #{docNo}
+           AND comp_id = #{compId}
+    </delete>
+
+    <!-- 협력사 합격 점수 관련 쿼리 -->
+    <select id='getPassScore' parameterType='kr.co.igns.business.impl.model.ContractorInvestigationFormVO' resultType='kr.co.igns.business.impl.model.ContractorInvestigationFormVO'>
+        SELECT comp_id, write_year, score from esg.tb_contractor_investigation_pass_score
+         WHERE comp_id = #{compId}
+           AND write_year = #{writeYear}
+    </select>
+    <insert id="savePassScore" parameterType="kr.co.igns.business.impl.model.ContractorInvestigationFormVO">
+        INSERT INTO esg.tb_contractor_investigation_pass_score(
+            comp_id,
+            write_year,
+            score,
+            created_at,
+            created_by
+        ) values (
+                     #{compId},
+                     #{writeYear},
+                     #{score},
+                     NOW(),
+                     #{id}
+                 )
+    </insert>
+    <insert id="updatePassScore" parameterType="kr.co.igns.business.impl.model.ContractorInvestigationFormVO">
+        UPDATE esg.tb_contractor_investigation_pass_score
+        SET score = #{score},
+            updated_at = NOW(),
+            updated_by = #{id}
+        WHERE comp_id = #{compId}
+          AND write_year = #{writeYear}
+    </insert>
+
+    <!-- 점검사항 관리 관련 API -->
+    <select id='getInspectionType' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.ContractorInvestigationFormDetailVO'>
+        select t1.*
+        from esg.tb_dataset_contractor_checklist t1
+        where t1.comp_id = #{compId}
+        order by t1.use_yn desc, t1.ord_seq asc
+    </select>
+    <select id='getInspectionTypeDetail' parameterType='kr.co.igns.business.impl.model.ContractorInvestigationFormDetailVO' resultType='kr.co.igns.business.impl.model.ContractorInvestigationFormDetailVO'>
+        select t1.*
+             , t2.inspection_nm
+        from esg.tb_dataset_contractor_checklist_detail t1
+                 left join esg.tb_dataset_contractor_checklist t2 on t1.comp_id = t2.comp_id and t1.inspection_id = t2.inspection_id
+        where t1.comp_id = #{compId}
+          and t1.inspection_id = #{inspectionId}
+        order by t1.use_yn desc, t1.ord_seq asc
+    </select>
+
+    <select id='getInspectionTypeDataset' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.ContractorInvestigationFormDetailVO'>
+        select t1.*
+        from dataset.tb_dataset_contractor_checklist t1
+        where t1.use_yn = 'Y'
+        order by t1.ord_seq asc
+    </select>
+    <select id='getInspectionTypeDatasetDetail' parameterType='kr.co.igns.business.impl.model.ContractorInvestigationFormDetailVO' resultType='kr.co.igns.business.impl.model.ContractorInvestigationFormDetailVO'>
+        select t1.*
+             , t2.inspection_nm
+        from dataset.tb_dataset_contractor_checklist_detail t1
+                 left join dataset.tb_dataset_contractor_checklist t2
+                           on t1.inspection_id = t2.inspection_id
+        where t1.use_yn = 'Y'
+          and t1.inspection_id = #{inspectionId}
+        order by t1.ord_seq asc
+    </select>
+
+    <insert id="insertInspectionType" parameterType="kr.co.igns.business.impl.model.ContractorInvestigationFormDetailVO">
+        <selectKey keyProperty="inspectionId" resultType="kr.co.igns.business.impl.model.ContractorInvestigationFormDetailVO" order="BEFORE">
+            select case when #{inspectionId}::varchar is null or #{inspectionId}::varchar = ''
+                        then to_char(now(), 'yyyymmdd') || lpad((coalesce(max(substring(inspection_id from 9 for 4))::int, 0) + 1)::text, 4, '0')
+                        else #{inspectionId}::varchar
+                         end as inspectionId
+              from esg.tb_dataset_contractor_checklist
+             where inspection_id like to_char(now(), 'YYYYMMDD') || '%'
+               and comp_id = #{compId}
+        </selectKey>
+        INSERT INTO esg.tb_dataset_contractor_checklist (
+        comp_id,
+        inspection_id,
+        inspection_nm,
+        use_yn,
+        ord_seq,
+        created_at,
+        created_by
+        ) values(
+        #{compId},
+        #{inspectionId},
+        #{inspectionNm},
+        #{useYn},
+        #{ordSeq},
+        now(),
+        #{createdBy}
+        )
+    </insert>
+
+    <update id="updateInspectionType" parameterType="kr.co.igns.business.impl.model.ContractorInvestigationFormDetailVO">
+        UPDATE esg.tb_dataset_contractor_checklist SET
+                                                       inspection_nm = #{inspectionNm},
+                                                       use_yn = #{useYn},
+                                                       ord_seq = #{ordSeq},
+                                                       updated_at = now(),
+                                                       updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+          AND inspection_id= #{inspectionId};
+    </update>
+
+    <insert id="insertInspectionTypeDetail" parameterType="kr.co.igns.business.impl.model.ContractorInvestigationFormDetailVO">
+        <selectKey keyProperty="inspectionItemId" resultType="kr.co.igns.business.impl.model.ContractorInvestigationFormDetailVO" order="BEFORE">
+            select case when #{inspectionItemId}::varchar is null or #{inspectionItemId}::varchar = ''
+                        then to_char(now(), 'yyyymmdd') || lpad((coalesce(max(substring(inspection_item_id from 9 for 4))::int, 0) + 1)::text, 4, '0')
+                        else #{inspectionItemId}::varchar
+                         end as inspectionItemId
+              from esg.tb_dataset_contractor_checklist_detail
+             where inspection_id like to_char(now(), 'YYYYMMDD') || '%'
+               and comp_id = #{compId}
+        </selectKey>
+        INSERT INTO esg.tb_dataset_contractor_checklist_detail (
+        comp_id,
+        inspection_id,
+        inspection_item_id,
+        inspection_item_nm,
+        upper_score,
+        middle_score,
+        lower_score,
+        use_yn,
+        ord_seq,
+        created_at,
+        created_by
+        ) VALUES(
+        #{compId},
+        #{inspectionId},
+        #{inspectionItemId},
+        #{inspectionItemNm},
+        #{upperScore},
+        #{middleScore},
+        #{lowerScore},
+        #{useYn},
+        #{ordSeq},
+        now(),
+        #{createdBy}
+        )
+    </insert>
+    <update id="updateInspectionTypeDetail" parameterType="kr.co.igns.business.impl.model.ContractorInvestigationFormDetailVO">
+        UPDATE esg.tb_dataset_contractor_checklist_detail
+           SET inspection_item_nm = #{inspectionItemNm},
+               upper_score = #{upperScore},
+               middle_score = #{middleScore},
+               lower_score = #{lowerScore},
+               use_yn = #{useYn},
+               ord_seq = #{ordSeq},
+               updated_at = now(),
+               updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+          AND inspection_id = #{inspectionId}
+          AND inspection_item_id = #{inspectionItemId}
+    </update>
+    <update id="deleteInspectionType" parameterType="kr.co.igns.business.impl.model.ContractorInvestigationFormDetailVO">
+        UPDATE esg.tb_dataset_contractor_checklist
+           SET use_yn = 'N'
+             , updated_at = NOW()
+             , updated_by = #{updatedBy}
+         WHERE comp_id = #{compId}
+           AND inspection_id = #{inspectionId}
+    </update>
+
+    <update id="deleteInspectionTypeDetail" parameterType="kr.co.igns.business.impl.model.ContractorInvestigationFormDetailVO">
+        UPDATE esg.tb_dataset_contractor_checklist_detail
+           SET use_yn = 'N'
+             , updated_at = NOW()
+             , updated_by = #{updatedBy}
+         WHERE comp_id = #{compId}
+           AND inspection_id = #{inspectionId}
+           AND inspection_item_id = #{inspectionItemId}
+    </update>
+
+
+</mapper>

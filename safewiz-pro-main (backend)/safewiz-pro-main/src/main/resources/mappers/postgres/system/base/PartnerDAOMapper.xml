@@ -1,0 +1,233 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.system.base.dao.postgres.PartnerDAO">
+
+    <select id='getPartnerList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.base.model.PartnerVO'>
+        SELECT tpci.*,
+               partItem.part_comp_item_nm,
+               sf1.file_id as logo_id
+        FROM esg.tb_partner_comp_info tpci
+            -- 거래품목명
+                 LEFT JOIN esg.tb_partner_comp_item partItem ON tpci.comp_id = partItem.comp_id AND tpci.part_comp_item = partItem.part_comp_item_id
+            -- 파일 정보 매핑
+                 LEFT JOIN esg.tb_sys_file sf1 on sf1.target_id = tpci.part_comp_id and sf1.target_type = 'partnerLogo'
+        WHERE 1=1
+          AND tpci.comp_id = #{compId}
+        ORDER BY tpci.use_yn DESC, tpci.ord_seq
+    </select>
+
+    <select id='getPartnerDetail' parameterType='kr.co.igns.system.common.model.SpSearchVO'  resultType='kr.co.igns.system.base.model.PartnerVO'>
+        SELECT tpci.*,
+               partItem.part_comp_item_nm,
+               partItem.part_comp_item_id,
+               hrPSH.hr_nm as part_sh_hr_nm,
+               sf1.file_id as file_id,
+               sf2.file_id as file_id2,
+               sf3.file_id as part_sh_hr_img_id
+        FROM esg.tb_partner_comp_info tpci
+            -- 거래품목명
+                 LEFT JOIN esg.tb_partner_comp_item partItem ON tpci.comp_id = partItem.comp_id AND tpci.part_comp_item = partItem.part_comp_item_id
+            -- 협력사 안전보건 관리 책임자명
+                 LEFT JOIN esg.tb_hr_info hrPSH on hrPSH.hr_id = tpci.part_sh_hr_id
+            -- 파일 logo
+                 LEFT JOIN esg.tb_sys_file sf1 on sf1.target_id = #{searchText} and sf1.target_type='partnerLogo' AND sf1.comp_id = #{compId}
+            -- 파일 location
+                 LEFT JOIN esg.tb_sys_file sf2 on sf2.target_id = #{searchText} and sf2.target_type='partnerLocation' AND sf2.comp_id = #{compId}
+            -- 파일 location
+                 LEFT JOIN esg.tb_sys_file sf3 on sf3.target_id = tpci.part_sh_hr_id and sf3.target_type='hrImg'
+        WHERE 1=1
+          AND tpci.part_comp_id = #{searchText}
+    </select>
+
+    <insert id="insertPartner" parameterType="kr.co.igns.system.base.model.PartnerVO">
+        <selectKey keyProperty="partCompId" resultType="kr.co.igns.system.base.model.PartnerVO" order="BEFORE">
+            select to_char(now(), 'yyyymmdd') ||
+				   lpad(
+					   (coalesce(max(substring(part_comp_id from 9 for 4))::int, 0) + 1)::text,
+					   4,
+					   '0'
+				   ) as part_comp_id
+			from esg.tb_partner_comp_info
+			where part_comp_id like to_char(now(), 'YYYYMMDD') || '%'
+    	</selectKey>
+        INSERT INTO esg.tb_partner_comp_info (
+            comp_id,
+            part_comp_id,
+            part_comp_item,
+            part_comp_nm,
+            rgst_no,
+            rpst_nm,
+            email,
+            tel_no,
+            fax_no,
+            biz_cd,
+            biz_nm,
+            zip_cd,
+            addrs1,
+            addrs2,
+            ord_seq,
+            "desc",
+            part_sh_hr_id,
+            created_at,
+            created_by,
+            use_yn,
+            reg_dt
+        )
+        VALUES (
+                   #{compId},
+                   #{partCompId},
+                   #{partCompItem},
+                   #{partCompNm},
+                   #{rgstNo},
+                   #{rpstNm},
+                   #{email},
+                   #{telNo},
+                   #{faxNo},
+                   #{bizCd},
+                   #{bizNm},
+                   #{zipCd},
+                   #{addrs1},
+                   #{addrs2},
+                   #{ordSeq},
+                   #{desc},
+                   #{partShHrId},
+                   now(),
+                   #{createdBy},
+                   #{useYn},
+                   #{regDt}
+               )
+
+    </insert>
+
+    <update id="updatePartner" parameterType="kr.co.igns.system.base.model.PartnerVO">
+
+        UPDATE esg.tb_partner_comp_info
+        SET
+            part_comp_item = #{partCompItem},
+            part_comp_nm = #{partCompNm},
+            rgst_no = #{rgstNo},
+            rpst_nm = #{rpstNm},
+            email = #{email},
+            tel_no = #{telNo},
+            fax_no = #{faxNo},
+            biz_cd = #{bizCd},
+            biz_nm = #{bizNm},
+            zip_cd = #{zipCd},
+            addrs1 = #{addrs1},
+            addrs2 = #{addrs2},
+            ord_seq = #{ordSeq},
+            "desc" = #{desc},
+            part_sh_hr_id = #{partShHrId},
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy},
+            reg_dt = #{regDt}
+        WHERE part_comp_id = #{partCompId}
+
+    </update>
+
+    <select id='getPartnerById' parameterType='String' resultType='kr.co.igns.system.base.model.PartnerVO'>
+
+        SELECT *
+        FROM esg.tb_partner_comp_info
+        WHERE 1=1
+          AND part_comp_id = #{partCompId}
+
+    </select>
+
+    <delete id="deletePartner" parameterType="String">
+
+        UPDATE esg.tb_partner_comp_info
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE part_comp_id = #{partCompId}
+
+    </delete>
+
+    <!-- 거래품목 관리 관련 API -->
+    <select id='getPartCompItemDataset' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.base.model.PartnerVO'>
+        select t1.*
+        from esg.tb_partner_comp_item t1
+        where t1.comp_id = #{compId}
+        order by use_yn desc, ord_seq ASC
+    </select>
+
+    <!-- 예시 조회 -->
+    <select id='getSamplePartCompItemDataset' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.base.model.PartnerVO'>
+        select t1.*, t1.remark as desc
+        from dataset.tb_dataset_partner_comp_item t1
+<!--        where not exists (-->
+<!--            select 1-->
+<!--            from esg.tb_partner_comp_item t2-->
+<!--            where t2.part_comp_item_id = t1.part_comp_item_id-->
+<!--                and t2.comp_id = #{compId}-->
+<!--        )-->
+        where t1.use_yn = 'Y'
+        order by t1.ord_seq asc
+    </select>
+
+    <!-- 삽입 -->
+    <insert id="insertPartCompItemDataset" parameterType="kr.co.igns.system.base.model.PartnerVO">
+        <selectKey keyProperty="partCompItemId" resultType="string" order="BEFORE">
+            select
+                case when #{partCompItemId} is null or #{partCompItemId} = ''
+				    then to_char(now(), 'yyyymmdd') || lpad((coalesce(max(substring(part_comp_item_id from 9 for 4))::int, 0) + 1)::text, 4, '0')
+                else #{partCompItemId}
+                end as partCompItemId
+			from esg.tb_partner_comp_item
+			where part_comp_item_id like to_char(now(), 'YYYYMMDD') || '%'
+                and comp_id = #{compId}
+    	</selectKey>
+        insert into esg.tb_partner_comp_item (
+            comp_id,
+            part_comp_item_id,
+            part_comp_item_nm,
+            ord_seq,
+            use_yn,
+            remark,
+            created_at,
+            created_by
+        ) values (
+            #{compId},
+            #{partCompItemId},
+            #{partCompItemNm},
+            #{ordSeq},
+            #{useYn},
+            #{remark},
+            now(),
+            #{createdBy}
+        )
+    </insert>
+
+    <!-- 수정 -->
+    <update id="updatePartCompItemDataset" parameterType="kr.co.igns.system.base.model.PartnerVO">
+
+        UPDATE esg.tb_partner_comp_item
+        SET
+            part_comp_item_nm = #{partCompItemNm},
+            ord_seq = #{ordSeq},
+            use_yn = #{useYn},
+            remark = #{remark},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+            and part_comp_item_id = #{partCompItemId}
+
+    </update>
+
+    <!-- 삭제 -->
+    <update id="deletePartCompItemDataset" parameterType="kr.co.igns.system.base.model.PartnerVO">
+
+        UPDATE esg.tb_partner_comp_item
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+            and part_comp_item_id = #{partCompItemId}
+
+    </update>
+</mapper>

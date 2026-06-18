@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.co.igns.business.improvement.dao.postgres.VoluntarySafetyInspectorDAO">
+
+    <select id="getVoluntarySafetyInspectorList"
+            resultType="kr.co.igns.business.improvement.model.VoluntarySafetyInspectorVO"
+            parameterType="kr.co.igns.system.common.model.SpSearchVO">
+
+        SELECT
+            TV.WRITE_YEAR,
+            TV.DOC_TYPE,
+            TV.DOC_NO,
+            TV.COMP_ID,
+            TV.HR_ID,
+            TV.ORGN_NM,
+            TV.JBRP,
+            TV.WORKING_AT,
+            TV.HAS_CERTIFICATE,
+            TV.ORD_SEQ,
+            TV.USE_YN,
+            TV.CREATED_AT,
+            TV.CREATED_BY,
+            TV.UPDATED_AT,
+            TV.UPDATED_BY,
+            TH.HR_NM
+        FROM ESG.TB_VOLUNTARY_SAFETY_INSPECTOR TV
+        INNER JOIN ESG.TB_HR_INFO TH ON TH.HR_ID = TV.HR_ID
+        WHERE COMP_ID = #{compId}
+        <if test="searchCd == 'ReportData'">
+            -- 출력 데이터는 사용중인 데이터만 출력
+            AND TV.USE_YN = 'Y'
+        </if>
+        ORDER BY USE_YN DESC, ORD_SEQ
+
+    </select>
+    
+    
+    <select id="getVoluntarySafetyInspectorListchk"
+            resultType="kr.co.igns.business.improvement.model.VoluntarySafetyInspectorVO"
+            parameterType="kr.co.igns.system.common.model.SpSearchVO">
+
+        SELECT
+            TV.WRITE_YEAR,
+            TV.DOC_TYPE,
+            TV.DOC_NO,
+            TV.COMP_ID,
+            TV.HR_ID,
+            TV.ORGN_NM,
+            TV.JBRP,
+            TV.WORKING_AT,
+            TV.HAS_CERTIFICATE,
+            TV.ORD_SEQ,
+            TV.USE_YN,
+            TV.CREATED_AT,
+            TV.CREATED_BY,
+            TV.UPDATED_AT,
+            TV.UPDATED_BY,
+            TH.HR_NM
+        FROM ESG.TB_VOLUNTARY_SAFETY_INSPECTOR TV
+        INNER JOIN ESG.TB_HR_INFO TH ON TH.HR_ID = TV.HR_ID
+        WHERE COMP_ID = #{compId}
+        	and write_year=#{writeYear}
+        	and doc_no=#{docNo}
+        ORDER BY USE_YN DESC, ORD_SEQ
+
+    </select>
+    
+
+    <insert id="insertVoluntarySafetyInspector"
+            parameterType="kr.co.igns.business.improvement.model.VoluntarySafetyInspectorVO">
+
+        <selectKey keyProperty="docNo,writeYear"
+                   resultType="kr.co.igns.business.improvement.model.VoluntarySafetyInspectorVO"
+                   order="BEFORE">
+            SELECT
+                LPAD((COALESCE(MAX(DOC_NO::INTEGER), 0) + 1)::TEXT, 5, '0') AS DOC_NO,
+                TO_CHAR(NOW(), 'YYYY') AS WRITE_YEAR
+            FROM ESG.TB_VOLUNTARY_SAFETY_INSPECTOR
+            WHERE TO_DATE(WRITE_YEAR,'YYYY') = DATE_TRUNC('YEAR',NOW())
+        </selectKey>
+
+        INSERT INTO ESG.TB_VOLUNTARY_SAFETY_INSPECTOR
+        (
+            WRITE_YEAR,
+            DOC_TYPE,
+            DOC_NO,
+            COMP_ID,
+            HR_ID,
+            ORGN_NM,
+            JBRP,
+            WORKING_AT,
+            HAS_CERTIFICATE,
+            ORD_SEQ,
+            CREATED_AT,
+            CREATED_BY
+        )
+        VALUES
+        (
+            #{writeYear},
+            #{docType},
+            #{docNo},
+            #{compId},
+            #{hrId},
+            #{orgnNm},
+            #{jbrp},
+            #{workingAt},
+            #{hasCertifiCate},
+            #{ordSeq},
+            NOW(),
+            #{createdBy}
+        )
+    </insert>
+
+    <update id="updateVoluntarySafetyInspector"
+            parameterType="kr.co.igns.business.improvement.model.VoluntarySafetyInspectorVO">
+
+        UPDATE ESG.TB_VOLUNTARY_SAFETY_INSPECTOR
+        SET WORKING_AT      = #{workingAt},
+            HAS_CERTIFICATE = #{hasCertifiCate},
+            HR_ID           = #{hrId},
+            ORD_SEQ         = #{ordSeq},
+            USE_YN          = #{useYn},
+            UPDATED_AT      = NOW(),
+            UPDATED_BY      = #{updatedBy}
+        WHERE WRITE_YEAR = #{writeYear}
+          AND DOC_TYPE = #{docType}
+          AND DOC_NO = #{docNo}
+
+    </update>
+
+    <delete id="deleteVoluntarySafetyInspector"
+            parameterType="kr.co.igns.business.improvement.model.VoluntarySafetyInspectorVO">
+
+        UPDATE ESG.TB_VOLUNTARY_SAFETY_INSPECTOR
+        SET USE_YN     = 'N',
+            UPDATED_AT = NOW(),
+            UPDATED_BY = #{updatedBy}
+        WHERE WRITE_YEAR = #{writeYear}
+          AND DOC_TYPE = #{docType}
+          AND DOC_NO = #{docNo}
+
+    </delete>
+
+</mapper>

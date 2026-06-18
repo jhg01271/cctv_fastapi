@@ -1,0 +1,512 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.impl.dao.postgres.HazmatChecklistDAO">
+    <select id='getHazmatChecklist' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.HazmatChecklistVO'>
+
+         SELECT thc.*,
+                twi.workplace_nm,
+                COUNT(*) OVER (
+                                  PARTITION BY
+                                      thc.workplace_id,
+                                      DATE_TRUNC('month', TO_DATE(thc.checklist_dt, 'YYYYMMDD'))
+                              ) AS result_cnt
+           FROM esg.tb_hazmat_checklist thc
+      LEFT JOIN esg.tb_workplace_info twi
+             ON twi.workplace_id = thc.workplace_id
+          WHERE 1 = 1
+            AND thc.comp_id = #{compId}
+            AND thc.write_year = #{writeYear}
+       GROUP BY thc.write_year, thc.doc_type, thc.doc_no, thc.comp_id, thc.workplace_id, thc.checklist_dt,
+                thc.checklist_start,thc.checklist_end,thc.use_yn,thc.created_at,thc.created_by,thc.updated_at,thc.updated_by,
+                twi.workplace_nm
+       ORDER BY thc.use_yn DESC, thc.workplace_id, thc.checklist_dt DESC
+
+    </select>
+
+    <select id='getHazmatChecklistByDocNo' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.HazmatChecklistVO'>
+
+        SELECT thc.*,
+               twi.workplace_nm,
+               thc.checklist_start || ' ~ ' || thc.checklist_end  AS checklist_time
+         FROM esg.tb_hazmat_checklist thc
+    LEFT JOIN esg.tb_workplace_info twi
+           ON twi.workplace_id = thc.workplace_id
+        WHERE 1 = 1
+          AND thc.comp_id = #{compId}
+          AND thc.write_year = #{writeYear}
+          AND thc.doc_type = #{docType}
+          AND thc.doc_no = #{docNo}
+
+    </select>
+
+    <select id='existHazmatChecklist' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.HazmatChecklistVO'>
+
+        SELECT thc.*,
+               twi.workplace_nm,
+               thc.checklist_start || ' ~ ' || thc.checklist_end  AS checklist_time
+          FROM esg.tb_hazmat_checklist thc
+     LEFT JOIN esg.tb_workplace_info twi
+            ON twi.workplace_id = thc.workplace_id
+         WHERE 1 = 1
+           AND thc.comp_id = #{compId}
+           AND thc.workplace_id = #{workplaceId}
+           AND thc.checklist_dt = #{checklistDt}
+
+    </select>
+
+    <select id='getHazmatChecklistDetail' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType="kr.co.igns.business.impl.model.HazmatChecklistDetailVO">
+        SELECT thcd.*,
+               tdhcd.checklist_item_nm,
+               tdhc.checklist_nm,
+               tdhc.checklist_id
+          FROM esg.tb_hazmat_checklist_detail thcd
+    INNER JOIN esg.tb_dataset_hazmat_checklist_detail tdhcd
+            ON tdhcd.checklist_item_id = thcd.checklist_item_id
+    INNER JOIN esg.tb_dataset_hazmat_checklist tdhc
+            ON tdhc.checklist_id = tdhcd.checklist_id
+         WHERE 1 = 1
+           AND thcd.write_year = #{writeYear}
+           AND thcd.doc_no = #{docNo}
+           AND thcd.doc_type = #{docType}
+      ORDER BY thcd.doc_seq
+
+    </select>
+
+    <select id='getMsdsByWorkplace' parameterType='kr.co.igns.business.impl.model.HazmatChecklistVO' resultType="kr.co.igns.business.planning.model.MsdsVO">
+
+        SELECT tmi.*
+             , twm.workplace_id as workplace_id
+             , twi.workplace_nm as workplace_nm
+         FROM esg.tb_workplace_map twm
+    LEFT JOIN esg.tb_msds_info tmi on tmi.msds_id = twm.target_id
+    LEFT JOIN esg.tb_workplace_info twi on twi.workplace_id = twm.workplace_id
+        WHERE 1=1
+          AND twm.workplace_id = #{workplaceId}
+          AND twm.target_type = 'msds'
+          AND twm.use_yn = 'Y'
+          AND tmi.use_yn = 'Y'
+
+    </select>
+
+    <insert id="insertHazmatChecklist" parameterType="kr.co.igns.business.impl.model.HazmatChecklistVO">
+
+        <selectKey keyProperty="docNo" resultType="kr.co.igns.business.impl.model.HazmatChecklistVO" order="BEFORE">
+            <![CDATA[
+            SELECT
+                LPAD((COALESCE(MAX(SUBSTRING(doc_no, 1, 5)::INTEGER), 0) + 1)::TEXT, 5, '0') AS docNo
+             FROM esg.tb_hazmat_checklist
+            WHERE write_year = #{writeYear}
+              AND doc_type = #{docType}
+         ]]>
+        </selectKey>
+
+        INSERT INTO esg.tb_hazmat_checklist (
+            write_year,
+            doc_no,
+            doc_type,
+            comp_id,
+            workplace_id,
+            checklist_dt,
+            checklist_start,
+            checklist_end,
+            use_yn,
+            created_at,
+            created_by
+        )
+        VALUES (
+                   #{writeYear},
+                   #{docNo},
+                   #{docType},
+                   #{compId},
+                   #{workplaceId},
+                   #{checklistDt},
+                   #{checklistStart},
+                   #{checklistEnd},
+                   #{useYn},
+                   now(),
+                   #{createdBy}
+               )
+
+    </insert>
+
+    <insert id="insertHazmatChecklistDetail" parameterType="kr.co.igns.business.impl.model.HazmatChecklistDetailVO">
+
+        <selectKey keyProperty="docSeq" resultType="kr.co.igns.business.impl.model.HazmatChecklistDetailVO" order="BEFORE">
+            <![CDATA[
+            SELECT
+                LPAD((COALESCE(MAX(SUBSTRING(doc_seq, 1, 5)::INTEGER), 0) + 1)::TEXT, 5, '0') AS docSeq
+              FROM esg.tb_hazmat_checklist_detail
+             WHERE write_year = #{writeYear}
+               AND doc_type = #{docType}
+               AND doc_no = #{docNo}
+         ]]>
+        </selectKey>
+
+        INSERT INTO esg.tb_hazmat_checklist_detail (
+            write_year,
+            doc_no,
+            doc_type,
+            doc_seq,
+            checklist_item_id,
+            acceptable_yn,
+            non_compliant_yn,
+            require_check_yn,
+            checklist_action,
+            created_at,
+            created_by
+        )
+        VALUES (
+            #{writeYear},
+            #{docNo},
+            #{docType},
+            #{docSeq},
+            #{checklistItemId},
+            #{acceptableYn},
+            #{nonCompliantYn},
+            #{requireCheckYn},
+            #{checklistAction},
+            now(),
+            #{createdBy}
+        )
+
+    </insert>
+
+    <update id="updateHazmatChecklist" parameterType="kr.co.igns.business.impl.model.HazmatChecklistVO">
+
+        UPDATE esg.tb_hazmat_checklist
+        SET
+              checklist_start = #{checklistStart},
+              checklist_end = #{checklistEnd},
+              use_yn = #{useYn},
+              updated_at = now(),
+              updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+
+    </update>
+
+    <update id="updateHazmatChecklistDetail" parameterType="kr.co.igns.business.impl.model.HazmatChecklistDetailVO">
+
+        UPDATE esg.tb_hazmat_checklist_detail
+        SET
+            acceptable_yn = #{acceptableYn},
+            non_compliant_yn = #{nonCompliantYn},
+            require_check_yn = #{requireCheckYn},
+            checklist_action = #{checklistAction},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE 1 = 1
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND doc_seq = #{docSeq}
+
+    </update>
+
+    <delete id="deleteHazmatChecklist" parameterType="kr.co.igns.business.impl.model.HazmatChecklistVO">
+
+        UPDATE esg.tb_hazmat_checklist
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+         WHERE comp_id = #{compId}
+           AND write_year = #{writeYear}
+           AND doc_no = #{docNo}
+           AND doc_type = #{docType}
+
+    </delete>
+
+    <delete id="initHazmatChecklistDetail" parameterType="kr.co.igns.business.impl.model.HazmatChecklistVO">
+
+        UPDATE esg.tb_hazmat_checklist_detail
+        SET
+            acceptable_yn = 'N',
+            non_compliant_yn = 'N',
+            require_check_yn = 'N',
+            checklist_action = '',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE 1 = 1
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+
+    </delete>
+
+    <delete id="deleteHazmatChecklistDetail" parameterType="kr.co.igns.business.impl.model.HazmatChecklistVO">
+
+     DELETE FROM esg.tb_hazmat_checklist_detail
+           WHERE 1 = 1
+             AND write_year = #{writeYear}
+             AND doc_no = #{docNo}
+             AND doc_type = #{docType}
+
+    </delete>
+
+    <select id='getHazmatChecklistById' parameterType='kr.co.igns.business.impl.model.HazmatChecklistVO' resultType='kr.co.igns.business.impl.model.HazmatChecklistVO'>
+
+        SELECT *
+        FROM esg.tb_hazmat_checklist
+        WHERE comp_id = #{compId}
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+
+    </select>
+
+    <select id='getHazmatChecklistDetailById' parameterType='kr.co.igns.business.impl.model.HazmatChecklistDetailVO' resultType='kr.co.igns.business.impl.model.HazmatChecklistDetailVO'>
+
+        SELECT *
+        FROM esg.tb_hazmat_checklist_detail
+        WHERE 1 = 1
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND doc_seq = #{docSeq}
+
+    </select>
+
+    <select id='getLastChecklist' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType="kr.co.igns.business.impl.model.HazmatChecklistDetailVO">
+
+        SELECT
+               #{writeYear} as write_year,
+               thcd.doc_type,
+               #{docNo} as doc_no,
+               NULL as doc_seq,
+               thcd.checklist_item_id,
+               tdhcd.checklist_item_nm,
+               tdhc.checklist_nm,
+               'N' as acceptable_yn,
+               'N' as non_compliant_yn,
+               'N' as require_check_yn,
+               NULL as checklist_action
+          FROM esg.tb_hazmat_checklist thc
+     LEFT JOIN esg.tb_hazmat_checklist_detail thcd
+            ON thc.write_year = thcd.write_year
+           AND thc.doc_no = thcd.doc_no
+           AND thc.doc_type = thcd.doc_type
+    INNER JOIN esg.tb_dataset_hazmat_checklist_detail tdhcd
+            ON tdhcd.checklist_item_id = thcd.checklist_item_id
+    INNER JOIN esg.tb_dataset_hazmat_checklist tdhc
+            ON tdhc.checklist_id = tdhcd.checklist_id
+         WHERE 1 = 1
+           AND thcd.doc_type = #{docType}
+           AND thc.workplace_id = #{searchText}
+           AND thc.checklist_dt = (
+                                    SELECT MAX(checklist_dt)
+                                      FROM esg.tb_hazmat_checklist
+                                     WHERE 1 = 1
+                                       AND doc_type = #{docType}
+                                       AND workplace_id = #{searchText}
+                                  );
+
+    </select>
+
+    <!-- 점검사항 관리 (팝업) -->
+    <select id='getDatasetHazmatChecklist' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.DatasetHazmatChecklistVO'>
+
+        SELECT *
+        FROM esg.tb_dataset_hazmat_checklist
+        WHERE 1 = 1
+          AND comp_id = #{compId}
+        ORDER BY ord_seq, checklist_id
+
+    </select>
+
+    <select id='getDatasetHazmatChecklistDetail' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.DatasetHazmatChecklistVO'>
+
+        SELECT *
+        FROM esg.tb_dataset_hazmat_checklist_detail
+        WHERE 1 = 1
+          AND comp_id = #{compId}
+          AND checklist_id = #{checklistId}
+        ORDER BY ord_seq
+
+    </select>
+
+    <insert id="insertDatasetHazmatChecklist" parameterType="kr.co.igns.business.impl.model.DatasetHazmatChecklistVO">
+
+        <selectKey keyProperty="checklistId" resultType="kr.co.igns.business.impl.model.DatasetHazmatChecklistVO" order="BEFORE">
+            <![CDATA[
+            WITH current_date_info AS (
+            SELECT
+                TO_CHAR(CURRENT_DATE, 'YYYYMMDD') AS today,
+                COALESCE(MAX(SUBSTRING(checklist_id, 9, 4)::INTEGER), 0) AS max_sequence
+            FROM
+                esg.tb_dataset_hazmat_checklist
+            WHERE
+                SUBSTRING(checklist_id, 1, 8) = TO_CHAR(CURRENT_DATE, 'YYYYMMDD')
+            )
+            SELECT
+                today ||
+                CASE
+                    WHEN max_sequence = 0 THEN '0001'
+                ELSE
+                    CASE
+                        WHEN max_sequence < 9999 THEN LPAD((max_sequence + 1)::TEXT, 4, '0')
+                        ELSE '0001'  -- 시퀀스가 9999에 도달하면 재시작
+                    END
+                END AS checklistId
+            FROM current_date_info;
+         ]]>
+        </selectKey>
+
+        INSERT INTO esg.tb_dataset_hazmat_checklist (
+            comp_id,
+            checklist_id,
+            checklist_nm,
+            ord_seq,
+            use_yn,
+            created_at,
+            created_by
+        )
+        VALUES (
+            #{compId},
+            #{checklistId},
+            #{checklistNm},
+            #{ordSeq},
+            #{useYn},
+            now(),
+            #{createdBy}
+        )
+
+    </insert>
+
+    <insert id="insertDatasetHazmatChecklistDetail" parameterType="kr.co.igns.business.impl.model.DatasetHazmatChecklistVO">
+
+        <selectKey keyProperty="checklistItemId" resultType="kr.co.igns.business.impl.model.DatasetHazmatChecklistVO" order="BEFORE">
+            <![CDATA[
+            WITH current_date_info AS (
+            SELECT
+                TO_CHAR(CURRENT_DATE, 'YYYYMMDD') AS today,
+                COALESCE(MAX(SUBSTRING(checklist_item_id, 9, 4)::INTEGER), 0) AS max_sequence
+            FROM
+                esg.tb_dataset_hazmat_checklist_detail
+            WHERE
+                SUBSTRING(checklist_item_id, 1, 8) = TO_CHAR(CURRENT_DATE, 'YYYYMMDD')
+            )
+            SELECT
+                today ||
+                CASE
+                    WHEN max_sequence = 0 THEN '0001'
+                ELSE
+                    CASE
+                        WHEN max_sequence < 9999 THEN LPAD((max_sequence + 1)::TEXT, 4, '0')
+                        ELSE '0001'  -- 시퀀스가 9999에 도달하면 재시작
+                    END
+                END AS checklistItemId
+            FROM current_date_info;
+         ]]>
+        </selectKey>
+
+        INSERT INTO esg.tb_dataset_hazmat_checklist_detail (
+            comp_id,
+            checklist_id,
+            checklist_item_id,
+            checklist_item_nm,
+            use_yn,
+            ord_seq,
+            created_at,
+            created_by
+        )
+        VALUES (
+            #{compId},
+            #{checklistId},
+            #{checklistItemId},
+            #{checklistItemNm},
+            #{useYn},
+            #{ordSeq},
+            now(),
+            #{createdBy}
+        )
+
+    </insert>
+
+    <update id="updateDatasetHazmatChecklist" parameterType="kr.co.igns.business.impl.model.DatasetHazmatChecklistVO">
+
+        UPDATE esg.tb_dataset_hazmat_checklist
+        SET
+            checklist_nm = #{checklistNm},
+            use_yn = #{useYn},
+            ord_seq = #{ordSeq},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE 1 = 1
+          AND comp_id = #{compId}
+          AND checklist_id = #{checklistId}
+
+    </update>
+
+    <update id="updateDatasetHazmatChecklistDetail" parameterType="kr.co.igns.business.impl.model.DatasetHazmatChecklistVO">
+
+        UPDATE esg.tb_dataset_hazmat_checklist_detail
+        SET
+            checklist_item_nm = #{checklistItemNm},
+            ord_seq = #{ordSeq},
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE 1 = 1
+          AND comp_id = #{compId}
+          AND checklist_id = #{checklistId}
+          AND checklist_item_id = #{checklistItemId}
+
+    </update>
+
+
+    <delete id="deleteDatasetHazmatChecklistDetail" parameterType="kr.co.igns.business.impl.model.DatasetHazmatChecklistVO">
+
+        UPDATE esg.tb_dataset_hazmat_checklist_detail
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+          AND checklist_id = #{checklistId}
+          AND checklist_item_id = #{checklistItemId}
+
+    </delete>
+
+    <select id='getDatasetHazmatChecklistById' parameterType='kr.co.igns.business.impl.model.DatasetHazmatChecklistVO' resultType='kr.co.igns.business.impl.model.DatasetHazmatChecklistVO'>
+
+        SELECT *
+        FROM esg.tb_dataset_hazmat_checklist
+        WHERE comp_id = #{compId}
+          AND checklist_id = #{checklistId}
+
+    </select>
+
+    <select id='getDatasetHazmatChecklistDetailById' parameterType='kr.co.igns.business.impl.model.DatasetHazmatChecklistVO' resultType='kr.co.igns.business.impl.model.DatasetHazmatChecklistVO'>
+
+        SELECT *
+        FROM esg.tb_dataset_hazmat_checklist_detail
+        WHERE comp_id = #{compId}
+          AND checklist_id = #{checklistId}
+          AND checklist_item_id = #{checklistItemId}
+
+    </select>
+
+    <select id='getBaseDatasetHazmatChecklist' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.DatasetHazmatChecklistVO'>
+
+        SELECT *
+          FROM dataset.tb_dataset_hazmat_checklist
+         WHERE 1 = 1
+      ORDER BY ord_seq
+
+    </select>
+
+    <select id='getBaseDatasetHazmatChecklistDetail' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.DatasetHazmatChecklistVO'>
+
+        SELECT *
+          FROM dataset.tb_dataset_hazmat_checklist_detail
+         WHERE 1 = 1
+           AND checklist_id = #{checklistId}
+      ORDER BY ord_seq
+
+    </select>
+
+</mapper>

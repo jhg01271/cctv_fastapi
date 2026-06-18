@@ -1,0 +1,798 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.mobile.toolBoxMeeting.dao.postgres.V1ToolBoxMeetingDAO">
+
+    <resultMap id="TbmResultMap" type="kr.co.igns.mobile.toolBoxMeeting.model.ToolBoxMeetingVO">
+        <id property="id" column="id"/>
+        <result property="location" column="location"/>
+        <result property="startedAt" column="startedAt"/>
+        <result property="endedAt" column="endedAt"/>
+        <result property="sameWorkingDate" column="sameWorkingDate"/>
+        <result property="includedRiskAssessment" column="includedRiskAssessment"/>
+        <result property="signed" column="signed"/>
+        <result property="status" column="status"/>
+        <result property="riskFactors" column="riskFactors"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+        <result property="safetyCheckItems" column="safetyCheckItems"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+        <result property="work" column="work"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+        <result property="leader" column="leader"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+        <result property="attendees" column="attendees"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+        <result property="participantCount" column="participantCount"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+        <result property="checkResult" column="checkResult"/>
+        <result property="endMeeting" column="endMeeting"/>
+        <result property="createdAt" column="createdAt"/>
+        <result property="createdBy" column="createdBy"/>
+    </resultMap>
+
+    <select id="getTbmSchedule" parameterType="kr.co.igns.mobile.toolBoxMeeting.model.ToolBoxMeetingSearchVO"
+            resultMap="TbmResultMap">
+        <![CDATA[
+			WITH tbm_list AS ( -- 대상 TBM 목록 질의
+				SELECT
+					t.write_year,
+					t.doc_type,
+					t.doc_no,
+					t.comp_id,
+					t.work_nm,
+					t.work_desc,
+					t.work_place,
+					t.same_date_yn,
+					CASE WHEN t.same_date_yn = 'Y'
+						THEN TRUE
+						ELSE FALSE
+					END AS is_same_date,
+					CASE WHEN t.risk_yn = 'Y'
+						THEN TRUE
+						ELSE FALSE
+					END AS is_risk,
+					t.check_result,
+					t.work_end_meeting,
+					CASE
+						WHEN t.tbm_date IS NOT NULL AND t.tbm_time_stt IS NOT NULL THEN
+							TO_TIMESTAMP(t.tbm_date || ' ' || LPAD(t.tbm_time_stt, 4, '0'), 'YYYYMMDD HH24MI')::timestamp
+						ELSE NULL
+					END AS started_at,
+					CASE
+						WHEN t.tbm_date IS NOT NULL AND t.tbm_time_end IS NOT NULL THEN
+							TO_TIMESTAMP(t.tbm_date || ' ' || LPAD(t.tbm_time_end, 4, '0'), 'YYYYMMDD HH24MI')::timestamp
+						ELSE NULL
+					END AS ended_at,
+					t.created_at
+				FROM esg.tb_toolboxmeeting t
+				JOIN esg.tb_approval_info ai
+					ON ai.target_type = t.doc_type
+					AND ai.target_id = CONCAT(t.write_year, t.doc_no)
+					AND ai.hr_id = #{hrId} -- 내가 참석자이거나, 담당자인 TBM 만
+				WHERE t.comp_id = #{compId}
+					AND t.tbm_date BETWEEN #{startDate} AND #{endDate}
+					AND t.use_yn = 'Y'
+				GROUP BY t.write_year, t.doc_type, t.doc_no
+			),
+			participants AS ( -- 담당자, 서명자 서명 정보 질의
+				SELECT 
+				t.write_year, 
+				t.doc_type, 
+				t.doc_no,
+				SUM(CASE WHEN ai.type = 'leader' THEN 1 ELSE 0 END) AS leader_count,
+				SUM(CASE WHEN ai.type = 'attend' THEN 1 ELSE 0 END) AS attendee_count,
+				SUM(CASE WHEN ai.type = 'leader' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) AS signed_leader_count,
+				SUM(CASE WHEN ai.type = 'attend' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) AS signed_attendee_count,
+				MAX(CASE WHEN ai.type = 'leader' THEN ai.hr_id ELSE NULL END) AS leader_hr_id,
+				MAX(CASE WHEN ai.type = 'leader' THEN ai.hr_nm ELSE NULL END) AS leader_name,
+				MAX(CASE WHEN ai.type = 'leader' THEN ai.jbrp_nm ELSE NULL END) AS leader_job_title,
+				MAX(CASE WHEN ai.type = 'leader' THEN ai.orgn_nm ELSE NULL END) AS leader_org_name,
+				CASE
+					WHEN MAX(CASE WHEN ai.type = 'leader' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) >= 1 THEN
+						TRUE
+				    ELSE FALSE
+				END AS leader_signed,
+				SUM(CASE WHEN ai.hr_id = #{hrId} THEN 1 ELSE 0 END) AS my_count,
+				SUM(CASE WHEN ai.hr_id = #{hrId} AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) AS signed_my_count
+				FROM esg.tb_approval_info ai 
+				JOIN tbm_list t ON ai.target_type = t.doc_type AND ai.target_id = CONCAT(t.write_year, t.doc_no)
+				GROUP BY t.write_year, t.doc_type, t.doc_no
+			)
+			SELECT -- TBM 목록 조회 질의 본문
+				CONCAT(t.write_year, '-', t.doc_type, '-', t.doc_no) AS id,
+				t.work_place AS location,
+				json_build_object(
+					'name', t.work_nm,
+					'content', t.work_desc
+				) AS work,
+				t.is_same_date AS sameWorkingDate,
+				t.is_risk AS includedRiskAssessment,
+				CASE WHEN p.my_count > 0 THEN
+						CASE WHEN p.my_count > p.signed_my_count THEN FALSE
+							ELSE TRUE
+						END 
+					ELSE NULL
+				END AS signed,
+				CASE
+					WHEN p.leader_hr_id IS NOT NULL THEN
+						json_build_object(
+							'hrId', p.leader_hr_id,
+							'hrNm', p.leader_name,
+							'jbrpNm', p.leader_job_title,
+							'orgnNm', p.leader_org_name,
+							'signed', p.leader_signed
+						)
+				    ELSE NULL 
+				END AS leader,
+				json_build_object(
+					'attendee', p.attendee_count,
+					'signedAttendee', p.signed_attendee_count,
+					'leader', p.leader_count,
+					'signedLeader', p.signed_leader_count
+				) AS participantCount,
+				t.check_result AS checkResult,
+				t.work_end_meeting AS endMeeting,
+				CASE
+					WHEN t.check_result IS NULL THEN 'safetyCheck'
+					WHEN t.work_end_meeting IS NULL THEN 'meeting'
+					WHEN p.attendee_count != p.signed_attendee_count THEN 'waitSigns'
+					WHEN p.leader_signed IS FALSE THEN 'leaderSigns'
+					ELSE 'done'
+				END AS status,
+				t.started_at AS startedAt,
+				t.ended_at AS endedAt,
+				t.created_at
+			FROM tbm_list t 
+			JOIN participants p 
+		        ON t.write_year = p.write_year 
+		        AND t.doc_type = p.doc_type 
+		        AND t.doc_no = p.doc_no
+	    ]]>
+        <if test="onlyDone">
+            <![CDATA[
+		        AND t.check_result IS NOT NULL 
+		        AND t.work_end_meeting IS NOT NULL
+		        AND p.attendee_count = p.signed_attendee_count
+		        AND p.leader_signed 
+		    ]]>
+        </if>
+        <![CDATA[
+			;
+		]]>
+    </select>
+
+    <insert id="insertMain" parameterType="kr.co.igns.mobile.toolBoxMeeting.model.ToolBoxMeetingVO">
+        <selectKey keyProperty="id" resultType="string" order="BEFORE">
+            <![CDATA[
+			SELECT CONCAT_WS('-', extract('YEAR' from now())::text, 'TBM', to_char(coalesce(max(doc_no)::int, 0) + 1, 'FM00000'))
+			FROM esg.tb_toolboxmeeting
+			WHERE write_year = extract('YEAR' from now())::text
+			AND doc_type = 'TBM'
+		    ]]>
+        </selectKey>
+        <![CDATA[
+			INSERT INTO esg.tb_toolboxmeeting (
+				write_year,
+				doc_type,
+				doc_no,
+				comp_id,
+				tbm_date,
+				tbm_time_stt,
+				tbm_time_end,
+				same_date_yn,
+				work_nm,
+				work_desc,
+				work_place,
+				risk_yn,
+				check_result,
+				work_end_meeting,
+				use_yn,
+				created_at,
+				created_by
+			) VALUES(
+				split_part(#{id}, '-', 1),
+				'TBM',
+				split_part(#{id}, '-', 3),
+				#{compId},
+				to_char(#{startedAt}::timestamp, 'YYYYMMDD'),
+				to_char(#{startedAt}::timestamp, 'HH24MI'),
+				to_char(#{endedAt}::timestamp, 'HH24MI'),
+				CASE WHEN #{sameWorkingDate}::bool THEN 'Y' ELSE 'N' END,
+				#{work.name},
+				#{work.content},
+				#{location},
+				CASE WHEN #{includedRiskAssessment}::bool THEN 'Y' ELSE 'N' END,
+				#{checkResult},
+				#{endMeeting},
+				'Y',
+				now(),
+				#{createdBy}
+			)
+			;
+		]]>
+    </insert>
+
+    <update id="updateMain" parameterType="kr.co.igns.mobile.toolBoxMeeting.model.ToolBoxMeetingVO">
+        <![CDATA[
+			UPDATE esg.tb_toolboxmeeting
+			SET tbm_date = to_char(#{startedAt}::timestamp, 'YYYYMMDD'),
+				tbm_time_stt = to_char(#{startedAt}::timestamp, 'HH24MI'),
+				tbm_time_end = to_char(#{endedAt}::timestamp, 'HH24MI'),
+				same_date_yn = case when #{sameWorkingDate}::bool then 'Y' else 'N' end,
+				work_nm = #{work.name},
+				work_desc = #{work.content},
+				work_place = #{location},
+				risk_yn = case when #{includedRiskAssessment}::bool then 'Y' else 'N' end,
+				check_result = #{checkResult},
+				work_end_meeting = #{endMeeting},
+				updated_at = now(),
+				updated_by = #{createdBy}
+			WHERE CONCAT_WS('-', write_year, doc_type, doc_no) = #{id}
+			;
+		]]>
+    </update>
+
+    <update id="saveRiskFactors" parameterType="kr.co.igns.mobile.toolBoxMeeting.model.ToolBoxMeetingVO">
+        <![CDATA[
+			DELETE FROM esg.tb_toolboxmeeting_potentialrisk
+			WHERE CONCAT_WS('-', write_year, doc_type, doc_no) = #{id}
+			AND doc_seq not in (
+		]]>
+        <foreach item="factor" collection="riskFactors">
+            split_part(coalesce(#{factor.potentialId}, ''), '-', 4),
+        </foreach>
+        <![CDATA[
+				''
+			)
+			;
+			
+			DELETE FROM esg.tb_toolboxmeeting_keyrisk
+			WHERE CONCAT_WS('-', write_year, doc_type, doc_no) = #{id}
+			AND doc_seq not in (
+		]]>
+        <foreach item="factor" collection="riskFactors">
+            <if test="factor.important">
+                split_part(coalesce(#{factor.importantId}, ''), '-', 4),
+            </if>
+        </foreach>
+        <![CDATA[
+				''
+			)
+			;
+			
+			DELETE FROM esg.tb_toolboxmeeting_safecheck
+			WHERE CONCAT_WS('-', write_year, doc_type, doc_no) = #{id}
+			AND doc_seq not in (
+		]]>
+        <foreach item="factor" collection="riskFactors">
+            split_part(coalesce(#{factor.safetyCheckId}, ''), '-', 4),
+        </foreach>
+        <foreach item="check" collection="safetyCheckItems">
+            split_part(coalesce(#{check.safetyCheckId}, ''), '-', 4),
+        </foreach>
+        <![CDATA[
+				''
+			)
+			;
+			
+			WITH risks AS (
+				SELECT
+					split_part(#{id}, '-', 1) AS write_year,
+					'TBM' AS doc_type,
+					split_part(#{id}, '-', 3) AS doc_no,
+					CASE
+						WHEN src.p_seq = ''
+							THEN to_char(p.max_seq + row_number() OVER(PARTITION BY src.p_seq = ''),'FM00000')
+							ELSE src.p_seq
+					END AS potential_risk_seq,
+					CASE
+						WHEN src.k_seq = '' and src.important
+							THEN to_char(k.max_seq + row_number() OVER(PARTITION BY src.k_seq = '' and src.important),'FM00000')
+							ELSE src.k_seq
+					END AS key_risk_seq,
+					CASE
+						WHEN src.s_seq = ''
+							THEN to_char(s.max_seq + row_number() OVER(PARTITION BY src.s_seq = ''),'FM00000')
+							ELSE src.s_seq
+					END AS safecheck_seq,
+					src.risk,
+					src.measures,
+					src.important,
+					src.actioned,
+					src."action",
+					CASE WHEN src.measures_eff THEN 'Y' ELSE 'N' END AS effective_measures_yn
+				FROM (
+					VALUES
+		]]>
+        <foreach item="factor" collection="riskFactors">
+            <![CDATA[
+                    (
+                        split_part(coalesce(#{factor.potentialId}, ''), '-', 4),
+                        split_part(coalesce(#{factor.importantId}, ''), '-', 4),
+                        split_part(coalesce(#{factor.safetyCheckId}, ''), '-', 4),
+                        #{factor.content},
+                        #{factor.potentialMeasures},
+                        #{factor.important}::bool,
+                        #{factor.actioned}::bool,
+                        #{factor.action},
+                        #{factor.effectiveMeasures}::bool
+                    ),
+            ]]>
+        </foreach>
+        <![CDATA[
+					(NULL, NULL, NULL, NULL, NULL, false, false, NULL, false)
+				) AS src(p_seq, k_seq, s_seq, risk, measures, important, actioned, "action", measures_eff)
+				JOIN (
+					SELECT coalesce(max(doc_seq)::int, 0) AS max_seq
+					FROM esg.tb_toolboxmeeting_potentialrisk
+					WHERE CONCAT_WS('-', write_year, doc_type, doc_no) = #{id}
+				) AS p
+				ON true
+				JOIN (
+					SELECT coalesce(max(doc_seq)::int, 0) AS max_seq
+					FROM esg.tb_toolboxmeeting_keyrisk
+					WHERE CONCAT_WS('-', write_year, doc_type, doc_no) = #{id}
+				) AS k
+				ON true
+				JOIN (
+					SELECT coalesce(max(doc_seq)::int, 0) AS max_seq
+					FROM esg.tb_toolboxmeeting_safecheck
+					WHERE CONCAT_WS('-', write_year, doc_type, doc_no) = #{id}
+				) AS s
+				ON true
+				where p_seq is not null
+			),
+            insert_1 AS (
+                INSERT INTO esg.tb_toolboxmeeting_potentialrisk AS tgt (
+                    write_year,
+                    doc_type,
+                    doc_no,
+                    doc_seq,
+                    risk,
+                    measures,
+                    created_at,
+                    created_by
+                )
+                SELECT
+                    src.write_year,
+                    src.doc_type,
+                    src.doc_no,
+                    src.potential_risk_seq,
+                    src.risk,
+                    src.measures,
+                    now(),
+                    #{createdBy}
+                FROM risks AS src
+                ON CONFLICT ON CONSTRAINT tb_toolboxmeeting_potentialrisk_pk
+                DO UPDATE
+                SET risk = EXCLUDED.risk,
+                    measures = EXCLUDED.measures,
+                    updated_at = now(),
+                    updated_by = #{createdBy}
+                WHERE (tgt.risk != EXCLUDED.risk) IS NOT FALSE
+                OR (tgt.measures != EXCLUDED.measures) IS NOT FALSE
+			),
+			insert_2 AS (
+                INSERT INTO esg.tb_toolboxmeeting_keyrisk AS tgt (
+                    write_year,
+                    doc_type,
+                    doc_no,
+                    doc_seq,
+                    potential_risk_seq,
+                    measures,
+                    effective_measures_yn,
+                    created_at,
+                    created_by
+                )
+                SELECT
+                    src.write_year,
+                    src.doc_type,
+                    src.doc_no,
+                    src.key_risk_seq,
+                    src.potential_risk_seq,
+                    src.measures,
+                    src.effective_measures_yn,
+                    now(),
+                    #{createdBy}
+                FROM risks AS src
+                WHERE src.important
+                ON CONFLICT ON CONSTRAINT tb_toolboxmeeting_keyrisk_pk
+                DO UPDATE
+                SET measures = EXCLUDED.measures,
+                    effective_measures_yn = EXCLUDED.effective_measures_yn,
+                    updated_at = now(),
+                    updated_by = #{createdBy}
+                WHERE (tgt.measures != EXCLUDED.measures) IS NOT FALSE
+                OR (tgt.effective_measures_yn != EXCLUDED.effective_measures_yn) IS NOT FALSE
+			)
+            INSERT INTO esg.tb_toolboxmeeting_safecheck AS tgt (
+                write_year,
+                doc_type,
+                doc_no,
+                doc_seq,
+                potential_risk_seq,
+                action_yn,
+                "action",
+                risk,
+                created_at,
+                created_by
+            )
+            SELECT
+                src.write_year,
+                src.doc_type,
+                src.doc_no,
+                src.safecheck_seq,
+                src.potential_risk_seq,
+                case when src.actioned then 'Y' else 'N' end,
+                src."action",
+                src.risk,
+                now(),
+                #{createdBy}
+            FROM risks AS src
+            ON CONFLICT ON CONSTRAINT tb_toolboxmeeting_safecheck_pk
+            DO UPDATE
+            SET action_yn = EXCLUDED.action_yn,
+                "action" = EXCLUDED."action",
+                risk = EXCLUDED.risk,
+                updated_at = now(),
+                updated_by = #{createdBy}
+            WHERE tgt.action_yn != EXCLUDED.action_yn
+            OR (tgt."action" != EXCLUDED."action") IS NOT FALSE
+            OR (tgt.risk != EXCLUDED.risk) IS NOT FALSE
+			;
+			INSERT INTO esg.tb_toolboxmeeting_safecheck AS tgt (
+				write_year,
+				doc_type,
+				doc_no,
+				doc_seq,
+				potential_risk_seq,
+				action_yn,
+				"action",
+				risk,
+				created_at,
+				created_by
+			)
+			SELECT
+				src.write_year,
+				src.doc_type,
+				src.doc_no,
+				case
+					when src.doc_seq = '' then to_char(s.max_seq + row_number() OVER(PARTITION BY src.doc_seq = ''),'FM00000')
+					else src.doc_seq
+				end,
+				'',
+				CASE WHEN src.actioned THEN 'Y' ELSE 'N' END,
+				src."action",
+				src.risk,
+				now(),
+				#{createdBy}
+			FROM (
+				VALUES
+		]]>
+        <foreach item="check" collection="safetyCheckItems">
+            <![CDATA[
+                (
+                    split_part(#{id}, '-', 1),
+                    'TBM',
+                    split_part(#{id}, '-', 3),
+                    split_part(coalesce(#{check.safetyCheckId}, ''), '-', 4),
+                    #{check.actioned}::bool,
+                    #{check.action},
+                    #{check.content}
+                ),
+            ]]>
+        </foreach>
+        <![CDATA[
+				(NULL, NULL, NULL, NULL, false, NULL, NULL)
+			) AS src(write_year, doc_type, doc_no, doc_seq, actioned, "action", risk)
+			JOIN (
+				SELECT coalesce(max(doc_seq)::int, 0) AS max_seq
+				FROM esg.tb_toolboxmeeting_safecheck
+				WHERE CONCAT_WS('-', write_year, doc_type, doc_no) = #{id}
+			) s
+			ON src.write_year IS NOT NULL
+			ON CONFLICT ON CONSTRAINT tb_toolboxmeeting_safecheck_pk
+			DO UPDATE 
+			SET action_yn = EXCLUDED.action_yn,
+				"action" = EXCLUDED."action",
+				risk = EXCLUDED.risk,
+				updated_at = now(),
+				updated_by = #{createdBy}
+			WHERE tgt.action_yn != EXCLUDED.action_yn
+			OR (tgt."action" != EXCLUDED."action") IS NOT FALSE
+			OR (tgt.risk != EXCLUDED.risk) IS NOT FALSE
+			;
+		]]>
+    </update>
+
+    <update id="saveParticipants" parameterType="kr.co.igns.mobile.toolBoxMeeting.model.ToolBoxMeetingVO">
+        <![CDATA[
+			WITH participants AS (
+				SELECT
+					src.hr_id,
+					src.type,
+					t1.hr_nm,
+					t2.orgn_nm,
+					jbrp.jbrp_nm
+				FROM (
+					VALUES
+		]]>
+        <foreach item="item" collection="attendees">
+            <![CDATA[
+                    (#{item.hrId}, 'attend'),
+            ]]>
+        </foreach>
+        <![CDATA[
+					(#{leader.hrId}, 'leader')
+				) AS src(hr_id, param)
+				JOIN esg.tb_hr_info t1
+				ON src.hr_id IS NOT null
+				AND src.hr_id = t1.hr_id
+				LEFT JOIN esg.tb_orgn_info t2
+				ON t1.orgn_id = t2.orgn_id
+				left join esg.tb_hr_info_jbrp jbrp
+                    on jbrp.jbrp_id = t1.jbrp
+			),
+            delete_1 AS (
+                DELETE FROM esg.tb_approval_info AS tgt
+                WHERE tgt.target_type = 'TBM'
+                AND tgt.target_id = split_part(#{id}, '-', 1) || split_part(#{id}, '-', 3)
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM participants src
+                    WHERE src.hr_id = tgt.hr_id
+                    AND src.type = tgt.param
+                )
+            )
+            INSERT INTO esg.tb_approval_info AS tgt (
+                target_type,
+                target_id,
+                hr_id,
+                param,
+                created_at,
+                created_by,
+                hr_nm,
+                orgn_nm,
+                jbrp_nm
+            )
+            select
+                'TBM',
+                split_part(#{id}, '-', 1) || split_part(#{id}, '-', 3),
+                src.hr_id,
+                src.type,
+                now(),
+                #{createdBy},
+                src.hr_nm,
+                src.orgn_nm,
+                src.jbrp_nm
+            FROM participants AS src
+            ON CONFLICT ON CONSTRAINT tb_approval_info_pk
+            DO NOTHING
+            ;
+		]]>
+    </update>
+
+    <select id="getTBM" parameterType="kr.co.igns.mobile.toolBoxMeeting.model.ToolBoxMeetingSearchVO"
+            resultMap="TbmResultMap">
+        <![CDATA[
+            WITH tbm AS ( -- 대상 TBM 조회
+                SELECT
+                    t.write_year,
+                    t.doc_type,
+                    t.doc_no,
+                    t.work_nm,
+                    t.work_desc,
+                    t.work_place,
+                    CASE
+                        WHEN t.same_date_yn = 'Y' THEN TRUE
+                        ELSE FALSE
+                    END AS is_same_date,
+                    CASE
+                        WHEN t.risk_yn = 'Y' THEN TRUE
+                        ELSE FALSE
+                    END AS is_risk,
+                    t.check_result,
+                    t.work_end_meeting,
+                    CASE
+                        WHEN t.tbm_date IS NOT NULL AND t.tbm_time_stt IS NOT NULL THEN
+                            TO_TIMESTAMP(t.tbm_date || ' ' || LPAD(t.tbm_time_stt, 4, '0'), 'YYYYMMDD HH24MI')::timestamp
+                        ELSE NULL
+                    END AS started_at,
+                    CASE
+                        WHEN t.tbm_date IS NOT NULL AND t.tbm_time_end IS NOT NULL THEN
+                                TO_TIMESTAMP(t.tbm_date || ' ' || LPAD(t.tbm_time_end, 4, '0'), 'YYYYMMDD HH24MI')::timestamp
+                        ELSE NULL
+                    END AS ended_at,
+                    t.created_at
+                FROM esg.tb_toolboxmeeting t
+                WHERE CONCAT_WS('-', t.write_year, t.doc_type, t.doc_no) = #{id}
+            ),
+            participants AS ( -- 담당자, 서명자 서명 정보 질의
+                SELECT
+                    SUM(CASE WHEN ai.type = 'leader' THEN 1 ELSE 0 END) AS leader_count,
+                    SUM(CASE WHEN ai.type = 'attend' THEN 1 ELSE 0 END) AS attendee_count,
+                    SUM(CASE WHEN ai.type = 'leader' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) AS signed_leader_count,
+                    SUM(CASE WHEN ai.type = 'attend' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) AS signed_attendee_count,
+                    MAX(CASE WHEN ai.type = 'leader' THEN ai.hr_id ELSE NULL END) AS leader_hr_id,
+                    MAX(CASE WHEN ai.type = 'leader' THEN ai.hr_nm ELSE NULL END) AS leader_name,
+                    MAX(CASE WHEN ai.type = 'leader' THEN ai.jbrp_nm ELSE NULL END) AS leader_job_title,
+                    MAX(CASE WHEN ai.type = 'leader' THEN ai.orgn_nm ELSE NULL END) AS leader_org_name,
+                    MAX(CASE WHEN ai.type = 'leader' THEN f.file_id ELSE NULL END) AS leader_logo_id,
+                    bool_or(ai.type = 'leader' AND ai.signature IS NOT NULL) AS leader_signed,
+                    SUM(CASE WHEN ai.hr_id = #{hrId} THEN 1 ELSE 0 END) AS my_count,
+                    SUM(CASE WHEN ai.hr_id = #{hrId} AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) AS signed_my_count
+                FROM esg.tb_approval_info ai
+                JOIN tbm t
+                    ON ai.target_type = t.doc_type
+                    AND ai.target_id = CONCAT(t.write_year, t.doc_no)
+                LEFT JOIN ESG.tb_sys_file f
+                    ON f.target_id = ai.hr_id
+                    AND f.target_type = 'hrImg'
+            ),
+            attendees AS (
+                SELECT
+                    COALESCE(json_agg(
+                        json_build_object(
+                            'hrId', ai.hr_id,
+                            'hrNm', ai.hr_nm,
+                            'orgnNm', ai.orgn_nm,
+                            'jbrpNm', ai.jbrp_nm,
+                            'logoId', f.file_id,
+                            'signed', ai.signature IS NOT NULL
+                        )
+                    ), '[]'::json) AS attendees
+                FROM esg.tb_approval_info ai
+                JOIN tbm t
+                    ON ai.target_type = t.doc_type
+                    AND ai.target_id = CONCAT(t.write_year, t.doc_no)
+                    AND ai.type = 'attend'
+                LEFT JOIN ESG.tb_sys_file f
+                    ON f.target_id = ai.hr_id
+                    AND f.target_type = 'hrImg'
+            ),
+            risk_factors AS ( -- 잠재위험요인, 중점위험요인과 조치 정보 조회
+                SELECT
+                    COALESCE(json_agg(
+                        json_build_object(
+                            'potentialId',
+                                CONCAT_WS('-', p.write_year, p.doc_type, p.doc_no, p.doc_seq), -- 잠재위험요인 ID
+                            'importantId',
+                                CASE
+                                    WHEN k.potential_risk_seq IS NOT NULL THEN
+                                        CONCAT_WS('-', k.write_year, k.doc_type, k.doc_no, k.doc_seq)
+                                    ELSE NULL
+                                END, -- 중점위험요인 ID
+                            'content', p.risk, -- 위험요인 내용
+                            'potentialMeasures', p.measures, -- 잠재위험요인일때 대책
+                            'importantMeasures', k.measures, -- 중점위험요인일때 대책
+                            'effectiveMeasures',
+                                CASE
+                                    WHEN k.effective_measures_yn = 'Y' THEN TRUE
+                                    WHEN k.effective_measures_yn = 'N' THEN FALSE
+                                    ELSE NULL
+                                END, -- 중점위험요인 대책이 효과적이였는지
+                            'safetyCheckId',
+                                CASE
+                                    WHEN s.doc_seq IS NOT NULL THEN
+                                        CONCAT_WS('-', s.write_year, s.doc_type, s.doc_no, s.doc_seq)
+                                    ELSE NULL
+                                END, -- 안전조치 ID
+                            'actioned',
+                                CASE
+                                    WHEN s.action_yn = 'Y' THEN TRUE
+                                    ELSE FALSE
+                                END, -- 조치완료 또는 예정
+                            'action', s.action, -- 조치 예정일때 조치내용
+                            'createdAt', p.created_at -- 위험요인 생성일
+                        ) ORDER BY k.doc_seq
+                    ), '[]'::json) AS factors
+                FROM esg.tb_toolboxmeeting_potentialrisk p
+                JOIN tbm t
+                    ON p.write_year = t.write_year
+                    AND p.doc_type = t.doc_type
+                    AND p.doc_no = t.doc_no
+                LEFT JOIN esg.tb_toolboxmeeting_keyrisk k
+                    ON p.write_year = k.write_year
+                    AND p.doc_type = k.doc_type
+                    AND p.doc_no = k.doc_no
+                    AND p.doc_seq = k.potential_risk_seq
+                LEFT JOIN esg.tb_toolboxmeeting_safecheck s
+                    ON p.write_year = s.write_year
+                    AND p.doc_type = s.doc_type
+                    AND p.doc_no = s.doc_no
+                    AND p.doc_seq = s.potential_risk_seq
+            ),
+            safety_check AS (
+                SELECT
+                    COALESCE(json_agg(
+                        json_build_object(
+                            'potentialId',
+                                CONCAT_WS('-', s.write_year, s.doc_type, s.doc_no, s.potential_risk_seq), -- 잠재위험요인 ID
+                            'safetyCheckId',
+                                CONCAT_WS('-', s.write_year, s.doc_type, s.doc_no, s.doc_seq), -- 안전조치 ID
+                            'content', s.risk, -- 위험요인 내용
+                            'actioned',
+                                CASE
+                                    WHEN s.action_yn = 'Y' THEN TRUE
+                                    ELSE FALSE
+                                END, -- 조치완료 또는 예정
+                            'action', s.action, -- 조치 예정일때 조치내용
+                            'createdAt', s.created_at -- 안전조치 생성일시
+                        ) ORDER BY s.doc_seq
+                    ), '[]'::json) AS check_items
+                FROM esg.tb_toolboxmeeting_safecheck s
+                JOIN tbm t
+                ON s.write_year = t.write_year
+                    AND s.doc_type = t.doc_type
+                    AND s.doc_no = t.doc_no
+                    AND s.potential_risk_seq = '' IS NOT FALSE
+            )
+            SELECT
+                CONCAT_WS('-', t.write_year, t.doc_type, t.doc_no) AS id,
+                t.work_place AS location,
+                json_build_object(
+                    'name', t.work_nm,
+                    'content', t.work_desc
+                ) AS work,
+                t.is_same_date AS sameWorkingDate,
+                t.is_risk AS includedRiskAssessment,
+                t.check_result AS checkResult,
+                t.work_end_meeting AS endMeeting,
+                t.started_at AS startedAt,
+                t.ended_at AS endedAt,
+                f.factors AS riskFactors,
+                s.check_items AS safetyCheckItems,
+                a.attendees,
+                json_build_object(
+                    'attendee', p.attendee_count,
+                    'signedAttendee', p.signed_attendee_count,
+                    'leader', p.leader_count,
+                    'signedLeader', p.signed_leader_count
+                ) AS participantCount,
+                CASE
+                    WHEN p.leader_hr_id IS NOT NULL THEN
+                        json_build_object(
+                            'hrId', p.leader_hr_id,
+                            'hrNm', p.leader_name,
+                            'jbrpNm', p.leader_job_title,
+                            'orgnNm', p.leader_org_name,
+                            'logoId', p.leader_logo_id,
+                            'signed', p.leader_signed
+                        )
+                    ELSE NULL
+                END AS leader,
+                CASE
+                    WHEN p.my_count > 0 THEN
+                        CASE
+                            WHEN p.my_count > p.signed_my_count THEN FALSE
+                            ELSE TRUE
+                        END
+                    ELSE NULL
+                    END AS signed,
+                    CASE
+                        WHEN t.check_result IS NULL THEN 'safetyCheck'
+                        WHEN t.work_end_meeting IS NULL THEN 'meeting'
+                        WHEN p.attendee_count != p.signed_attendee_count THEN 'waitSigns'
+                        WHEN p.leader_signed IS FALSE THEN 'leaderSigns'
+                    ELSE 'done'
+                END AS status,
+                t.created_at
+            FROM tbm t
+            LEFT JOIN risk_factors f ON TRUE
+            LEFT JOIN safety_check s ON TRUE
+            LEFT JOIN participants p ON TRUE
+            LEFT JOIN attendees a ON TRUE
+            ;
+        ]]>
+    </select>
+
+    <delete id="deleteTbm" parameterType="kr.co.igns.mobile.toolBoxMeeting.model.ToolBoxMeetingSearchVO">
+        <![CDATA[
+            UPDATE esg.tb_toolboxmeeting
+                SET use_yn = 'N',
+                    updated_at = now(),
+                    updated_by = #{createdBy}
+            WHERE CONCAT_WS('-', write_year, doc_type, doc_no) = #{id}
+        ]]>
+    </delete>
+</mapper>

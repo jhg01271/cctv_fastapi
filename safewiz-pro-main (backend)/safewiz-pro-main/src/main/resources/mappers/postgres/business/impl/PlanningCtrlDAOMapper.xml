@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.impl.dao.postgres.PlanningCtrlDAO">
+    <select id='getPlanningCtrl' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.PlanningCtrlVO'>
+	<![CDATA[
+        SELECT
+            'workerHealthMgmtGuidelines' AS title
+            ,'/WorkerHealthMgmtGuidelines' AS route
+            ,'workerHealthMgmtGuidelinesDesc' AS description
+            , case when workerHealthMgmtGuidelines.exist then 'Y'
+            	else 'N'
+            	end as activeYn
+        FROM
+        (
+            SELECT EXISTS (
+                SELECT 1
+                FROM esg.tb_worker_health_guide thp
+                WHERE thp.comp_id  = #{compId}
+                    AND thp.write_year = #{searchText}
+            ) as exist
+        ) AS workerHealthMgmtGuidelines
+    UNION ALL 
+	    SELECT
+	            'safetyMgmtGuidelines' AS title
+	            ,'/SafetyMgmtGuidelines' AS route
+	            ,'safetyMgmtGuidelinesDesc' AS description
+	            , case when safetyMgmtGuidelines.exist then 'Y'
+	            	else 'N'
+	            	end as activeYn
+	        FROM
+	        (
+	            SELECT EXISTS (
+	                SELECT 1
+	                FROM esg.tb_safety_checklist thp
+	                WHERE thp.comp_id  = #{compId}
+	                    AND thp.write_year = #{searchText}
+	            ) OR EXISTS (
+                    SELECT 1
+                      FROM esg.tb_safety_inspection_log
+                     WHERE write_year = #{searchText}
+                       AND comp_id = #{compId}
+	            ) OR EXISTS (
+                    SELECT 1
+                      FROM esg.tb_permit_to_work
+                     WHERE write_year = #{searchText}
+                       AND comp_id = #{compId}
+	            ) as exist
+	        ) AS safetyMgmtGuidelines
+   UNION ALL 
+	    SELECT
+	            'workplaceSafetyGuidelines' AS title
+	            ,'/WorkplaceSafetyGuidelines' AS route
+	            ,'workplaceSafetyGuidelinesDesc' AS description
+	            , case when workplaceSafetyGuidelines.exist then 'Y'
+	            	else 'N'
+	            	end as activeYn 
+	        FROM
+	        (
+	            SELECT EXISTS (
+	                SELECT 1
+	                FROM esg.tb_hazmat_checklist thp
+	                WHERE thp.comp_id  = #{compId}
+	                    AND thp.write_year = #{searchText}
+	            ) as exist
+	        ) AS workplaceSafetyGuidelines
+	UNION ALL 
+	    SELECT
+	            'mgmtOfChange' AS title
+	            ,'/MgmtOfChange' AS route
+	            ,'mgmtOfChangeDesc' AS description
+	            , case when safetyMgmtGuidelines.exist then 'Y'
+	            	else 'N'
+	            	end as activeYn 
+	        FROM
+	        (
+	            SELECT EXISTS (
+	                SELECT 1
+	                FROM esg.tb_mgmt_of_change thp
+	                WHERE thp.comp_id  = #{compId}
+	                    AND thp.write_year = #{searchText}
+	            ) as exist
+	        ) AS safetyMgmtGuidelines
+	UNION ALL
+	    SELECT
+	            'procurement' AS title
+	            ,'/Procurement' AS route
+	            ,'procurementDesc' AS description
+	            , case when procurement.exist then 'Y'
+	            	else 'N'
+	            	end as activeYn
+	        FROM
+	        (
+	            SELECT EXISTS (
+					SELECT 1
+					  FROM esg.tb_partner_comp_info
+					 WHERE comp_id = #{compId}
+					   AND reg_dt <= #{searchText} || '1231'
+	            ) OR EXISTS (
+                    SELECT 1
+                      FROM esg.tb_contractor_investigation_form
+                     WHERE write_year = #{searchText}
+                       AND comp_id = #{compId}
+	            ) AS exist
+	        ) AS procurement
+	]]>
+    </select>
+</mapper>
+

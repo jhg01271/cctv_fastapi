@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.participation.dao.postgres.HsePolicyDAO">
+    <select id='getHsePolicyList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.participation.model.HsePolicyVO'>
+        SELECT thp.*,
+            tcd.minor_nm AS dataTypeNm,
+            tsf.file_id,
+            esg.fn_getapprovalstatus('PLC', thp.write_year || thp.doc_no) as approval_status,
+            COALESCE(COUNT(thps.doc_seq),0) as workerSuggestionCnt
+        FROM esg.tb_hse_policy thp
+        LEFT JOIN esg.tb_common_d tcd
+            ON tcd.major_cd = 'C0013'
+            AND thp.data_type = tcd.minor_cd
+        LEFT JOIN esg.tb_sys_file tsf
+            ON thp.write_year||thp.doc_no = tsf.target_id
+            AND tsf.target_type = thp.data_type
+        LEFT JOIN esg.tb_hse_policy_suggestion thps
+            ON thps.comp_id = thp.comp_id
+            AND thps.doc_type = thp.doc_type
+            AND thps.write_year = thp.write_year
+            AND thps.doc_no = thp.doc_no
+            AND thps.use_yn = 'Y'
+        WHERE thp.comp_id = #{compId}
+        <if test="searchText != null and !searchText.equals('')">
+            AND thp.confirm_yn = #{searchText}
+        </if>
+        GROUP BY thp.comp_id, thp.write_year, thp.doc_type, thp.doc_no, tcd.minor_nm, tsf.file_id
+        ORDER BY thp.use_yn DESC, thp.write_year desc, thp.created_at desc
+    </select>
+
+    <select id='getHsePolicyDetail' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.participation.model.HsePolicyVO'>
+        SELECT thp.*,
+            tsf.file_id
+        FROM esg.tb_hse_policy thp
+        LEFT JOIN esg.tb_sys_file tsf
+            ON thp.write_year||thp.doc_no = tsf.target_id
+            AND thp.doc_type = tsf.target_type
+        WHERE thp.comp_id = #{compId}
+           AND thp.write_year = #{writeYear}
+           AND thp.doc_type = #{docType}
+           AND thp.doc_no = #{docNo}
+        LIMIT 1;
+    </select>
+
+    <select id='getSampleHsePolicy' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.participation.model.HsePolicyVO'>
+        SELECT tdhp.*,
+            (SELECT tci.comp_nm
+                FROM esg.tb_company_info tci
+                WHERE tci.comp_id = #{compId}
+            )
+        FROM dataset.tb_dataset_hse_policy tdhp
+    </select>
+
+    <insert id="insertHsePolicy" parameterType="kr.co.igns.business.participation.model.HsePolicyVO">
+        <selectKey keyProperty="docNo" resultType="kr.co.igns.business.participation.model.HsePolicyVO" order="BEFORE">
+        <![CDATA[
+				SELECT
+					LPAD((COALESCE(MAX(doc_no::INTEGER), 0) + 1)::TEXT, 5, '0') AS docNo
+			    FROM esg.tb_hse_policy
+				WHERE write_year = #{writeYear}
+					AND doc_type = #{docType}
+			]]>
+		</selectKey>
+        INSERT INTO esg.tb_hse_policy (
+            write_year,
+            doc_type,
+            doc_no,
+            data_type,
+            content_header,
+            content_body,
+            content_footer,
+            use_yn,
+            created_at,
+            created_by,
+            comp_id,
+            confirm_yn,
+            confirm_dt
+        )
+        VALUES (
+<!--            TO_CHAR(now(), 'yyyy'),-->
+            #{writeYear},
+            #{docType},
+            #{docNo},
+            #{dataType},
+            #{contentHeader},
+            #{contentBody},
+            #{contentFooter},
+            #{useYn},
+            now(),
+            #{createdBy},
+            #{compId},
+            'N',
+            null
+        )
+    </insert>
+    <update id="updateHsePolicy" parameterType="kr.co.igns.business.participation.model.HsePolicyVO">
+        UPDATE esg.tb_hse_policy
+        SET
+            use_yn = #{useYn},
+            content_header = #{contentHeader},
+            content_body = #{contentBody},
+            content_footer = #{contentFooter},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+            AND write_year = #{writeYear}
+            AND doc_type = #{docType}
+            AND doc_no = #{docNo}
+    </update>
+    <update id="updateHsePolicyConfirmYn" parameterType="kr.co.igns.business.participation.model.HsePolicyVO">
+        UPDATE esg.tb_hse_policy
+        SET
+            confirm_yn = #{confirmYn}
+        <if test='confirmYn == "Y"'>
+            , confirm_dt = now()
+        </if>
+        <if test='confirmYn == "N"'>
+            , confirm_dt = null
+        </if>
+        WHERE comp_id = #{compId}
+            AND write_year = #{writeYear}
+            AND doc_type = #{docType}
+            AND doc_no = #{docNo}
+    </update>
+
+    <update id="deleteHsePolicy" parameterType="kr.co.igns.business.participation.model.HsePolicyVO">
+        UPDATE esg.tb_hse_policy
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+            AND write_year = #{writeYear}
+            AND doc_type = #{docType}
+            AND doc_no = #{docNo}
+    </update>
+
+     <select id='getCeoHrId' resultType='String'>
+         SELECT thi.hr_id
+         FROM esg.tb_hr_info thi
+         WHERE thi.jbrp = '202501010001'
+         LIMIT 1
+    </select>
+
+    <select id='getCeoHrNm' resultType='String'>
+         SELECT thi.hr_nm
+         FROM esg.tb_hr_info thi
+         WHERE thi.jbrp = '00001'
+         LIMIT 1
+    </select>
+
+    <select id='getHsePolicySug' parameterType="kr.co.igns.system.common.model.SpSearchVO" resultType='kr.co.igns.business.participation.model.HsePolicySuggestionVO'>
+        SELECT thps.*
+            , tci.comp_nm
+            , thi.hr_nm
+            , jbrp.jbrp_nm
+        FROM esg.tb_hse_policy_suggestion thps
+        LEFT JOIN esg.tb_company_info tci
+            ON tci.comp_id = thps.comp_id
+        LEFT JOIN esg.tb_hr_info thi
+            ON thi.hr_id = thps.hr_id
+        left join esg.tb_hr_info_jbrp jbrp
+            on jbrp.jbrp_id = thi.jbrp and jbrp.comp_id = #{compId}
+        WHERE thps.comp_id = #{compId}
+            AND thps.write_year = #{writeYear}
+            AND thps.doc_type = #{docType}
+            AND thps.doc_no = #{docNo}
+        <if test="userId != null and !userId.equals('')">
+            AND thi.user_id = #{userId}
+        </if>
+        <if test="userId == null or userId.equals('')">
+            AND (
+                TO_TIMESTAMP(#{searchTo}|| '2359', 'YYYYMMDDHH24MI') >= COALESCE(thps.updated_at, thps.created_at)
+                AND COALESCE(thps.updated_at, thps.created_at) >= TO_TIMESTAMP(#{searchFrom}, 'YYYYMMDDHH24MI')
+              )
+        </if>
+        ORDER BY thps.created_at DESC, thps.updated_at DESC
+    </select>
+
+    <insert id="insertHsePolicySug" parameterType="kr.co.igns.business.participation.model.HsePolicySuggestionVO">
+    <selectKey keyProperty="docSeq" resultType="String" order="BEFORE">
+			SELECT LPAD((COALESCE(MAX(SUBSTRING(doc_seq, 1, 5)::INTEGER), 0) + 1)::TEXT, 5, '0') AS docSeq
+            FROM esg.tb_hse_policy_suggestion
+			WHERE write_year = #{writeYear}
+				AND doc_type = #{docType}
+				AND doc_no = #{docNo}
+    </selectKey>
+        INSERT INTO esg.tb_hse_policy_suggestion (
+            doc_seq,
+            write_year,
+            doc_type,
+            doc_no,
+            hr_id,
+            worker_suggestion,
+            use_yn,
+            created_at,
+            created_by,
+            comp_id
+        )
+        VALUES (
+            #{docSeq},
+            #{writeYear},
+            #{docType},
+            #{docNo},
+            (   SELECT hr_id
+                FROM esg.tb_hr_info
+                WHERE user_id = #{userId}
+            ),
+            #{workerSuggestion},
+            #{useYn},
+            now(),
+            #{userId},
+            #{compId}
+        )
+    </insert>
+    <update id="updateHsePolicySug" parameterType="kr.co.igns.business.participation.model.HsePolicySuggestionVO">
+        UPDATE
+            esg.tb_hse_policy_suggestion
+        SET
+            worker_suggestion = #{workerSuggestion},
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{userId}
+        WHERE
+            comp_id = #{compId}
+            AND doc_seq = #{docSeq}
+            AND write_year = #{writeYear}
+            AND doc_type = #{docType}
+			AND doc_no = #{docNo}
+
+    </update>
+
+    <update id="deleteHsePolicySug" parameterType="kr.co.igns.business.participation.model.HsePolicySuggestionVO">
+        UPDATE
+            esg.tb_hse_policy_suggestion
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{userId}
+        WHERE
+            comp_id = #{compId}
+            AND doc_seq = #{docSeq}
+            AND write_year = #{writeYear}
+            AND doc_type = #{docType}
+			AND doc_no = #{docNo}
+    </update>
+
+    <!-- 일괄출력용 -->
+    <select id='getAllReport' parameterType="kr.co.igns.system.common.model.SpSearchVO" resultType='kr.co.igns.system.common.model.SpSearchVO'>
+        select t1.write_year
+            , t1.doc_type
+            , t1.doc_no
+            , t1.comp_id
+            , t1.data_type
+        from esg.tb_hse_policy t1
+        where t1.comp_id = #{compId}
+            and t1.confirm_yn = 'Y'
+            and t1.use_yn = 'Y'
+    </select>
+</mapper>
+

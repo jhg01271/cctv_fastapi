@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.evaluation.dao.postgres.OhsCorrectiveRequestDAO">
+    <insert id='insertCorrectiveRequest' parameterType='kr.co.igns.business.evaluation.model.OhsCorrectiveRequestVO'>
+        <selectKey keyProperty="docDetailSeq" resultType="kr.co.igns.business.evaluation.model.OhsCorrectiveRequestVO" order="BEFORE">
+        <![CDATA[
+            select lpad((coalesce(max(substring(doc_detail_seq, 1, 5)::integer), 0) + 1)::text, 5, '0') as docDetailSeq
+            from esg.tb_ohs_corractive_action_request
+            WHERE write_year = #{writeYear}
+            AND doc_type = #{docType}
+            AND doc_seq = #{docSeq}
+        ]]>
+        </selectKey>
+        INSERT INTO esg.tb_ohs_corractive_action_request(
+        write_year,
+        doc_type,
+        doc_no,
+        doc_seq,
+        doc_detail_seq,
+        comp_id,
+        write_dt,
+        req_dt,
+        nonconformities,
+        measures,
+        validate,
+        required,
+        final_check_dt,
+        use_yn,
+        created_at,
+        created_by
+        )
+        VALUES(
+        #{writeYear},
+        #{docType},
+        #{docNo},
+        #{docSeq},
+        #{docDetailSeq},
+        #{compId},
+        #{writeDt},
+        #{reqDt},
+        #{nonconformities},
+        #{measures},
+        #{validate},
+        #{required},
+        #{finalCheckDt},
+        #{useYn},
+        now(),
+        #{createdBy}
+        );
+    </insert>
+    <update id='updateCorrectiveRequest' parameterType='kr.co.igns.business.evaluation.model.OhsCorrectiveRequestVO'>
+        UPDATE esg.tb_ohs_corractive_action_request
+        SET write_dt=#{writeDt},
+        req_dt=#{reqDt},
+        nonconformities=#{nonconformities},
+        measures=#{measures},
+        validate=#{validate},
+        required=#{required},
+        final_check_dt=#{finalCheckDt},
+        use_yn=#{useYn},
+        updated_at=now(),
+        updated_by=#{updatedBy}
+        WHERE  write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND doc_seq = #{docSeq}
+          AND doc_detail_seq = #{docDetailSeq}
+    </update>
+    <update id='deleteCorrectiveRequest' parameterType='kr.co.igns.system.common.model.SpSearchVO'>
+        UPDATE esg.tb_ohs_corractive_action_request
+        SET use_yn = 'N',
+        updated_at=now(),
+        updated_by=#{updatedBy}
+        WHERE  write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND doc_seq = #{docSeq}
+          AND doc_detail_seq = #{docDetailSeq}
+    </update>
+    <select id='getCorrectiveRequestDetail' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.evaluation.model.OhsCorrectiveRequestVO'>
+        select car.*,tarr.orgn_id,toi.orgn_nm,axp.audit_nm from esg.tb_ohs_corractive_action_request car
+        left join esg.tb_audit_result_report tarr on tarr.write_year = #{writeYear}
+          AND tarr.doc_no = #{docNo}
+          AND tarr.doc_seq = #{docSeq}
+        LEFT JOIN esg.tb_orgn_info toi on toi.orgn_id = tarr.orgn_id
+        LEFT JOIN esg.tb_audit_execution_plan axp on  axp.write_year=#{writeYear}
+          AND axp.doc_no = #{docNo}
+        WHERE car.write_year = #{writeYear}
+          AND car.doc_no = #{docNo}
+          AND car.doc_type = #{docType}
+          AND car.doc_seq = #{docSeq}
+          AND car.doc_detail_seq = #{docDetailSeq}
+    </select>
+    <select id='getCorrectiveRequest' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.evaluation.model.OhsCorrectiveRequestVO'>
+		SELECT car.*, tarr.orgn_id, toi.orgn_nm, axp.audit_nm,
+		       CASE 
+		           WHEN taiw.signature IS NOT NULL THEN 'Y'
+		           WHEN taiw.hr_id IS NULL THEN 'C'
+		           ELSE 'N'
+		       END AS approvalStatus
+		FROM esg.tb_ohs_corractive_action_request car
+		LEFT JOIN esg.tb_audit_result_report tarr 
+		       ON tarr.write_year = car.write_year
+		      AND tarr.doc_no = car.doc_no
+		      AND tarr.doc_seq = car.doc_seq
+		LEFT JOIN esg.tb_orgn_info toi 
+		       ON toi.orgn_id = tarr.orgn_id
+		LEFT JOIN esg.tb_audit_execution_plan axp 
+		       ON axp.write_year = car.write_year
+		      AND axp.doc_no = car.doc_no
+		LEFT JOIN esg.tb_approval_info taiw 
+		       ON taiw.target_type = 'OCAR'
+		      AND taiw.target_id = car.write_year || car.doc_no || car.doc_seq || car.doc_detail_seq
+		      AND taiw.param = 'writer'
+		WHERE car.comp_id = #{compId}
+		  AND car.write_year = #{writeYear}
+     ORDER BY car.use_yn DESC, doc_no DESC
+    </select>
+</mapper>

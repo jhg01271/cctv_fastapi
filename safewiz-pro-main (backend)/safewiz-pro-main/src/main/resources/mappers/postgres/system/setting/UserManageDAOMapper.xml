@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.system.setting.dao.postgres.UserManageDAO">
+    <sql id="filter">
+        <if test='searchWords != "" and searchWords != null and searchWords.size > 0'>
+            AND
+            (
+            <foreach collection='searchWords' item='searchWord' index='idx' separator='OR' open='(' close=')'>
+                tui.user_id LIKE CONCAT('%',#{searchWord},'%')
+            </foreach>
+            OR
+            <foreach collection='searchWords' item='searchWord' index='idx' separator='OR' open='(' close=')'>
+                tui.user_nm LIKE CONCAT('%',#{searchWord},'%')
+            </foreach>
+            )
+        </if>
+    </sql>
+    <select id='getUserList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.setting.model.UserManageVO'>
+        SELECT
+        tui.clnt_id,
+        tui.uuid,
+        tui.user_id,
+        tui.user_nm,
+        tui.user_ps,
+        tui.email,
+        tui.phone,
+        tui.signature,
+        tui.fcm_token,
+        tui.auth_group_cd,
+        tui.last_ps_date,
+        tui.last_login_date,
+        tui.last_login_os,
+        tui.login_fail_cnt,
+        tui.user_ip,
+        tui.user_locale,
+        tui.remark,
+        tui.use_yn,
+        tui.created_at,
+        tui.created_by,
+        tci.clnt_nm,
+        tcg.grp_nm as auth_group_nm
+        FROM esg.tb_user_info tui
+        left join esg.tb_client_info tci on tui.clnt_id = tci.clnt_id
+        left join esg.tb_comp_group tcg on tui.auth_group_cd = tcg.grp_cd
+        WHERE 1=1
+            AND tui.auth_group_cd != 'MASTER'
+        <include refid='kr.co.igns.system.setting.dao.postgres.UserManageDAO.filter' />
+        ORDER BY tui.use_yn desc, tui.uuid
+        LIMIT #{listSize, jdbcType=NUMERIC} OFFSET #{listStart, jdbcType=NUMERIC}
+    </select>
+
+    <select id='searchCount' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='int'>
+
+        SELECT
+        count(1)
+        FROM esg.tb_user_info tui
+        WHERE 1=1
+        <include refid='kr.co.igns.system.setting.dao.postgres.UserManageDAO.filter' />
+
+    </select>
+
+    <select id='getUserDetail' parameterType='String' resultType='kr.co.igns.system.setting.model.UserManageVO'>
+        SELECT
+        tui.clnt_id,
+        tui.uuid,
+        tui.user_id,
+        tui.user_nm,
+        tui.user_ps,
+        tui.email,
+        tui.phone,
+        tui.signature,
+        tui.fcm_token,
+        tui.auth_group_cd,
+        tui.last_ps_date,
+        tui.last_login_date,
+        tui.last_login_os,
+        tui.login_fail_cnt,
+        tui.user_ip,
+        tui.user_locale,
+        tui.remark,
+        tui.use_yn,
+        tui.created_at,
+        tui.created_by,
+        tci.clnt_nm,
+        tcg.grp_nm as auth_group_nm
+        FROM esg.tb_user_info tui
+        left join esg.tb_client_info tci on tui.clnt_id = tci.clnt_id
+        left join esg.tb_comp_group tcg on tui.auth_group_cd = tcg.grp_cd
+        WHERE 1=1
+        AND tui.user_id = #{userId}
+    </select>
+
+    <insert id="insertUser" parameterType="kr.co.igns.system.setting.model.UserManageVO">
+
+        INSERT INTO esg.tb_user_info (
+            clnt_id,
+            user_id,
+            user_nm,
+            user_ps,
+            email,
+            phone,
+            signature,
+            auth_group_cd,
+            last_login_date,
+            last_login_os,
+            user_ip,
+            user_locale,
+            remark,
+            created_at,
+            created_by
+        )
+        VALUES (
+                   #{clntId},
+                   #{userId},
+                   #{userNm},
+                   #{userPs},
+                   #{email},
+                   #{phone},
+                   #{signature},
+                   #{authGroupCd},
+                   null,
+                   #{lastLoginOs},
+                   #{userIp},
+                   #{userLocale},
+                   #{remark},
+                   now(),
+                   #{createdBy}
+               )
+
+    </insert>
+    <update id="updateUser" parameterType="kr.co.igns.system.setting.model.UserManageVO">
+
+        UPDATE esg.tb_user_info
+        SET
+            clnt_id = CASE
+                          WHEN #{clntId} IS NOT NULL THEN #{clntId}
+                          ELSE clnt_id
+                END,
+            user_nm = #{userNm},
+            phone = #{phone},
+            email = #{email},
+            user_ps = #{userPs},
+            signature = #{signature},
+            auth_group_cd = #{authGroupCd},
+            user_ip = #{userIp},
+            user_locale = #{userLocale},
+            remark = #{remark},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE user_id = #{userId}
+          AND clnt_id = #{currentClntId}
+
+    </update>
+
+    <delete id="deleteUser" parameterType="String">
+
+        UPDATE esg.tb_user_info
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE user_id = #{userId}
+          AND clnt_id = #{clntId}
+
+    </delete>
+
+    <delete id="deleteHrInfoCompMap" parameterType="String">
+        DELETE FROM esg.tb_hr_info_comp_map
+         WHERE user_id = #{userId}
+    </delete>
+
+    <select id='getUserByCd' parameterType='kr.co.igns.system.setting.model.UserManageVO' resultType='kr.co.igns.system.setting.model.UserManageVO'>
+
+        SELECT *
+        FROM esg.tb_user_info tui
+        WHERE 1=1
+          AND tui.user_id = #{userId}
+          AND tui.clnt_id = #{clntId}
+    </select>
+
+    <select id='getBeforeHrInfoCompMap' parameterType='kr.co.igns.system.setting.model.UserManageVO' resultType='String'>
+
+        SELECT t1.comp_id
+        FROM esg.tb_hr_info_comp_map t1
+        WHERE 1=1
+          AND t1.user_id = #{userId}
+          AND t1.orgn_comp_yn = 'Y'
+    </select>
+
+    <insert id="insertHrInfoCompMap" parameterType="kr.co.igns.system.setting.model.UserManageVO">
+
+        INSERT INTO esg.tb_hr_info_comp_map(
+            hr_id,
+            comp_id,
+            orgn_comp_yn,
+            created_at,
+            created_by,
+            use_yn,
+            user_id
+        ) VALUES (
+                     #{hrId},
+                     #{compId},
+                     #{orgnCompYn},
+                     now(),
+                     #{createdBy},
+                     'Y',
+                     #{userId}
+                 )
+    </insert>
+
+    <update id="updateHrInfoCompMap" parameterType="kr.co.igns.system.setting.model.UserManageVO">
+
+        UPDATE esg.tb_hr_info_comp_map
+           SET comp_id = #{compId},
+               updated_at = now(),
+               updated_by = #{userId}
+         WHERE user_id = #{userId}
+           AND (hr_id IS NULL OR hr_id = #{hrId}) OR (hr_id IS NOT NULL AND hr_id = #{hrId} AND orgn_comp_yn = #{orgnCompYn})
+    </update>
+</mapper>

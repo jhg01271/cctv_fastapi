@@ -1,0 +1,2999 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Created with Jaspersoft Studio version 6.20.0.final using JasperReports Library version 6.20.0-2bc7ab61c56f459e8176eb05c7705e145cd400ad  -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="objectivesAndActionPlan" pageWidth="842" pageHeight="595" orientation="Landscape" columnWidth="802" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" uuid="88c4712e-5c6e-41ea-89c3-c96a60c17f8d">
+	<property name="com.jaspersoft.studio.unit." value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.pageHeight" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.pageWidth" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.topMargin" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.bottomMargin" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.leftMargin" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.rightMargin" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.columnWidth" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.columnSpacing" value="pixel"/>
+	<style name="Table 1_TH" mode="Opaque" backcolor="#F0F8FF">
+		<box>
+			<pen lineWidth="0.5" lineColor="#000000"/>
+			<topPen lineWidth="0.5" lineColor="#000000"/>
+			<leftPen lineWidth="0.5" lineColor="#000000"/>
+			<bottomPen lineWidth="0.5" lineColor="#000000"/>
+			<rightPen lineWidth="0.5" lineColor="#000000"/>
+		</box>
+	</style>
+	<style name="Table 1_CH" mode="Opaque" backcolor="#BFE1FF">
+		<box>
+			<pen lineWidth="0.5" lineColor="#000000"/>
+			<topPen lineWidth="0.5" lineColor="#000000"/>
+			<leftPen lineWidth="0.5" lineColor="#000000"/>
+			<bottomPen lineWidth="0.5" lineColor="#000000"/>
+			<rightPen lineWidth="0.5" lineColor="#000000"/>
+		</box>
+	</style>
+	<style name="Table 4_TH" mode="Opaque" backcolor="#F0F8FF">
+		<box>
+			<pen lineWidth="0.5" lineColor="#000000"/>
+			<topPen lineWidth="0.5" lineColor="#000000"/>
+			<leftPen lineWidth="0.5" lineColor="#000000"/>
+			<bottomPen lineWidth="0.5" lineColor="#000000"/>
+			<rightPen lineWidth="0.5" lineColor="#000000"/>
+		</box>
+	</style>
+	<style name="Table 4_CH" mode="Opaque" backcolor="#BFE1FF">
+		<box>
+			<pen lineWidth="0.5" lineColor="#000000"/>
+			<topPen lineWidth="0.5" lineColor="#000000"/>
+			<leftPen lineWidth="0.5" lineColor="#000000"/>
+			<bottomPen lineWidth="0.5" lineColor="#000000"/>
+			<rightPen lineWidth="0.5" lineColor="#000000"/>
+		</box>
+	</style>
+	<style name="Table 5_TH" mode="Opaque" backcolor="#F0F8FF">
+		<box>
+			<pen lineWidth="0.5" lineColor="#000000"/>
+			<topPen lineWidth="0.5" lineColor="#000000"/>
+			<leftPen lineWidth="0.5" lineColor="#000000"/>
+			<bottomPen lineWidth="0.5" lineColor="#000000"/>
+			<rightPen lineWidth="0.5" lineColor="#000000"/>
+		</box>
+	</style>
+	<style name="Table 5_CH" mode="Opaque" backcolor="#BFE1FF">
+		<box>
+			<pen lineWidth="0.5" lineColor="#000000"/>
+			<topPen lineWidth="0.5" lineColor="#000000"/>
+			<leftPen lineWidth="0.5" lineColor="#000000"/>
+			<bottomPen lineWidth="0.5" lineColor="#000000"/>
+			<rightPen lineWidth="0.5" lineColor="#000000"/>
+		</box>
+	</style>
+	<style name="Table 5_TD" mode="Opaque" backcolor="#FFFFFF">
+		<box>
+			<pen lineWidth="0.5" lineColor="#000000"/>
+			<topPen lineWidth="0.5" lineColor="#000000"/>
+			<leftPen lineWidth="0.5" lineColor="#000000"/>
+			<bottomPen lineWidth="0.5" lineColor="#000000"/>
+			<rightPen lineWidth="0.5" lineColor="#000000"/>
+		</box>
+	</style>
+	<style name="Table_TH" mode="Opaque" backcolor="#F0F8FF">
+		<box>
+			<pen lineWidth="0.5" lineColor="#000000"/>
+			<topPen lineWidth="0.5" lineColor="#000000"/>
+			<leftPen lineWidth="0.5" lineColor="#000000"/>
+			<bottomPen lineWidth="0.5" lineColor="#000000"/>
+			<rightPen lineWidth="0.5" lineColor="#000000"/>
+		</box>
+	</style>
+	<style name="Table_CH" mode="Opaque" backcolor="#BFE1FF">
+		<box>
+			<pen lineWidth="0.5" lineColor="#000000"/>
+			<topPen lineWidth="0.5" lineColor="#000000"/>
+			<leftPen lineWidth="0.5" lineColor="#000000"/>
+			<bottomPen lineWidth="0.5" lineColor="#000000"/>
+			<rightPen lineWidth="0.5" lineColor="#000000"/>
+		</box>
+	</style>
+	<style name="Table_TD" mode="Opaque" backcolor="#FFFFFF">
+		<box>
+			<pen lineWidth="0.5" lineColor="#000000"/>
+			<topPen lineWidth="0.5" lineColor="#000000"/>
+			<leftPen lineWidth="0.5" lineColor="#000000"/>
+			<bottomPen lineWidth="0.5" lineColor="#000000"/>
+			<rightPen lineWidth="0.5" lineColor="#000000"/>
+		</box>
+	</style>
+	<style name="Crosstab_CH" mode="Opaque" backcolor="#F0F8FF">
+		<box>
+			<pen lineWidth="0.5" lineColor="#000000"/>
+			<topPen lineWidth="0.5" lineColor="#000000"/>
+			<leftPen lineWidth="0.5" lineColor="#000000"/>
+			<bottomPen lineWidth="0.5" lineColor="#000000"/>
+			<rightPen lineWidth="0.5" lineColor="#000000"/>
+		</box>
+	</style>
+	<style name="Crosstab_CG" mode="Opaque" backcolor="#BFE1FF">
+		<box>
+			<pen lineWidth="0.5" lineColor="#000000"/>
+			<topPen lineWidth="0.5" lineColor="#000000"/>
+			<leftPen lineWidth="0.5" lineColor="#000000"/>
+			<bottomPen lineWidth="0.5" lineColor="#000000"/>
+			<rightPen lineWidth="0.5" lineColor="#000000"/>
+		</box>
+	</style>
+	<style name="Crosstab_CT" mode="Opaque" backcolor="#005FB3">
+		<box>
+			<pen lineWidth="0.5" lineColor="#000000"/>
+			<topPen lineWidth="0.5" lineColor="#000000"/>
+			<leftPen lineWidth="0.5" lineColor="#000000"/>
+			<bottomPen lineWidth="0.5" lineColor="#000000"/>
+			<rightPen lineWidth="0.5" lineColor="#000000"/>
+		</box>
+	</style>
+	<style name="Crosstab_CD" mode="Opaque" backcolor="#FFFFFF">
+		<box>
+			<pen lineWidth="0.5" lineColor="#000000"/>
+			<topPen lineWidth="0.5" lineColor="#000000"/>
+			<leftPen lineWidth="0.5" lineColor="#000000"/>
+			<bottomPen lineWidth="0.5" lineColor="#000000"/>
+			<rightPen lineWidth="0.5" lineColor="#000000"/>
+		</box>
+	</style>
+	<style name="Crosstab 1_CT" mode="Opaque" backcolor="#005FB3">
+		<box>
+			<pen lineWidth="0.5" lineColor="#000000"/>
+			<topPen lineWidth="0.5" lineColor="#000000"/>
+			<leftPen lineWidth="0.5" lineColor="#000000"/>
+			<bottomPen lineWidth="0.5" lineColor="#000000"/>
+			<rightPen lineWidth="0.5" lineColor="#000000"/>
+		</box>
+	</style>
+	<style name="Crosstab 1_CH" mode="Opaque" backcolor="#F0F8FF">
+		<box>
+			<pen lineWidth="0.5" lineColor="#000000"/>
+			<topPen lineWidth="0.5" lineColor="#000000"/>
+			<leftPen lineWidth="0.5" lineColor="#000000"/>
+			<bottomPen lineWidth="0.5" lineColor="#000000"/>
+			<rightPen lineWidth="0.5" lineColor="#000000"/>
+		</box>
+	</style>
+	<style name="Crosstab 1_CD" mode="Opaque" backcolor="#FFFFFF">
+		<box>
+			<pen lineWidth="0.5" lineColor="#000000"/>
+			<topPen lineWidth="0.5" lineColor="#000000"/>
+			<leftPen lineWidth="0.5" lineColor="#000000"/>
+			<bottomPen lineWidth="0.5" lineColor="#000000"/>
+			<rightPen lineWidth="0.5" lineColor="#000000"/>
+		</box>
+	</style>
+	<style name="Crosstab 1_CG" mode="Opaque" backcolor="#BFE1FF">
+		<box>
+			<pen lineWidth="0.5" lineColor="#000000"/>
+			<topPen lineWidth="0.5" lineColor="#000000"/>
+			<leftPen lineWidth="0.5" lineColor="#000000"/>
+			<bottomPen lineWidth="0.5" lineColor="#000000"/>
+			<rightPen lineWidth="0.5" lineColor="#000000"/>
+		</box>
+	</style>
+	<subDataset name="dataList" uuid="1cccc40d-06e2-416a-b29b-5d94204feb12">
+		<queryString>
+			<![CDATA[]]>
+		</queryString>
+		<field name="compId" class="java.lang.String"/>
+		<field name="actionObjective" class="java.lang.String"/>
+		<field name="detailItem" class="java.lang.String"/>
+		<field name="detailPlan" class="java.lang.String"/>
+		<field name="performanceDiv" class="java.lang.String"/>
+		<field name="orgnNm" class="java.lang.String"/>
+		<field name="planDiv" class="java.lang.String"/>
+		<field name="actionSchedule1" class="java.lang.String"/>
+		<field name="actionSchedule2" class="java.lang.String"/>
+		<field name="actionSchedule3" class="java.lang.String"/>
+		<field name="actionSchedule4" class="java.lang.String"/>
+		<field name="actionSchedule5" class="java.lang.String"/>
+		<field name="actionSchedule6" class="java.lang.String"/>
+		<field name="actionSchedule7" class="java.lang.String"/>
+		<field name="actionSchedule8" class="java.lang.String"/>
+		<field name="actionSchedule9" class="java.lang.String"/>
+		<field name="actionSchedule10" class="java.lang.String"/>
+		<field name="actionSchedule11" class="java.lang.String"/>
+		<field name="actionSchedule12" class="java.lang.String"/>
+		<field name="budget" class="java.lang.String"/>
+		<field name="plandiv1" class="java.lang.String"/>
+		<field name="plandiv2" class="java.lang.String"/>
+		<field name="companyObjective" class="java.lang.String"/>
+		<field name="actionPerformance1" class="java.lang.String"/>
+		<field name="actionPerformance2" class="java.lang.String"/>
+		<field name="actionPerformance3" class="java.lang.String"/>
+		<field name="actionPerformance4" class="java.lang.String"/>
+		<field name="actionPerformance5" class="java.lang.String"/>
+		<field name="actionPerformance6" class="java.lang.String"/>
+		<field name="actionPerformance7" class="java.lang.String"/>
+		<field name="actionPerformance8" class="java.lang.String"/>
+		<field name="actionPerformance9" class="java.lang.String"/>
+		<field name="actionPerformance10" class="java.lang.String"/>
+		<field name="actionPerformance11" class="java.lang.String"/>
+		<field name="actionPerformance12" class="java.lang.String"/>
+		<field name="createdBy" class="java.lang.String"/>
+		<field name="seq" class="java.lang.Long"/>
+		<field name="seq3" class="java.lang.Long"/>
+		<field name="seq2" class="java.lang.Long"/>
+		<field name="seq4" class="java.lang.Long"/>
+		<field name="seq5" class="java.lang.Long"/>
+		<field name="performanceAmount" class="java.lang.String"/>
+	</subDataset>
+	<subDataset name="signatureList" uuid="b0bbf5f8-77fb-408c-b110-66ae5cec975c">
+		<queryString>
+			<![CDATA[]]>
+		</queryString>
+		<field name="type" class="java.lang.String"/>
+		<field name="ordSeq" class="java.lang.Integer"/>
+		<field name="title" class="java.lang.String"/>
+		<field name="signature" class="java.io.InputStream"/>
+		<field name="name" class="java.lang.String"/>
+	</subDataset>
+	<parameter name="logo" class="java.io.InputStream"/>
+	<parameter name="title" class="java.lang.String"/>
+	<parameter name="subTitle" class="java.lang.String"/>
+	<parameter name="compNm" class="java.lang.String"/>
+	<parameter name="datasource" class="net.sf.jasperreports.engine.data.JRBeanCollectionDataSource"/>
+	<parameter name="page" class="java.lang.Integer"/>
+	<parameter name="subPage" class="java.lang.Integer"/>
+	<parameter name="localPage" class="java.lang.Integer"/>
+	<parameter name="signatureList" class="net.sf.jasperreports.engine.data.JRBeanCollectionDataSource"/>
+	<parameter name="totalBudget" class="java.lang.String"/>
+	<parameter name="totalPerformanceAmount" class="java.lang.String"/>
+	<queryString>
+		<![CDATA[]]>
+	</queryString>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<pageHeader>
+		<band height="30">
+			<image scaleImage="RetainShape" hAlign="Left" vAlign="Middle">
+				<reportElement x="0" y="0" width="130" height="30" uuid="fba334e5-5009-45c3-8985-5cdc80293fba">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<imageExpression><![CDATA[$P{logo}]]></imageExpression>
+			</image>
+			<textField>
+				<reportElement x="720" y="1" width="75" height="29" uuid="11fe0e7b-e83d-4521-b08c-1a0ac77e50b3"/>
+				<textElement textAlignment="Right">
+					<font fontName="맑은 고딕" size="12" isBold="false"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{subPage} <= 0?  "" : $P{localPage} <= 0 ? "": $P{subPage} + " - " + ($P{localPage}+$V{PAGE_NUMBER}-1)]]></textFieldExpression>
+			</textField>
+		</band>
+	</pageHeader>
+	<detail>
+		<band height="195" splitType="Stretch">
+			<property name="com.jaspersoft.studio.unit.height" value="px"/>
+			<textField>
+				<reportElement x="0" y="4" width="560" height="80" uuid="435419ef-a72d-488f-94d9-d2c592713729"/>
+				<box leftPadding="5">
+					<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<bottomPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="20" isBold="true" isItalic="false"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{title}]]></textFieldExpression>
+			</textField>
+			<crosstab>
+				<reportElement x="-14" y="90" width="831" height="105" uuid="54cec44b-9e41-450c-aedc-6922c46c80b7">
+					<property name="com.jaspersoft.studio.layout" value="com.jaspersoft.studio.editor.layout.VerticalRowLayout"/>
+					<property name="com.jaspersoft.studio.crosstab.style.header" value="Crosstab_CH"/>
+					<property name="com.jaspersoft.studio.crosstab.style.group" value="Crosstab_CG"/>
+					<property name="com.jaspersoft.studio.crosstab.style.total" value="Crosstab_CT"/>
+					<property name="com.jaspersoft.studio.crosstab.style.detail" value="Crosstab_CD"/>
+				</reportElement>
+				<crosstabDataset>
+					<dataset resetType="Report">
+						<datasetRun subDataset="dataList" uuid="9b6be265-6876-4479-a2d5-cf3d6489f617">
+							<dataSourceExpression><![CDATA[$P{datasource}]]></dataSourceExpression>
+						</datasetRun>
+					</dataset>
+				</crosstabDataset>
+				<crosstabHeaderCell>
+					<cellContents>
+						<property name="com.jaspersoft.studio.layout" value="com.jaspersoft.studio.editor.layout.FreeLayout"/>
+						<property name="com.jaspersoft.studio.unit.height" value="px"/>
+						<box>
+							<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+							<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+							<bottomPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+							<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						</box>
+						<staticText>
+							<reportElement mode="Opaque" x="0" y="0" width="80" height="45" backcolor="#C4C4C4" uuid="431330cc-fea2-475b-a63a-43657128dcfb"/>
+							<box>
+								<pen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+								<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+								<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+								<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+							</box>
+							<textElement textAlignment="Center" verticalAlignment="Middle">
+								<font isBold="true"/>
+							</textElement>
+							<text><![CDATA[전사목표]]></text>
+						</staticText>
+						<staticText>
+							<reportElement mode="Opaque" x="209" y="0" width="111" height="45" backcolor="#C4C4C4" uuid="c6d0e770-45cb-4ecc-a0b2-2ec0c0b1162b"/>
+							<box>
+								<pen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+								<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+								<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+								<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+							</box>
+							<textElement textAlignment="Center" verticalAlignment="Middle">
+								<font isBold="true"/>
+							</textElement>
+							<text><![CDATA[세부 계획]]></text>
+						</staticText>
+						<staticText>
+							<reportElement mode="Opaque" x="149" y="0" width="60" height="45" backcolor="#C4C4C4" uuid="546d26f7-eaa9-48d4-a669-f6626e97470a"/>
+							<box>
+								<pen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+								<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+								<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+								<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+							</box>
+							<textElement textAlignment="Center" verticalAlignment="Middle">
+								<font isBold="true"/>
+							</textElement>
+							<text><![CDATA[세부 항목]]></text>
+						</staticText>
+						<staticText>
+							<reportElement mode="Opaque" x="80" y="0" width="69" height="45" backcolor="#C4C4C4" uuid="b0043828-2edb-4485-8de1-3cfda9139691"/>
+							<box>
+								<pen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+								<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+								<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+								<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+							</box>
+							<textElement textAlignment="Center" verticalAlignment="Middle">
+								<font isBold="true"/>
+							</textElement>
+							<text><![CDATA[목표]]></text>
+						</staticText>
+					</cellContents>
+				</crosstabHeaderCell>
+				<rowGroup name="seq" width="0">
+					<bucket class="java.lang.Long">
+						<bucketExpression><![CDATA[$F{seq}]]></bucketExpression>
+					</bucket>
+					<crosstabRowHeader>
+						<cellContents mode="Opaque" style="Crosstab_CH">
+							<box>
+								<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+								<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+								<bottomPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+								<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+							</box>
+							<textField textAdjust="StretchHeight" isBlankWhenNull="true">
+								<reportElement stretchType="ContainerHeight" mode="Opaque" x="0" y="0" width="0" height="60" backcolor="#F2F2F2" uuid="fb108a7c-2a6b-4f6f-bcdb-a3288bcaca71"/>
+								<box>
+									<topPen lineWidth="0.5" lineColor="#FFFFFF"/>
+									<leftPen lineWidth="0.5" lineColor="#FFFFFF"/>
+									<bottomPen lineWidth="0.5" lineColor="#FFFFFF"/>
+									<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								</box>
+								<textElement textAlignment="Center" verticalAlignment="Middle"/>
+								<textFieldExpression><![CDATA[$V{seq}]]></textFieldExpression>
+							</textField>
+						</cellContents>
+					</crosstabRowHeader>
+					<crosstabTotalRowHeader>
+						<cellContents>
+							<staticText>
+								<reportElement x="0" y="0" width="-2147483648" height="-2147483648" uuid="0740b755-7c62-4845-b6a7-0f10e7351888"/>
+								<text><![CDATA[Total seq]]></text>
+							</staticText>
+						</cellContents>
+					</crosstabTotalRowHeader>
+				</rowGroup>
+				<rowGroup name="companyObjective" width="80">
+					<bucket class="java.lang.String">
+						<bucketExpression><![CDATA[$F{companyObjective}]]></bucketExpression>
+					</bucket>
+					<crosstabRowHeader>
+						<cellContents mode="Opaque" style="Crosstab_CH">
+							<box>
+								<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+								<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+								<bottomPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+								<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+							</box>
+							<textField textAdjust="StretchHeight" isBlankWhenNull="true">
+								<reportElement stretchType="ContainerHeight" mode="Opaque" x="0" y="0" width="80" height="60" backcolor="#F2F2F2" uuid="9f4d492e-c5ad-4955-bb40-f8423767055c"/>
+								<box>
+									<topPen lineWidth="0.5" lineColor="#FFFFFF"/>
+									<leftPen lineWidth="0.5" lineColor="#FFFFFF"/>
+									<bottomPen lineWidth="0.5" lineColor="#FFFFFF"/>
+									<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								</box>
+								<textElement textAlignment="Center" verticalAlignment="Middle"/>
+								<textFieldExpression><![CDATA[$V{companyObjective}]]></textFieldExpression>
+							</textField>
+						</cellContents>
+					</crosstabRowHeader>
+					<crosstabTotalRowHeader>
+						<cellContents>
+							<staticText>
+								<reportElement x="0" y="0" width="-2147483648" height="-2147483648" uuid="072b8041-e96a-4c52-bdad-562ee61564ae"/>
+								<text><![CDATA[Total companyObjective]]></text>
+							</staticText>
+						</cellContents>
+					</crosstabTotalRowHeader>
+				</rowGroup>
+				<rowGroup name="actionObjective" width="69">
+					<bucket class="java.lang.String">
+						<bucketExpression><![CDATA[$F{actionObjective}]]></bucketExpression>
+					</bucket>
+					<crosstabRowHeader>
+						<cellContents mode="Opaque" style="Crosstab_CH">
+							<box>
+								<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+								<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+								<bottomPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+								<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+							</box>
+							<textField textAdjust="StretchHeight" isBlankWhenNull="true">
+								<reportElement stretchType="ContainerHeight" mode="Opaque" x="0" y="0" width="69" height="60" backcolor="#F2F2F2" uuid="e26cb10b-463a-4453-af75-bfe7af07707f"/>
+								<box>
+									<topPen lineWidth="0.5" lineColor="#FFFFFF"/>
+									<leftPen lineWidth="0.5" lineColor="#FFFFFF"/>
+									<bottomPen lineWidth="0.5" lineColor="#FFFFFF"/>
+									<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								</box>
+								<textElement textAlignment="Center" verticalAlignment="Middle"/>
+								<textFieldExpression><![CDATA[$V{actionObjective}]]></textFieldExpression>
+							</textField>
+						</cellContents>
+					</crosstabRowHeader>
+					<crosstabTotalRowHeader>
+						<cellContents>
+							<staticText>
+								<reportElement x="0" y="0" width="-2147483648" height="-2147483648" uuid="41555b15-04d3-4b15-b59a-e5dd7f151bb7"/>
+								<text><![CDATA[Total actionObjective]]></text>
+							</staticText>
+						</cellContents>
+					</crosstabTotalRowHeader>
+				</rowGroup>
+				<rowGroup name="detailItem" width="60">
+					<bucket class="java.lang.String">
+						<bucketExpression><![CDATA[$F{detailItem}]]></bucketExpression>
+					</bucket>
+					<crosstabRowHeader>
+						<cellContents mode="Opaque" style="Crosstab_CH">
+							<box>
+								<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+								<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+								<bottomPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+								<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+							</box>
+							<textField textAdjust="StretchHeight" isBlankWhenNull="true">
+								<reportElement stretchType="ContainerHeight" mode="Opaque" x="0" y="0" width="60" height="60" backcolor="#F2F2F2" uuid="f229b9cf-def3-41e6-bedb-c478a1b48b96"/>
+								<box>
+									<topPen lineWidth="0.5" lineColor="#FFFFFF"/>
+									<leftPen lineWidth="0.5" lineColor="#FFFFFF"/>
+									<bottomPen lineWidth="0.5" lineColor="#FFFFFF"/>
+									<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								</box>
+								<textElement textAlignment="Center" verticalAlignment="Middle"/>
+								<textFieldExpression><![CDATA[$V{detailItem}]]></textFieldExpression>
+							</textField>
+						</cellContents>
+					</crosstabRowHeader>
+					<crosstabTotalRowHeader>
+						<cellContents>
+							<staticText>
+								<reportElement x="0" y="0" width="-2147483648" height="-2147483648" uuid="953e1b7b-0a78-4257-88ee-5b609489da40"/>
+								<text><![CDATA[Total detailItem]]></text>
+							</staticText>
+						</cellContents>
+					</crosstabTotalRowHeader>
+				</rowGroup>
+				<rowGroup name="detailPlan" width="111">
+					<bucket order="Descending" class="java.lang.String">
+						<bucketExpression><![CDATA[$F{detailPlan}]]></bucketExpression>
+					</bucket>
+					<crosstabRowHeader>
+						<cellContents mode="Opaque" style="Crosstab_CH">
+							<box>
+								<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+								<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+								<bottomPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+								<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+							</box>
+							<textField textAdjust="StretchHeight" isBlankWhenNull="true">
+								<reportElement stretchType="ContainerHeight" mode="Opaque" x="0" y="0" width="111" height="60" backcolor="#F2F2F2" uuid="5eaf9a4c-a81a-4946-b081-71f2c6222a24"/>
+								<box>
+									<topPen lineWidth="0.5" lineColor="#FFFFFF"/>
+									<leftPen lineWidth="0.5" lineColor="#FFFFFF"/>
+									<bottomPen lineWidth="0.5" lineColor="#FFFFFF"/>
+									<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								</box>
+								<textElement textAlignment="Center" verticalAlignment="Middle"/>
+								<textFieldExpression><![CDATA[$V{detailPlan}]]></textFieldExpression>
+							</textField>
+						</cellContents>
+					</crosstabRowHeader>
+					<crosstabTotalRowHeader>
+						<cellContents>
+							<staticText>
+								<reportElement x="0" y="0" width="-2147483648" height="-2147483648" uuid="c75a5ee2-79e0-46e7-bb7b-f9ef4e16e22e"/>
+								<text><![CDATA[Total detailPlan]]></text>
+							</staticText>
+						</cellContents>
+					</crosstabTotalRowHeader>
+				</rowGroup>
+				<rowGroup name="seq5" width="0">
+					<bucket class="java.lang.Long">
+						<bucketExpression><![CDATA[$F{seq5}]]></bucketExpression>
+					</bucket>
+					<crosstabRowHeader>
+						<cellContents mode="Opaque" style="Crosstab_CH">
+							<box>
+								<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+								<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+								<bottomPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+								<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+							</box>
+							<textField textAdjust="StretchHeight" isBlankWhenNull="true">
+								<reportElement stretchType="ContainerHeight" mode="Opaque" x="0" y="0" width="0" height="60" backcolor="#F2F2F2" uuid="2ce78a23-c8a4-427f-9f16-77b5e3ca2a84"/>
+								<box>
+									<topPen lineWidth="0.5" lineColor="#FFFFFF"/>
+									<leftPen lineWidth="0.5" lineColor="#FFFFFF"/>
+									<bottomPen lineWidth="0.5" lineColor="#FFFFFF"/>
+									<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								</box>
+								<textElement textAlignment="Center" verticalAlignment="Middle"/>
+								<textFieldExpression><![CDATA[$V{seq5}]]></textFieldExpression>
+							</textField>
+						</cellContents>
+					</crosstabRowHeader>
+					<crosstabTotalRowHeader>
+						<cellContents>
+							<staticText>
+								<reportElement x="0" y="0" width="-2147483648" height="-2147483648" uuid="0be6c939-1c57-4a9f-9d2a-b7b46e0f4989"/>
+								<text><![CDATA[Total seq4]]></text>
+							</staticText>
+						</cellContents>
+					</crosstabTotalRowHeader>
+				</rowGroup>
+				<columnGroup name="compId" height="45">
+					<bucket order="Descending" class="java.lang.String">
+						<bucketExpression><![CDATA[$F{compId}]]></bucketExpression>
+					</bucket>
+					<crosstabColumnHeader>
+						<cellContents mode="Opaque" style="Crosstab_CH">
+							<property name="com.jaspersoft.studio.layout" value="com.jaspersoft.studio.editor.layout.FreeLayout"/>
+							<box>
+								<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+								<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+								<bottomPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+								<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+							</box>
+							<staticText>
+								<reportElement mode="Opaque" x="64" y="24" width="17" height="21" backcolor="#C4C4C4" uuid="8193bfd3-cc94-45a1-9bd0-f6d1057f4d6f">
+									<property name="com.jaspersoft.studio.unit.width" value="px"/>
+								</reportElement>
+								<box>
+									<pen lineWidth="0.5"/>
+									<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+								</box>
+								<textElement textAlignment="Center" verticalAlignment="Middle">
+									<font isBold="true"/>
+								</textElement>
+								<text><![CDATA[3]]></text>
+							</staticText>
+							<staticText>
+								<reportElement mode="Opaque" x="217" y="24" width="17" height="21" backcolor="#C4C4C4" uuid="4bfbdd4c-3681-479e-adb0-de8303276684">
+									<property name="com.jaspersoft.studio.unit.width" value="px"/>
+								</reportElement>
+								<box>
+									<pen lineWidth="0.5"/>
+									<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+								</box>
+								<textElement textAlignment="Center" verticalAlignment="Middle">
+									<font isBold="true"/>
+								</textElement>
+								<text><![CDATA[12]]></text>
+							</staticText>
+							<staticText>
+								<reportElement mode="Opaque" x="47" y="24" width="17" height="21" backcolor="#C4C4C4" uuid="23977def-3037-4202-93d3-7dd80bde7145">
+									<property name="com.jaspersoft.studio.unit.width" value="px"/>
+								</reportElement>
+								<box>
+									<pen lineWidth="0.5"/>
+									<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+								</box>
+								<textElement textAlignment="Center" verticalAlignment="Middle">
+									<font isBold="true"/>
+								</textElement>
+								<text><![CDATA[2]]></text>
+							</staticText>
+							<staticText>
+								<reportElement mode="Opaque" x="410" y="0" width="50" height="45" backcolor="#C4C4C4" uuid="0e1aac95-612b-421e-9b49-a2a9b618f764"/>
+								<box>
+									<pen lineWidth="0.5"/>
+									<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+								</box>
+								<textElement textAlignment="Center" verticalAlignment="Middle">
+									<font isBold="true"/>
+								</textElement>
+								<text><![CDATA[예산
+(만원)]]></text>
+							</staticText>
+							<staticText>
+								<reportElement mode="Opaque" x="81" y="24" width="17" height="21" backcolor="#C4C4C4" uuid="4ede9916-b3d6-49b0-b444-5c6c90f74775">
+									<property name="com.jaspersoft.studio.unit.width" value="px"/>
+								</reportElement>
+								<box>
+									<pen lineWidth="0.5"/>
+									<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+								</box>
+								<textElement textAlignment="Center" verticalAlignment="Middle">
+									<font isBold="true"/>
+								</textElement>
+								<text><![CDATA[4]]></text>
+							</staticText>
+							<staticText>
+								<reportElement mode="Opaque" x="132" y="24" width="17" height="21" backcolor="#C4C4C4" uuid="f147b9f5-6ac1-4c67-ae66-1d68df7a3a9a">
+									<property name="com.jaspersoft.studio.unit.width" value="px"/>
+								</reportElement>
+								<box>
+									<pen lineWidth="0.5"/>
+									<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+								</box>
+								<textElement textAlignment="Center" verticalAlignment="Middle">
+									<font isBold="true"/>
+								</textElement>
+								<text><![CDATA[7]]></text>
+							</staticText>
+							<staticText>
+								<reportElement mode="Opaque" x="149" y="24" width="17" height="21" backcolor="#C4C4C4" uuid="c155b368-4892-4b79-9bfa-7c8615a8f85d">
+									<property name="com.jaspersoft.studio.unit.width" value="px"/>
+								</reportElement>
+								<box>
+									<pen lineWidth="0.5"/>
+									<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+								</box>
+								<textElement textAlignment="Center" verticalAlignment="Middle">
+									<font isBold="true"/>
+								</textElement>
+								<text><![CDATA[8]]></text>
+							</staticText>
+							<staticText>
+								<reportElement mode="Opaque" x="234" y="0" width="60" height="45" backcolor="#C4C4C4" uuid="da4796fc-8462-42ff-9de4-4d04dc5e11b9"/>
+								<box>
+									<pen lineWidth="0.5"/>
+									<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+								</box>
+								<textElement textAlignment="Center" verticalAlignment="Middle">
+									<font isBold="true"/>
+								</textElement>
+								<text><![CDATA[성과지표]]></text>
+							</staticText>
+							<staticText>
+								<reportElement mode="Opaque" x="98" y="24" width="17" height="21" backcolor="#C4C4C4" uuid="434f09c5-6467-41f6-8e98-ad01470a5820">
+									<property name="com.jaspersoft.studio.unit.width" value="px"/>
+								</reportElement>
+								<box>
+									<pen lineWidth="0.5"/>
+									<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+								</box>
+								<textElement textAlignment="Center" verticalAlignment="Middle">
+									<font isBold="true"/>
+								</textElement>
+								<text><![CDATA[5]]></text>
+							</staticText>
+							<staticText>
+								<reportElement mode="Opaque" x="115" y="24" width="17" height="21" backcolor="#C4C4C4" uuid="49881ae9-8adb-4055-8b4f-e09334835f9f">
+									<property name="com.jaspersoft.studio.unit.width" value="px"/>
+								</reportElement>
+								<box>
+									<pen lineWidth="0.5"/>
+									<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+								</box>
+								<textElement textAlignment="Center" verticalAlignment="Middle">
+									<font isBold="true"/>
+								</textElement>
+								<text><![CDATA[6]]></text>
+							</staticText>
+							<staticText>
+								<reportElement mode="Opaque" x="294" y="0" width="76" height="45" backcolor="#C4C4C4" uuid="29840993-ea2f-4dce-9442-01a9b294349e"/>
+								<box>
+									<pen lineWidth="0.5"/>
+									<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+								</box>
+								<textElement textAlignment="Center" verticalAlignment="Middle">
+									<font isBold="true"/>
+								</textElement>
+								<text><![CDATA[담당조직]]></text>
+							</staticText>
+							<staticText>
+								<reportElement mode="Opaque" x="200" y="24" width="17" height="21" backcolor="#C4C4C4" uuid="142c56a8-f787-4725-9795-7eae371f0cb1">
+									<property name="com.jaspersoft.studio.unit.width" value="px"/>
+								</reportElement>
+								<box>
+									<pen lineWidth="0.5"/>
+									<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+								</box>
+								<textElement textAlignment="Center" verticalAlignment="Middle">
+									<font isBold="true"/>
+								</textElement>
+								<text><![CDATA[11]]></text>
+							</staticText>
+							<staticText>
+								<reportElement mode="Opaque" x="30" y="0" width="204" height="24" backcolor="#C4C4C4" uuid="772ed307-52e5-4d95-865d-92a5c9b36a71"/>
+								<box>
+									<pen lineWidth="0.5"/>
+									<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+								</box>
+								<textElement textAlignment="Center" verticalAlignment="Middle">
+									<font isBold="true"/>
+								</textElement>
+								<text><![CDATA[추진일정]]></text>
+							</staticText>
+							<staticText>
+								<reportElement mode="Opaque" x="370" y="0" width="40" height="45" backcolor="#C4C4C4" uuid="ef42a065-14f5-4a96-8e3d-07456d83fec8"/>
+								<box>
+									<pen lineWidth="0.5"/>
+									<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+								</box>
+								<textElement textAlignment="Center" verticalAlignment="Middle">
+									<font isBold="true"/>
+								</textElement>
+								<text><![CDATA[담당자]]></text>
+							</staticText>
+							<staticText>
+								<reportElement mode="Opaque" x="166" y="24" width="17" height="21" backcolor="#C4C4C4" uuid="44fc18a1-bc00-4456-989b-78e0b1b10916">
+									<property name="com.jaspersoft.studio.unit.width" value="px"/>
+								</reportElement>
+								<box>
+									<pen lineWidth="0.5"/>
+									<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+								</box>
+								<textElement textAlignment="Center" verticalAlignment="Middle">
+									<font isBold="true"/>
+								</textElement>
+								<text><![CDATA[9]]></text>
+							</staticText>
+							<staticText>
+								<reportElement mode="Opaque" x="183" y="24" width="17" height="21" backcolor="#C4C4C4" uuid="18819e34-2933-4bd5-ad6e-7050ce5eb7b0">
+									<property name="com.jaspersoft.studio.unit.width" value="px"/>
+								</reportElement>
+								<box>
+									<pen lineWidth="0.5"/>
+									<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+								</box>
+								<textElement textAlignment="Center" verticalAlignment="Middle">
+									<font isBold="true"/>
+								</textElement>
+								<text><![CDATA[10]]></text>
+							</staticText>
+							<staticText>
+								<reportElement mode="Opaque" x="30" y="24" width="17" height="21" backcolor="#C4C4C4" uuid="11ae9a44-1a25-4f41-b8dc-c837267f7af7"/>
+								<box>
+									<pen lineWidth="0.5"/>
+									<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+								</box>
+								<textElement textAlignment="Center" verticalAlignment="Middle">
+									<font isBold="true"/>
+								</textElement>
+								<text><![CDATA[1]]></text>
+							</staticText>
+							<staticText>
+								<reportElement stretchType="ContainerHeight" mode="Opaque" x="0" y="0" width="30" height="45" backcolor="#C4C4C4" uuid="47b3276c-4cde-452e-9095-a06e57ca9bf2">
+									<property name="com.jaspersoft.studio.unit.height" value="px"/>
+								</reportElement>
+								<box>
+									<pen lineWidth="0.5" lineColor="#FFFFFF"/>
+									<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+								</box>
+								<textElement textAlignment="Center" verticalAlignment="Middle">
+									<font isBold="true"/>
+								</textElement>
+								<text><![CDATA[구분]]></text>
+							</staticText>
+							<staticText>
+								<reportElement mode="Opaque" x="460" y="0" width="50" height="45" backcolor="#C4C4C4" uuid="c40226ab-fc47-4e31-a728-4896caaa85a3"/>
+								<box>
+									<pen lineWidth="0.5"/>
+									<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+									<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#FFFFFF"/>
+								</box>
+								<textElement textAlignment="Center" verticalAlignment="Middle">
+									<font isBold="true"/>
+								</textElement>
+								<text><![CDATA[실적
+(만원)]]></text>
+							</staticText>
+						</cellContents>
+					</crosstabColumnHeader>
+					<crosstabTotalColumnHeader>
+						<cellContents>
+							<staticText>
+								<reportElement x="0" y="0" width="-2147483648" height="-2147483648" uuid="01bdfb84-d5c5-49ce-8b5c-e15b0e7bc366"/>
+								<text><![CDATA[Total compId]]></text>
+							</staticText>
+						</cellContents>
+					</crosstabTotalColumnHeader>
+				</columnGroup>
+				<measure name="plandiv1_MEASURE" class="java.lang.String">
+					<measureExpression><![CDATA[$F{plandiv1}]]></measureExpression>
+				</measure>
+				<measure name="plandiv2_MEASURE" class="java.lang.String">
+					<measureExpression><![CDATA[$F{plandiv2}]]></measureExpression>
+				</measure>
+				<measure name="actionSchedule1_MEASURE" class="java.lang.String">
+					<measureExpression><![CDATA[$F{actionSchedule1}]]></measureExpression>
+				</measure>
+				<measure name="actionSchedule2_MEASURE" class="java.lang.String">
+					<measureExpression><![CDATA[$F{actionSchedule2}]]></measureExpression>
+				</measure>
+				<measure name="actionSchedule3_MEASURE" class="java.lang.String">
+					<measureExpression><![CDATA[$F{actionSchedule3}]]></measureExpression>
+				</measure>
+				<measure name="actionSchedule4_MEASURE" class="java.lang.String">
+					<measureExpression><![CDATA[$F{actionSchedule4}]]></measureExpression>
+				</measure>
+				<measure name="actionSchedule5_MEASURE" class="java.lang.String">
+					<measureExpression><![CDATA[$F{actionSchedule5}]]></measureExpression>
+				</measure>
+				<measure name="actionSchedule6_MEASURE" class="java.lang.String">
+					<measureExpression><![CDATA[$F{actionSchedule6}]]></measureExpression>
+				</measure>
+				<measure name="actionSchedule7_MEASURE" class="java.lang.String">
+					<measureExpression><![CDATA[$F{actionSchedule7}]]></measureExpression>
+				</measure>
+				<measure name="actionSchedule8_MEASURE" class="java.lang.String">
+					<measureExpression><![CDATA[$F{actionSchedule8}]]></measureExpression>
+				</measure>
+				<measure name="actionSchedule9_MEASURE" class="java.lang.String">
+					<measureExpression><![CDATA[$F{actionSchedule9}]]></measureExpression>
+				</measure>
+				<measure name="actionSchedule10_MEASURE" class="java.lang.String">
+					<measureExpression><![CDATA[$F{actionSchedule10}]]></measureExpression>
+				</measure>
+				<measure name="actionSchedule11_MEASURE" class="java.lang.String">
+					<measureExpression><![CDATA[$F{actionSchedule11}]]></measureExpression>
+				</measure>
+				<measure name="actionSchedule12_MEASURE" class="java.lang.String">
+					<measureExpression><![CDATA[$F{actionSchedule12}]]></measureExpression>
+				</measure>
+				<measure name="actionPerformance4_MEASURE" class="java.lang.String">
+					<measureExpression><![CDATA[$F{actionPerformance4}]]></measureExpression>
+				</measure>
+				<measure name="actionPerformance5_MEASURE" class="java.lang.String">
+					<measureExpression><![CDATA[$F{actionPerformance5}]]></measureExpression>
+				</measure>
+				<measure name="actionPerformance6_MEASURE" class="java.lang.String">
+					<measureExpression><![CDATA[$F{actionPerformance6}]]></measureExpression>
+				</measure>
+				<measure name="actionPerformance7_MEASURE" class="java.lang.String">
+					<measureExpression><![CDATA[$F{actionPerformance7}]]></measureExpression>
+				</measure>
+				<measure name="actionPerformance8_MEASURE" class="java.lang.String">
+					<measureExpression><![CDATA[$F{actionPerformance8}]]></measureExpression>
+				</measure>
+				<measure name="actionPerformance9_MEASURE" class="java.lang.String">
+					<measureExpression><![CDATA[$F{actionPerformance9}]]></measureExpression>
+				</measure>
+				<measure name="actionPerformance10_MEASURE" class="java.lang.String">
+					<measureExpression><![CDATA[$F{actionPerformance10}]]></measureExpression>
+				</measure>
+				<measure name="actionPerformance11_MEASURE" class="java.lang.String">
+					<measureExpression><![CDATA[$F{actionPerformance11}]]></measureExpression>
+				</measure>
+				<measure name="actionPerformance12_MEASURE" class="java.lang.String">
+					<measureExpression><![CDATA[$F{actionPerformance12}]]></measureExpression>
+				</measure>
+				<measure name="actionPerformance1_MEASURE" class="java.lang.String">
+					<measureExpression><![CDATA[$F{actionPerformance1}]]></measureExpression>
+				</measure>
+				<measure name="actionPerformance2_MEASURE" class="java.lang.String">
+					<measureExpression><![CDATA[$F{actionPerformance2}]]></measureExpression>
+				</measure>
+				<measure name="actionPerformance3_MEASURE" class="java.lang.String">
+					<measureExpression><![CDATA[$F{actionPerformance3}]]></measureExpression>
+				</measure>
+				<measure name="performanceDiv_MEASURE" class="java.lang.String">
+					<measureExpression><![CDATA[$F{performanceDiv}]]></measureExpression>
+				</measure>
+				<measure name="orgnNm_MEASURE" class="java.lang.String">
+					<measureExpression><![CDATA[$F{orgnNm}]]></measureExpression>
+				</measure>
+				<measure name="createdBy_MEASURE" class="java.lang.String">
+					<measureExpression><![CDATA[$F{createdBy}]]></measureExpression>
+				</measure>
+				<measure name="budget_MEASURE" class="java.lang.String">
+					<measureExpression><![CDATA[$F{budget}]]></measureExpression>
+				</measure>
+				<measure name="performanceAmount_MEASURE" class="java.lang.String">
+					<measureExpression><![CDATA[$F{performanceAmount}]]></measureExpression>
+				</measure>
+				<crosstabCell width="510" height="60">
+					<cellContents mode="Opaque" style="Crosstab_CD">
+						<property name="com.jaspersoft.studio.layout" value="com.jaspersoft.studio.editor.layout.FreeLayout"/>
+						<box>
+							<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+							<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+							<bottomPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+							<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						</box>
+						<textField textAdjust="StretchHeight" isBlankWhenNull="true">
+							<reportElement stretchType="ContainerHeight" mode="Opaque" x="0" y="0" width="30" height="30" isPrintWhenDetailOverflows="true" backcolor="#F2F2F2" uuid="e08a798e-e13f-4ceb-94b3-2af01e683f8c"/>
+							<box>
+								<topPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<leftPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<bottomPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+							</box>
+							<textElement textAlignment="Center" verticalAlignment="Middle"/>
+							<textFieldExpression><![CDATA[$V{plandiv1_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField textAdjust="StretchHeight" isBlankWhenNull="true">
+							<reportElement positionType="FixRelativeToBottom" stretchType="ElementGroupHeight" mode="Opaque" x="0" y="30" width="30" height="30" backcolor="#F2F2F2" uuid="e02a0c77-7dff-4183-a9cb-fb59f557911d"/>
+							<box>
+								<topPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<leftPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<bottomPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+							</box>
+							<textElement textAlignment="Center" verticalAlignment="Middle"/>
+							<textFieldExpression><![CDATA[$V{plandiv2_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField textAdjust="StretchHeight" isBlankWhenNull="true">
+							<reportElement stretchType="ContainerHeight" mode="Opaque" x="30" y="0" width="17" height="30" isPrintWhenDetailOverflows="true" backcolor="#F2F2F2" uuid="763678fa-e7cf-41d7-8bda-78825a808e4e">
+								<property name="com.jaspersoft.studio.unit.width" value="px"/>
+							</reportElement>
+							<box>
+								<topPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<leftPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<bottomPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+							</box>
+							<textElement textAlignment="Center" verticalAlignment="Middle"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule1_MEASURE}.equals("Y")?"●":""]]></textFieldExpression>
+						</textField>
+						<textField textAdjust="StretchHeight" isBlankWhenNull="true">
+							<reportElement stretchType="ContainerHeight" mode="Opaque" x="47" y="0" width="17" height="30" isPrintWhenDetailOverflows="true" backcolor="#F2F2F2" uuid="81329b1f-6f29-4c07-8898-f40f78c30e65">
+								<property name="com.jaspersoft.studio.unit.width" value="px"/>
+							</reportElement>
+							<box>
+								<topPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<leftPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<bottomPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+							</box>
+							<textElement textAlignment="Center" verticalAlignment="Middle"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule2_MEASURE}.equals("Y")?"●":""]]></textFieldExpression>
+						</textField>
+						<textField textAdjust="StretchHeight" isBlankWhenNull="true">
+							<reportElement stretchType="ContainerHeight" mode="Opaque" x="64" y="0" width="17" height="30" isPrintWhenDetailOverflows="true" backcolor="#F2F2F2" uuid="bf9cbe17-574a-4ceb-83a9-6e63a45a8d42">
+								<property name="com.jaspersoft.studio.unit.width" value="px"/>
+							</reportElement>
+							<box>
+								<topPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<leftPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<bottomPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+							</box>
+							<textElement textAlignment="Center" verticalAlignment="Middle"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule3_MEASURE}.equals("Y")?"●":""]]></textFieldExpression>
+						</textField>
+						<textField textAdjust="StretchHeight" isBlankWhenNull="true">
+							<reportElement stretchType="ContainerHeight" mode="Opaque" x="81" y="0" width="17" height="30" isPrintWhenDetailOverflows="true" backcolor="#F2F2F2" uuid="41e1446f-cad1-4f89-8648-0b0608dfcfdb">
+								<property name="com.jaspersoft.studio.unit.width" value="px"/>
+							</reportElement>
+							<box>
+								<topPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<leftPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<bottomPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+							</box>
+							<textElement textAlignment="Center" verticalAlignment="Middle"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule4_MEASURE}.equals("Y")?"●":""]]></textFieldExpression>
+						</textField>
+						<textField textAdjust="StretchHeight" isBlankWhenNull="true">
+							<reportElement stretchType="ContainerHeight" mode="Opaque" x="98" y="0" width="17" height="30" isPrintWhenDetailOverflows="true" backcolor="#F2F2F2" uuid="43b61727-2880-4526-a7ac-b4c87e253929">
+								<property name="com.jaspersoft.studio.unit.width" value="px"/>
+							</reportElement>
+							<box>
+								<topPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<leftPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<bottomPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+							</box>
+							<textElement textAlignment="Center" verticalAlignment="Middle"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule5_MEASURE}.equals("Y")?"●":""]]></textFieldExpression>
+						</textField>
+						<textField textAdjust="StretchHeight" isBlankWhenNull="true">
+							<reportElement stretchType="ContainerHeight" mode="Opaque" x="115" y="0" width="17" height="30" isPrintWhenDetailOverflows="true" backcolor="#F2F2F2" uuid="6cf35569-3131-4078-9c10-1801825241c9">
+								<property name="com.jaspersoft.studio.unit.width" value="px"/>
+							</reportElement>
+							<box>
+								<topPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<leftPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<bottomPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+							</box>
+							<textElement textAlignment="Center" verticalAlignment="Middle"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule6_MEASURE}.equals("Y")?"●":""]]></textFieldExpression>
+						</textField>
+						<textField textAdjust="StretchHeight" isBlankWhenNull="true">
+							<reportElement stretchType="ContainerHeight" mode="Opaque" x="132" y="0" width="17" height="30" isPrintWhenDetailOverflows="true" backcolor="#F2F2F2" uuid="734f50cb-fb02-44a8-834b-e0c5448f6f6b">
+								<property name="com.jaspersoft.studio.unit.width" value="px"/>
+							</reportElement>
+							<box>
+								<topPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<leftPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<bottomPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+							</box>
+							<textElement textAlignment="Center" verticalAlignment="Middle"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule7_MEASURE}.equals("Y")?"●":""]]></textFieldExpression>
+						</textField>
+						<textField textAdjust="StretchHeight" isBlankWhenNull="true">
+							<reportElement stretchType="ContainerHeight" mode="Opaque" x="149" y="0" width="17" height="30" isPrintWhenDetailOverflows="true" backcolor="#F2F2F2" uuid="145662ed-5055-4b4e-a009-e9343783ea61">
+								<property name="com.jaspersoft.studio.unit.width" value="px"/>
+							</reportElement>
+							<box>
+								<topPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<leftPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<bottomPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+							</box>
+							<textElement textAlignment="Center" verticalAlignment="Middle"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule8_MEASURE}.equals("Y")?"●":""]]></textFieldExpression>
+						</textField>
+						<textField textAdjust="StretchHeight" isBlankWhenNull="true">
+							<reportElement stretchType="ContainerHeight" mode="Opaque" x="166" y="0" width="17" height="30" isPrintWhenDetailOverflows="true" backcolor="#F2F2F2" uuid="2e6e3253-9621-457c-8c28-2bfa8e5d37f5">
+								<property name="com.jaspersoft.studio.unit.width" value="px"/>
+							</reportElement>
+							<box>
+								<topPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<leftPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<bottomPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+							</box>
+							<textElement textAlignment="Center" verticalAlignment="Middle"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule9_MEASURE}.equals("Y")?"●":""]]></textFieldExpression>
+						</textField>
+						<textField textAdjust="StretchHeight" isBlankWhenNull="true">
+							<reportElement stretchType="ContainerHeight" mode="Opaque" x="183" y="0" width="17" height="30" isPrintWhenDetailOverflows="true" backcolor="#F2F2F2" uuid="08d66361-b214-4a04-b4ee-60e055d457ca">
+								<property name="com.jaspersoft.studio.unit.width" value="px"/>
+							</reportElement>
+							<box>
+								<topPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<leftPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<bottomPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+							</box>
+							<textElement textAlignment="Center" verticalAlignment="Middle"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule10_MEASURE}.equals("Y")?"●":""]]></textFieldExpression>
+						</textField>
+						<textField textAdjust="StretchHeight" isBlankWhenNull="true">
+							<reportElement stretchType="ContainerHeight" mode="Opaque" x="200" y="0" width="17" height="30" isPrintWhenDetailOverflows="true" backcolor="#F2F2F2" uuid="fb559088-8441-459a-af11-dd4a7ce3b6a3">
+								<property name="com.jaspersoft.studio.unit.width" value="px"/>
+							</reportElement>
+							<box>
+								<topPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<leftPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<bottomPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+							</box>
+							<textElement textAlignment="Center" verticalAlignment="Middle"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule11_MEASURE}.equals("Y")?"●":""]]></textFieldExpression>
+						</textField>
+						<textField textAdjust="StretchHeight" isBlankWhenNull="true">
+							<reportElement stretchType="ContainerHeight" mode="Opaque" x="217" y="0" width="17" height="30" isPrintWhenDetailOverflows="true" backcolor="#F2F2F2" uuid="937da109-42df-4a86-9f31-ce824e203404">
+								<property name="com.jaspersoft.studio.unit.width" value="px"/>
+							</reportElement>
+							<box>
+								<topPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<leftPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<bottomPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+							</box>
+							<textElement textAlignment="Center" verticalAlignment="Middle"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule12_MEASURE}.equals("Y")?"●":""]]></textFieldExpression>
+						</textField>
+						<textField textAdjust="StretchHeight" isBlankWhenNull="true">
+							<reportElement positionType="FixRelativeToBottom" stretchType="ElementGroupHeight" mode="Opaque" x="81" y="30" width="17" height="30" backcolor="#F2F2F2" uuid="8c2e014b-66f6-43c0-9179-c4acbdb184f4">
+								<property name="com.jaspersoft.studio.unit.width" value="px"/>
+							</reportElement>
+							<box>
+								<topPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<leftPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<bottomPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+							</box>
+							<textElement textAlignment="Center" verticalAlignment="Middle"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance4_MEASURE}.equals("Y")?"●":""]]></textFieldExpression>
+						</textField>
+						<textField textAdjust="StretchHeight" isBlankWhenNull="true">
+							<reportElement positionType="FixRelativeToBottom" stretchType="ElementGroupHeight" mode="Opaque" x="98" y="30" width="17" height="30" backcolor="#F2F2F2" uuid="7c1675b6-5467-4d60-952e-5e87d30bfe33">
+								<property name="com.jaspersoft.studio.unit.width" value="px"/>
+							</reportElement>
+							<box>
+								<topPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<leftPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<bottomPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+							</box>
+							<textElement textAlignment="Center" verticalAlignment="Middle"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance5_MEASURE}.equals("Y")?"●":""]]></textFieldExpression>
+						</textField>
+						<textField textAdjust="StretchHeight" isBlankWhenNull="true">
+							<reportElement positionType="FixRelativeToBottom" stretchType="ElementGroupHeight" mode="Opaque" x="115" y="30" width="17" height="30" backcolor="#F2F2F2" uuid="148a76ca-1779-427f-aca7-05f806ac1546">
+								<property name="com.jaspersoft.studio.unit.width" value="px"/>
+							</reportElement>
+							<box>
+								<topPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<leftPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<bottomPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+							</box>
+							<textElement textAlignment="Center" verticalAlignment="Middle"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance6_MEASURE}.equals("Y")?"●":""]]></textFieldExpression>
+						</textField>
+						<textField textAdjust="StretchHeight" isBlankWhenNull="true">
+							<reportElement positionType="FixRelativeToBottom" stretchType="ElementGroupHeight" mode="Opaque" x="132" y="30" width="17" height="30" backcolor="#F2F2F2" uuid="b5fc42bc-9950-43e2-908b-46ac1ff9ffaa">
+								<property name="com.jaspersoft.studio.unit.width" value="px"/>
+							</reportElement>
+							<box>
+								<topPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<leftPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<bottomPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+							</box>
+							<textElement textAlignment="Center" verticalAlignment="Middle"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance7_MEASURE}.equals("Y")?"●":""]]></textFieldExpression>
+						</textField>
+						<textField textAdjust="StretchHeight" isBlankWhenNull="true">
+							<reportElement positionType="FixRelativeToBottom" stretchType="ElementGroupHeight" mode="Opaque" x="149" y="30" width="17" height="30" backcolor="#F2F2F2" uuid="c8f3f1d9-36d6-40c7-820e-afd35273f3b2">
+								<property name="com.jaspersoft.studio.unit.width" value="px"/>
+							</reportElement>
+							<box>
+								<topPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<leftPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<bottomPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+							</box>
+							<textElement textAlignment="Center" verticalAlignment="Middle"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance8_MEASURE}.equals("Y")?"●":""]]></textFieldExpression>
+						</textField>
+						<textField textAdjust="StretchHeight" isBlankWhenNull="true">
+							<reportElement positionType="FixRelativeToBottom" stretchType="ElementGroupHeight" mode="Opaque" x="166" y="30" width="17" height="30" backcolor="#F2F2F2" uuid="63ea0292-4bfe-457c-88ff-edb7f2e250fc">
+								<property name="com.jaspersoft.studio.unit.width" value="px"/>
+							</reportElement>
+							<box>
+								<topPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<leftPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<bottomPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+							</box>
+							<textElement textAlignment="Center" verticalAlignment="Middle"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance9_MEASURE}.equals("Y")?"●":""]]></textFieldExpression>
+						</textField>
+						<textField textAdjust="StretchHeight" isBlankWhenNull="true">
+							<reportElement positionType="FixRelativeToBottom" stretchType="ElementGroupHeight" mode="Opaque" x="183" y="30" width="17" height="30" backcolor="#F2F2F2" uuid="1d739512-c5e6-4b97-bcc5-b822fad56138">
+								<property name="com.jaspersoft.studio.unit.width" value="px"/>
+							</reportElement>
+							<box>
+								<topPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<leftPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<bottomPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+							</box>
+							<textElement textAlignment="Center" verticalAlignment="Middle"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance10_MEASURE}.equals("Y")?"●":""]]></textFieldExpression>
+						</textField>
+						<textField textAdjust="StretchHeight" isBlankWhenNull="true">
+							<reportElement positionType="FixRelativeToBottom" stretchType="ElementGroupHeight" mode="Opaque" x="200" y="30" width="17" height="30" backcolor="#F2F2F2" uuid="65757ebd-3c36-46a6-95d9-cf8e1676327a">
+								<property name="com.jaspersoft.studio.unit.width" value="px"/>
+							</reportElement>
+							<box>
+								<topPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<leftPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<bottomPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+							</box>
+							<textElement textAlignment="Center" verticalAlignment="Middle"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance11_MEASURE}.equals("Y")?"●":""]]></textFieldExpression>
+						</textField>
+						<textField textAdjust="StretchHeight" isBlankWhenNull="true">
+							<reportElement positionType="FixRelativeToBottom" stretchType="ElementGroupHeight" mode="Opaque" x="217" y="30" width="17" height="30" backcolor="#F2F2F2" uuid="71ed8af3-f720-4104-8794-bae5be7bacbd">
+								<property name="com.jaspersoft.studio.unit.width" value="px"/>
+							</reportElement>
+							<box>
+								<topPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<leftPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<bottomPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+							</box>
+							<textElement textAlignment="Center" verticalAlignment="Middle"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance12_MEASURE}.equals("Y")?"●":""]]></textFieldExpression>
+						</textField>
+						<textField textAdjust="StretchHeight" isBlankWhenNull="true">
+							<reportElement positionType="FixRelativeToBottom" stretchType="ElementGroupHeight" mode="Opaque" x="30" y="30" width="17" height="30" backcolor="#F2F2F2" uuid="d4cef451-dbf6-40a5-a9ae-d6d589df93e0">
+								<property name="com.jaspersoft.studio.unit.width" value="px"/>
+							</reportElement>
+							<box>
+								<topPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<leftPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<bottomPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+							</box>
+							<textElement textAlignment="Center" verticalAlignment="Middle"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance1_MEASURE}.equals("Y")?"●":""]]></textFieldExpression>
+						</textField>
+						<textField textAdjust="StretchHeight" isBlankWhenNull="true">
+							<reportElement positionType="FixRelativeToBottom" stretchType="ElementGroupHeight" mode="Opaque" x="47" y="30" width="17" height="30" backcolor="#F2F2F2" uuid="8c31a3ea-0d01-4eb8-b87f-4acaa521fa15">
+								<property name="com.jaspersoft.studio.unit.width" value="px"/>
+							</reportElement>
+							<box>
+								<topPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<leftPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<bottomPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+							</box>
+							<textElement textAlignment="Center" verticalAlignment="Middle"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance2_MEASURE}.equals("Y")?"●":""]]></textFieldExpression>
+						</textField>
+						<textField textAdjust="StretchHeight" isBlankWhenNull="true">
+							<reportElement positionType="FixRelativeToBottom" stretchType="ElementGroupHeight" mode="Opaque" x="64" y="30" width="17" height="30" backcolor="#F2F2F2" uuid="843fdcaf-d892-49e5-8e44-488714d99ecd">
+								<property name="com.jaspersoft.studio.unit.width" value="px"/>
+							</reportElement>
+							<box>
+								<topPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<leftPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<bottomPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+							</box>
+							<textElement textAlignment="Center" verticalAlignment="Middle"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance3_MEASURE}.equals("Y")?"●":""]]></textFieldExpression>
+						</textField>
+						<textField textAdjust="StretchHeight" isBlankWhenNull="true">
+							<reportElement stretchType="ContainerHeight" mode="Opaque" x="234" y="0" width="60" height="60" backcolor="#F2F2F2" uuid="a89595fd-2ebe-4789-bab3-cad02025e6a2"/>
+							<box>
+								<topPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<leftPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<bottomPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+							</box>
+							<textElement textAlignment="Center" verticalAlignment="Middle"/>
+							<textFieldExpression><![CDATA[$V{performanceDiv_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField textAdjust="StretchHeight" isBlankWhenNull="true">
+							<reportElement stretchType="ContainerHeight" mode="Opaque" x="294" y="0" width="76" height="60" backcolor="#F2F2F2" uuid="3618f503-ba24-4077-9c12-a243552e04a0"/>
+							<box>
+								<topPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<leftPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<bottomPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+							</box>
+							<textElement textAlignment="Center" verticalAlignment="Middle"/>
+							<textFieldExpression><![CDATA[$V{orgnNm_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField textAdjust="StretchHeight" isBlankWhenNull="true">
+							<reportElement stretchType="ContainerHeight" mode="Opaque" x="370" y="0" width="40" height="60" backcolor="#F2F2F2" uuid="29e25ecd-98c4-466a-b1fd-bbecabd2e960"/>
+							<box>
+								<topPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<leftPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<bottomPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+							</box>
+							<textElement textAlignment="Center" verticalAlignment="Middle"/>
+							<textFieldExpression><![CDATA[$V{createdBy_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField textAdjust="StretchHeight" isBlankWhenNull="true">
+							<reportElement stretchType="ContainerHeight" mode="Opaque" x="410" y="0" width="50" height="60" backcolor="#F2F2F2" uuid="7d3d0ec0-8e08-4b0d-ad35-4cee09521b46"/>
+							<box rightPadding="5">
+								<topPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<leftPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<bottomPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+							</box>
+							<textElement textAlignment="Right" verticalAlignment="Middle"/>
+							<textFieldExpression><![CDATA[$V{budget_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField textAdjust="StretchHeight" isBlankWhenNull="true">
+							<reportElement stretchType="ContainerHeight" mode="Opaque" x="460" y="0" width="50" height="60" backcolor="#F2F2F2" uuid="39ffee1e-6e33-4d33-bd39-b7d24da420f2"/>
+							<box rightPadding="5">
+								<topPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<leftPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<bottomPen lineWidth="0.5" lineColor="#FFFFFF"/>
+								<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+							</box>
+							<textElement textAlignment="Right" verticalAlignment="Middle"/>
+							<textFieldExpression><![CDATA[$V{performanceAmount_MEASURE}]]></textFieldExpression>
+						</textField>
+					</cellContents>
+				</crosstabCell>
+				<crosstabCell width="60" height="600" columnTotalGroup="compId">
+					<cellContents mode="Opaque" style="Crosstab_CT">
+						<textField>
+							<reportElement x="0" y="0" width="60" height="20" forecolor="#FFFFFF" uuid="b29db51a-1279-4203-96e7-08216ecb1bcc"/>
+							<textFieldExpression><![CDATA[$V{plandiv1_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="20" width="60" height="20" forecolor="#FFFFFF" uuid="3d13be30-df63-42db-bd61-5ce04a5409ca"/>
+							<textFieldExpression><![CDATA[$V{plandiv2_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="40" width="60" height="20" forecolor="#FFFFFF" uuid="d941ca31-b54a-4c02-91fa-a54f5ef04770"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule1_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="60" width="60" height="20" forecolor="#FFFFFF" uuid="9f1b218f-8c50-47b1-8718-ea87a98d0c2b"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule2_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="80" width="60" height="20" forecolor="#FFFFFF" uuid="0945d40c-b6b4-454d-af5c-d7727678a4ec"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule3_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="100" width="60" height="20" forecolor="#FFFFFF" uuid="9c3b607b-ddb9-4f20-a8cf-114eebfce71a"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule4_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="120" width="60" height="20" forecolor="#FFFFFF" uuid="ac26b6f4-379b-4ba1-b076-c43990257729"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule5_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="140" width="60" height="20" forecolor="#FFFFFF" uuid="5850174a-463d-438a-9716-84992a822a3e"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule6_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="160" width="60" height="20" forecolor="#FFFFFF" uuid="86167c9d-c416-4222-b906-c1bd911b2367"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule7_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="180" width="60" height="20" forecolor="#FFFFFF" uuid="06b98d90-f9a5-4b2f-923f-4b5cd74538e9"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule8_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="200" width="60" height="20" forecolor="#FFFFFF" uuid="ce2a724c-77fe-46d5-a22e-2c537f8538ce"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule9_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="220" width="60" height="20" forecolor="#FFFFFF" uuid="2f2f2a8e-0f92-4867-a1ad-1c4a0cd38e92"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule10_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="240" width="60" height="20" forecolor="#FFFFFF" uuid="f8586c31-8375-43cb-9a9a-4a0a9f655c80"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule11_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="260" width="60" height="20" forecolor="#FFFFFF" uuid="a461a9da-0e51-46d0-a92a-d86c94a7102c"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule12_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="280" width="60" height="20" forecolor="#FFFFFF" uuid="2325b9c0-9e0e-40ff-8137-4ddb49567727"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance4_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="300" width="60" height="20" forecolor="#FFFFFF" uuid="3a736488-1493-49b0-bef0-0178e6898fc0"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance5_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="320" width="60" height="20" forecolor="#FFFFFF" uuid="7152d91d-580e-428c-9b72-ff57f93739f6"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance6_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="340" width="60" height="20" forecolor="#FFFFFF" uuid="3ac59116-7c1f-49c9-af2d-074f8e587541"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance7_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="360" width="60" height="20" forecolor="#FFFFFF" uuid="cd1d2f0c-8323-40b2-9ed8-59210a9dd28a"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance8_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="380" width="60" height="20" forecolor="#FFFFFF" uuid="90a22864-fa11-46a4-95d9-5d24b000b728"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance9_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="400" width="60" height="20" forecolor="#FFFFFF" uuid="65d50c54-1ab7-4874-8e47-c43a708bcafd"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance10_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="420" width="60" height="20" forecolor="#FFFFFF" uuid="5ab935cc-5952-4677-9862-80040d6f453a"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance11_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="440" width="60" height="20" forecolor="#FFFFFF" uuid="98939e13-6e3a-4899-9aa7-93088a383108"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance12_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="460" width="60" height="20" forecolor="#FFFFFF" uuid="099a3cad-9beb-455c-a075-8bdb0453a00b"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance1_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="480" width="60" height="20" forecolor="#FFFFFF" uuid="c2b4faa2-42c0-4366-8ded-70ee2698291b"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance2_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="500" width="60" height="20" forecolor="#FFFFFF" uuid="24c0b223-87cb-4431-a496-59c83821d7e7"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance3_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="520" width="60" height="20" forecolor="#FFFFFF" uuid="ded356fb-73cd-41e9-bd7d-9ed46aef2b70"/>
+							<textFieldExpression><![CDATA[$V{performanceDiv_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="540" width="60" height="20" forecolor="#FFFFFF" uuid="b391036b-84c8-4d82-a149-06469c1ed20a"/>
+							<textFieldExpression><![CDATA[$V{orgnNm_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="560" width="60" height="20" forecolor="#FFFFFF" uuid="ed5165c6-2912-4856-b792-ac18b0d3e7fd"/>
+							<textFieldExpression><![CDATA[$V{createdBy_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="580" width="60" height="20" forecolor="#FFFFFF" uuid="40e1ede1-f865-40cf-97c6-143de72d088f"/>
+							<textFieldExpression><![CDATA[$V{budget_MEASURE}]]></textFieldExpression>
+						</textField>
+					</cellContents>
+				</crosstabCell>
+				<crosstabCell width="60" height="600" rowTotalGroup="seq">
+					<cellContents mode="Opaque" style="Crosstab_CT">
+						<textField>
+							<reportElement x="0" y="0" width="60" height="20" forecolor="#FFFFFF" uuid="5d13d92e-2957-455b-8189-3feab8f64a6b"/>
+							<textFieldExpression><![CDATA[$V{plandiv1_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="20" width="60" height="20" forecolor="#FFFFFF" uuid="38e472a5-cb89-45e3-99e5-f574a8a5f3a7"/>
+							<textFieldExpression><![CDATA[$V{plandiv2_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="40" width="60" height="20" forecolor="#FFFFFF" uuid="ae134924-4ecc-4b9b-9203-6eb7f96e1eac"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule1_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="60" width="60" height="20" forecolor="#FFFFFF" uuid="56c5a173-6313-4770-9065-5bff9c7419e6"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule2_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="80" width="60" height="20" forecolor="#FFFFFF" uuid="deba61fe-337b-4130-9ae5-08db2a3747e1"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule3_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="100" width="60" height="20" forecolor="#FFFFFF" uuid="09739bb1-14c3-476d-8b4d-7789ea8afc29"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule4_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="120" width="60" height="20" forecolor="#FFFFFF" uuid="bb7a1baf-dd5e-44ae-90cd-e873e855b174"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule5_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="140" width="60" height="20" forecolor="#FFFFFF" uuid="d40d4292-6149-4869-a39d-b6a4d16cd69b"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule6_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="160" width="60" height="20" forecolor="#FFFFFF" uuid="ba15cffa-917b-433b-a884-c2b9f4f8aab4"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule7_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="180" width="60" height="20" forecolor="#FFFFFF" uuid="08c14dce-e49e-4efe-ba03-ea31c758da77"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule8_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="200" width="60" height="20" forecolor="#FFFFFF" uuid="9ce134fb-5c0f-47f2-9687-0236d476b97e"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule9_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="220" width="60" height="20" forecolor="#FFFFFF" uuid="e2b1f15c-9264-431c-8c2a-fa8dc4c6a7e0"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule10_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="240" width="60" height="20" forecolor="#FFFFFF" uuid="fbb0c0be-bd72-45ad-acdf-a53b9fd686d5"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule11_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="260" width="60" height="20" forecolor="#FFFFFF" uuid="7ebda7c1-0eea-49a1-b89b-a250febc076b"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule12_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="280" width="60" height="20" forecolor="#FFFFFF" uuid="312993bc-efdb-4c00-993c-2ade7c744464"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance4_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="300" width="60" height="20" forecolor="#FFFFFF" uuid="3d1601bf-cdde-4b4c-a3d7-2b6bb5aa3c53"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance5_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="320" width="60" height="20" forecolor="#FFFFFF" uuid="dd5ad59b-5d97-477c-90b5-c3a87d3aea63"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance6_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="340" width="60" height="20" forecolor="#FFFFFF" uuid="ca8f5c41-8727-4d46-a33e-f2125fca814a"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance7_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="360" width="60" height="20" forecolor="#FFFFFF" uuid="920e1ddc-2cc3-4b36-a3d8-21df47a6ae11"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance8_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="380" width="60" height="20" forecolor="#FFFFFF" uuid="568e8dd1-7501-4702-ae48-54254b56cc37"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance9_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="400" width="60" height="20" forecolor="#FFFFFF" uuid="2dcd2963-7ea7-49bb-94a8-f8c6497f2654"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance10_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="420" width="60" height="20" forecolor="#FFFFFF" uuid="2f722127-dff9-47c5-8722-dabd2efd246e"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance11_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="440" width="60" height="20" forecolor="#FFFFFF" uuid="cf90402a-79c5-455f-9454-05729ea24315"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance12_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="460" width="60" height="20" forecolor="#FFFFFF" uuid="db119c22-3f30-41fa-877e-2c9d2f0222da"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance1_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="480" width="60" height="20" forecolor="#FFFFFF" uuid="e8391d05-6ad3-47ce-993f-8c17208e828f"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance2_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="500" width="60" height="20" forecolor="#FFFFFF" uuid="124d560b-4917-44ef-b133-b6a1be1e3010"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance3_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="520" width="60" height="20" forecolor="#FFFFFF" uuid="51dd9b1d-9b90-4fee-836c-7980127fdb6b"/>
+							<textFieldExpression><![CDATA[$V{performanceDiv_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="540" width="60" height="20" forecolor="#FFFFFF" uuid="883064fa-fe78-4a2b-9d69-fa826c9280bf"/>
+							<textFieldExpression><![CDATA[$V{orgnNm_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="560" width="60" height="20" forecolor="#FFFFFF" uuid="d950ff59-5b94-4665-9fea-bcabda22a2c0"/>
+							<textFieldExpression><![CDATA[$V{createdBy_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="580" width="60" height="20" forecolor="#FFFFFF" uuid="f21cc2b9-eab9-49b7-b913-0590618f19f5"/>
+							<textFieldExpression><![CDATA[$V{budget_MEASURE}]]></textFieldExpression>
+						</textField>
+					</cellContents>
+				</crosstabCell>
+				<crosstabCell width="60" height="600" rowTotalGroup="seq" columnTotalGroup="compId">
+					<cellContents mode="Opaque" style="Crosstab_CT">
+						<textField>
+							<reportElement x="0" y="0" width="60" height="20" forecolor="#FFFFFF" uuid="82e96492-33c5-4c96-95a4-98d966637da8"/>
+							<textFieldExpression><![CDATA[$V{plandiv1_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="20" width="60" height="20" forecolor="#FFFFFF" uuid="96a3f8c9-89f9-4d16-86ba-27824d374541"/>
+							<textFieldExpression><![CDATA[$V{plandiv2_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="40" width="60" height="20" forecolor="#FFFFFF" uuid="70f06fec-8d13-44fa-bf32-467f649305bd"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule1_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="60" width="60" height="20" forecolor="#FFFFFF" uuid="54cb3881-7499-46d4-bdea-f9da7ed8045a"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule2_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="80" width="60" height="20" forecolor="#FFFFFF" uuid="0e8ed74d-74d7-434a-be2c-4bf4c29fb88a"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule3_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="100" width="60" height="20" forecolor="#FFFFFF" uuid="33bc77af-d288-4d38-8bbb-30b285960116"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule4_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="120" width="60" height="20" forecolor="#FFFFFF" uuid="628fb80b-abc4-4176-83b2-7601b83c9cc1"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule5_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="140" width="60" height="20" forecolor="#FFFFFF" uuid="d600b4e1-d1fe-4c07-99b0-8fe1fcc441db"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule6_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="160" width="60" height="20" forecolor="#FFFFFF" uuid="0b57aa1f-fe9c-4545-b250-609d82df5d8b"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule7_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="180" width="60" height="20" forecolor="#FFFFFF" uuid="290a6f4c-2a7c-4e08-8c9a-6efada77d97b"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule8_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="200" width="60" height="20" forecolor="#FFFFFF" uuid="96f83b01-76a0-43c8-9429-725af6373031"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule9_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="220" width="60" height="20" forecolor="#FFFFFF" uuid="0624c6c6-a15c-43f5-839e-b3689d5367d0"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule10_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="240" width="60" height="20" forecolor="#FFFFFF" uuid="b743c451-3ace-4238-a0a3-6cedafbd439b"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule11_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="260" width="60" height="20" forecolor="#FFFFFF" uuid="07b98562-a17e-418d-a89d-a75b758126ca"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule12_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="280" width="60" height="20" forecolor="#FFFFFF" uuid="260e78fe-2585-4d8e-9053-cdaff8149716"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance4_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="300" width="60" height="20" forecolor="#FFFFFF" uuid="64f5d3f5-9a99-45db-adb0-f503d946d49a"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance5_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="320" width="60" height="20" forecolor="#FFFFFF" uuid="71000b42-58fa-4e86-b8aa-6fceec81cae2"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance6_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="340" width="60" height="20" forecolor="#FFFFFF" uuid="5e5d4e5b-7dc9-46e4-a400-e60caca3b5eb"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance7_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="360" width="60" height="20" forecolor="#FFFFFF" uuid="d0e1f25e-ed06-4b11-aab6-41d626741905"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance8_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="380" width="60" height="20" forecolor="#FFFFFF" uuid="56cf8fa3-4fec-40fb-bf16-7c809fc2c308"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance9_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="400" width="60" height="20" forecolor="#FFFFFF" uuid="3d1e9ab0-a785-4ef9-972b-e74169aeeb70"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance10_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="420" width="60" height="20" forecolor="#FFFFFF" uuid="1f4eef08-12db-4a38-92e8-84f2c4fcac20"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance11_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="440" width="60" height="20" forecolor="#FFFFFF" uuid="4b4a9b4a-b874-4221-98e6-a73997b2a7e7"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance12_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="460" width="60" height="20" forecolor="#FFFFFF" uuid="17083e2f-8548-4e66-83ac-2ae583cce892"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance1_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="480" width="60" height="20" forecolor="#FFFFFF" uuid="8a926298-86ef-4d1f-9f72-7de65d840a0a"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance2_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="500" width="60" height="20" forecolor="#FFFFFF" uuid="ac164871-5e2c-4267-804f-cbdbc53b4c49"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance3_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="520" width="60" height="20" forecolor="#FFFFFF" uuid="5352bfda-0231-40ed-b5d2-3a7a1e58a815"/>
+							<textFieldExpression><![CDATA[$V{performanceDiv_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="540" width="60" height="20" forecolor="#FFFFFF" uuid="0513618f-35f2-428d-b52c-de8b4f994a15"/>
+							<textFieldExpression><![CDATA[$V{orgnNm_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="560" width="60" height="20" forecolor="#FFFFFF" uuid="f754ee87-e985-4674-bcd5-a85b6564c8dc"/>
+							<textFieldExpression><![CDATA[$V{createdBy_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="580" width="60" height="20" forecolor="#FFFFFF" uuid="f2dbb35b-f0e7-4fec-b1a5-594450a75340"/>
+							<textFieldExpression><![CDATA[$V{budget_MEASURE}]]></textFieldExpression>
+						</textField>
+					</cellContents>
+				</crosstabCell>
+				<crosstabCell width="60" height="600" rowTotalGroup="companyObjective">
+					<cellContents mode="Opaque" style="Crosstab_CG">
+						<textField>
+							<reportElement x="0" y="0" width="60" height="20" uuid="ca16e286-5bb1-45e7-8688-8e826eed2278"/>
+							<textFieldExpression><![CDATA[$V{plandiv1_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="20" width="60" height="20" uuid="15315ab5-bfe1-481a-b4d1-77d758a628ce"/>
+							<textFieldExpression><![CDATA[$V{plandiv2_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="40" width="60" height="20" uuid="1612e205-7ed9-4f85-903c-a87e4e47b460"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule1_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="60" width="60" height="20" uuid="6caf03a5-51b6-4f98-8362-e4256059c0b2"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule2_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="80" width="60" height="20" uuid="604d5815-cbd3-4077-b7d5-39e1bb9f1023"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule3_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="100" width="60" height="20" uuid="0b4be0fb-0f3b-4f1a-823c-3d6137b934c9"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule4_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="120" width="60" height="20" uuid="51fe1202-200c-4e6e-b574-6ed0f339181d"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule5_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="140" width="60" height="20" uuid="5166f459-8369-4f3e-8be0-898de92cda30"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule6_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="160" width="60" height="20" uuid="d650dc4d-1ac5-4754-bd3b-b548db582dab"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule7_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="180" width="60" height="20" uuid="1d931962-1764-4ad9-93ad-f576a1f24973"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule8_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="200" width="60" height="20" uuid="7afe6331-440d-4640-8a37-2e3dc0e7bd7c"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule9_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="220" width="60" height="20" uuid="06a34592-be25-44db-ae77-05909bcea335"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule10_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="240" width="60" height="20" uuid="7edefc43-2fcf-4c51-a410-db3b73d1a507"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule11_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="260" width="60" height="20" uuid="34cad517-0b47-4dae-b715-8bb1bb891658"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule12_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="280" width="60" height="20" uuid="52e65838-078e-4584-a269-0df4c7496186"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance4_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="300" width="60" height="20" uuid="34235cb9-1c1f-434e-8aa1-4e62ae258654"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance5_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="320" width="60" height="20" uuid="eef5d401-1429-4037-b48c-6cd0bfdaefbc"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance6_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="340" width="60" height="20" uuid="b7614cc0-e1b9-4259-ad66-8b636fcc4708"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance7_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="360" width="60" height="20" uuid="68e48b92-bcc2-4a7e-a71a-af602db01aa3"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance8_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="380" width="60" height="20" uuid="b7739155-d22e-44cb-b24a-79ce64871108"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance9_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="400" width="60" height="20" uuid="065449e3-52b3-42fd-9cf0-98618d50d039"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance10_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="420" width="60" height="20" uuid="01044ab5-2ae7-4e24-9736-b241a3143d1f"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance11_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="440" width="60" height="20" uuid="f3d2046b-96b3-40b3-b86e-31434fdc4db3"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance12_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="460" width="60" height="20" uuid="5197d989-e5ef-42be-92b8-1bc9cc6f98d5"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance1_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="480" width="60" height="20" uuid="f6f4ab5a-68ea-46dc-a0b5-abc4551de7b9"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance2_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="500" width="60" height="20" uuid="5814d613-9bf4-4cd9-857a-6b7232e3e026"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance3_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="520" width="60" height="20" uuid="b08ceea3-75f8-4552-bc02-6e9e52744d7f"/>
+							<textFieldExpression><![CDATA[$V{performanceDiv_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="540" width="60" height="20" uuid="48670228-c230-45c0-b706-f027e4f42492"/>
+							<textFieldExpression><![CDATA[$V{orgnNm_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="560" width="60" height="20" uuid="7f05f3e5-2660-4b98-954e-9f7333c78663"/>
+							<textFieldExpression><![CDATA[$V{createdBy_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="580" width="60" height="20" uuid="ae6c8155-9629-4f1d-93d8-06bfbe8aa07c"/>
+							<textFieldExpression><![CDATA[$V{budget_MEASURE}]]></textFieldExpression>
+						</textField>
+					</cellContents>
+				</crosstabCell>
+				<crosstabCell width="60" height="600" rowTotalGroup="companyObjective" columnTotalGroup="compId">
+					<cellContents mode="Opaque" style="Crosstab_CT">
+						<textField>
+							<reportElement x="0" y="0" width="60" height="20" forecolor="#FFFFFF" uuid="bdbc29c0-17b1-445a-89b5-4f0c66d3d470"/>
+							<textFieldExpression><![CDATA[$V{plandiv1_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="20" width="60" height="20" forecolor="#FFFFFF" uuid="ed63408a-8f0e-4606-854a-df44fa2cc633"/>
+							<textFieldExpression><![CDATA[$V{plandiv2_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="40" width="60" height="20" forecolor="#FFFFFF" uuid="98babbb5-57cc-4e53-9698-f0f64085b607"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule1_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="60" width="60" height="20" forecolor="#FFFFFF" uuid="06fa7b21-2037-43bd-b296-add6919bfe38"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule2_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="80" width="60" height="20" forecolor="#FFFFFF" uuid="a1a57f38-93b4-420b-b674-2a0867e360eb"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule3_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="100" width="60" height="20" forecolor="#FFFFFF" uuid="73d10b7c-6ab2-4f0c-8ba6-0dda2c39e8cb"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule4_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="120" width="60" height="20" forecolor="#FFFFFF" uuid="e107e898-0b58-4af0-9da4-d2c45b611105"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule5_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="140" width="60" height="20" forecolor="#FFFFFF" uuid="02acb6bc-0287-402f-acd1-bc70b6bed308"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule6_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="160" width="60" height="20" forecolor="#FFFFFF" uuid="d61066ab-532f-4803-aaff-3095a2cd2cb7"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule7_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="180" width="60" height="20" forecolor="#FFFFFF" uuid="d93de577-6693-48d4-8192-36b23b961db6"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule8_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="200" width="60" height="20" forecolor="#FFFFFF" uuid="d4a5cd13-38d0-4261-bc7d-6a413222e2f4"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule9_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="220" width="60" height="20" forecolor="#FFFFFF" uuid="277f231f-45f7-42a4-8f3a-5597a00443eb"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule10_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="240" width="60" height="20" forecolor="#FFFFFF" uuid="2d101f48-1f42-4311-802f-dce01f6519d9"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule11_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="260" width="60" height="20" forecolor="#FFFFFF" uuid="8004a47c-fbc0-4b37-8261-54a1b40d8394"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule12_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="280" width="60" height="20" forecolor="#FFFFFF" uuid="60f96e43-ecdc-48ce-bf23-a44737e58be9"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance4_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="300" width="60" height="20" forecolor="#FFFFFF" uuid="5893f6cc-56ef-4a5f-8c51-1424cb1a0897"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance5_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="320" width="60" height="20" forecolor="#FFFFFF" uuid="b14ca669-fef3-431b-9c6e-fdd1d42c252a"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance6_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="340" width="60" height="20" forecolor="#FFFFFF" uuid="f09e3ba8-e60a-4395-8220-416114df7ce6"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance7_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="360" width="60" height="20" forecolor="#FFFFFF" uuid="5107f9da-8b12-4f98-859a-d398f48dd3fb"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance8_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="380" width="60" height="20" forecolor="#FFFFFF" uuid="3c0ec09c-af2d-411d-95d0-0991443d94aa"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance9_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="400" width="60" height="20" forecolor="#FFFFFF" uuid="a9fe32be-bed4-4708-8bcf-454a24aa7370"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance10_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="420" width="60" height="20" forecolor="#FFFFFF" uuid="3b369b3b-d19a-47e9-bfa0-8ac3c54bf2b8"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance11_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="440" width="60" height="20" forecolor="#FFFFFF" uuid="53dbcb0e-812d-4018-95b4-56236ea5172d"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance12_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="460" width="60" height="20" forecolor="#FFFFFF" uuid="4f1b19c0-7b05-4faa-9dad-d80081c639cb"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance1_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="480" width="60" height="20" forecolor="#FFFFFF" uuid="49e76f84-fb52-4f0e-9a2c-e18dd2bd0e99"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance2_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="500" width="60" height="20" forecolor="#FFFFFF" uuid="5b5575f5-5833-43bb-a4da-e95fc6885477"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance3_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="520" width="60" height="20" forecolor="#FFFFFF" uuid="6805a1a1-efa0-4d1e-8422-4f49ac3d0291"/>
+							<textFieldExpression><![CDATA[$V{performanceDiv_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="540" width="60" height="20" forecolor="#FFFFFF" uuid="4e302abf-46c9-4f40-8a14-e872289ac8d4"/>
+							<textFieldExpression><![CDATA[$V{orgnNm_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="560" width="60" height="20" forecolor="#FFFFFF" uuid="6f76faac-5510-480f-92a8-428ac6afdd21"/>
+							<textFieldExpression><![CDATA[$V{createdBy_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="580" width="60" height="20" forecolor="#FFFFFF" uuid="11e19196-d951-4ef7-b7a4-04949a0311f5"/>
+							<textFieldExpression><![CDATA[$V{budget_MEASURE}]]></textFieldExpression>
+						</textField>
+					</cellContents>
+				</crosstabCell>
+				<crosstabCell width="60" height="600" rowTotalGroup="actionObjective">
+					<cellContents mode="Opaque" style="Crosstab_CG">
+						<textField>
+							<reportElement x="0" y="0" width="60" height="20" uuid="77a89cb5-bbed-4783-bb4c-da14adbd9d2b"/>
+							<textFieldExpression><![CDATA[$V{plandiv1_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="20" width="60" height="20" uuid="0e1d4a4d-1aa2-4a09-993d-c58dd0c1b787"/>
+							<textFieldExpression><![CDATA[$V{plandiv2_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="40" width="60" height="20" uuid="0c7d0984-7521-4be5-8f1e-dfa691bd274a"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule1_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="60" width="60" height="20" uuid="3d4bc757-538d-4915-a8d3-fda72f46a61d"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule2_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="80" width="60" height="20" uuid="1b854cc7-cce7-40ed-b265-9a5ff9b6b632"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule3_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="100" width="60" height="20" uuid="92216030-55f6-4408-80ec-d05e8ccffd43"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule4_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="120" width="60" height="20" uuid="abfb08e2-5b7e-4ffb-92b7-67c2564388b4"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule5_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="140" width="60" height="20" uuid="b2fc135c-e192-4f94-8af8-443b83133e5b"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule6_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="160" width="60" height="20" uuid="617842dd-a8bb-434d-9fba-97f7609ad17f"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule7_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="180" width="60" height="20" uuid="1a29a449-328b-48e4-a859-13a5bfdee0aa"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule8_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="200" width="60" height="20" uuid="a801af84-a7dd-49dd-a2b8-3754094dac22"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule9_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="220" width="60" height="20" uuid="bd52f302-58a6-4172-b03d-2e94da11fdf0"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule10_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="240" width="60" height="20" uuid="ad7080c5-c804-43d7-a9e8-a595f1b6b6a4"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule11_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="260" width="60" height="20" uuid="26e4a763-864a-4c7b-b89a-b7ec94fc2239"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule12_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="280" width="60" height="20" uuid="e12fc6e0-daa2-4a31-a19c-8af8fc15f150"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance4_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="300" width="60" height="20" uuid="014070e7-3bef-4fb0-9ead-9a965abc967c"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance5_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="320" width="60" height="20" uuid="9615afc1-dff4-4217-a118-1c3da350964d"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance6_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="340" width="60" height="20" uuid="67e82ff0-c207-40e5-883d-3ceedebf513a"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance7_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="360" width="60" height="20" uuid="8810a4cf-2af9-4f49-a706-71169393dc2b"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance8_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="380" width="60" height="20" uuid="254d8f75-c330-49c6-9865-a2772a8f9772"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance9_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="400" width="60" height="20" uuid="fc8811f0-b518-4a9f-9d64-67cd3a6f3e9a"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance10_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="420" width="60" height="20" uuid="afa1a891-6b1d-48b9-b14b-a622c0c8e6e9"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance11_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="440" width="60" height="20" uuid="01bf2f35-1946-4e03-a185-a260a56c1e80"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance12_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="460" width="60" height="20" uuid="412cabfb-5008-414f-a010-43659c41bf3c"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance1_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="480" width="60" height="20" uuid="c7be40e4-9fa3-4cc0-b5e2-f45fa3a27175"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance2_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="500" width="60" height="20" uuid="14c4babf-35a6-4098-a829-0be09f57f76e"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance3_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="520" width="60" height="20" uuid="13467692-42c0-466a-8dee-2f20af3c4cce"/>
+							<textFieldExpression><![CDATA[$V{performanceDiv_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="540" width="60" height="20" uuid="5285f55f-a5de-4633-a50d-7cc7a5b2a33f"/>
+							<textFieldExpression><![CDATA[$V{orgnNm_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="560" width="60" height="20" uuid="0263ead7-87b2-4a45-a861-fa3f733b8660"/>
+							<textFieldExpression><![CDATA[$V{createdBy_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="580" width="60" height="20" uuid="0893b714-68a4-462b-8f22-307ba8fa5d54"/>
+							<textFieldExpression><![CDATA[$V{budget_MEASURE}]]></textFieldExpression>
+						</textField>
+					</cellContents>
+				</crosstabCell>
+				<crosstabCell width="60" height="600" rowTotalGroup="actionObjective" columnTotalGroup="compId">
+					<cellContents mode="Opaque" style="Crosstab_CT">
+						<textField>
+							<reportElement x="0" y="0" width="60" height="20" forecolor="#FFFFFF" uuid="5a0b8492-4ee4-4fe1-b413-5ed3a8ebb474"/>
+							<textFieldExpression><![CDATA[$V{plandiv1_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="20" width="60" height="20" forecolor="#FFFFFF" uuid="82f31fda-d304-40d0-b905-d2f6b64f2107"/>
+							<textFieldExpression><![CDATA[$V{plandiv2_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="40" width="60" height="20" forecolor="#FFFFFF" uuid="bdfd9cda-80fa-4e3d-b206-a4cb01cee1f2"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule1_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="60" width="60" height="20" forecolor="#FFFFFF" uuid="ced84f64-b344-4d80-b8f5-471ab526a2dc"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule2_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="80" width="60" height="20" forecolor="#FFFFFF" uuid="4eef7f83-b8a1-4cd8-bd30-a23f7782e62a"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule3_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="100" width="60" height="20" forecolor="#FFFFFF" uuid="b2a263e9-c042-4906-8c25-973913f9e68f"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule4_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="120" width="60" height="20" forecolor="#FFFFFF" uuid="5dee9d43-0a2a-4483-aa2b-4af73b208300"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule5_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="140" width="60" height="20" forecolor="#FFFFFF" uuid="a64e9d0f-131f-46c5-8d03-d5b109a04df6"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule6_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="160" width="60" height="20" forecolor="#FFFFFF" uuid="2ea45066-28c0-452c-b85f-ca75a164d3e9"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule7_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="180" width="60" height="20" forecolor="#FFFFFF" uuid="26024a99-8749-4f83-a3e5-6ecff4b9453a"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule8_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="200" width="60" height="20" forecolor="#FFFFFF" uuid="ee9177a4-2eda-4487-9e29-8285b4d36ae0"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule9_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="220" width="60" height="20" forecolor="#FFFFFF" uuid="384f9dff-1650-41a1-b4e6-1d61a66fa300"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule10_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="240" width="60" height="20" forecolor="#FFFFFF" uuid="9c494faf-268f-498b-a731-538bb549e6fe"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule11_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="260" width="60" height="20" forecolor="#FFFFFF" uuid="9f00f27e-2edb-454f-b82a-bf72d133f96f"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule12_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="280" width="60" height="20" forecolor="#FFFFFF" uuid="7756e644-584f-4705-8e1f-59a3f719d70a"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance4_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="300" width="60" height="20" forecolor="#FFFFFF" uuid="8bc4ec75-dbeb-440a-ba6e-f9449cdcbf36"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance5_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="320" width="60" height="20" forecolor="#FFFFFF" uuid="46d8731b-e879-4945-88b4-f44d0a958c53"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance6_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="340" width="60" height="20" forecolor="#FFFFFF" uuid="52e2631f-3f03-4f7c-aee6-99ec687cc68f"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance7_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="360" width="60" height="20" forecolor="#FFFFFF" uuid="259313f5-2e22-4e4b-8d92-0c06bffac2da"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance8_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="380" width="60" height="20" forecolor="#FFFFFF" uuid="1553ee72-ade5-473b-b1fc-12ad4cb89ee0"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance9_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="400" width="60" height="20" forecolor="#FFFFFF" uuid="e9dc50cc-218c-4cb3-9dec-08eb0b673346"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance10_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="420" width="60" height="20" forecolor="#FFFFFF" uuid="8e020d2c-f848-406e-9c40-aaa08350c0d3"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance11_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="440" width="60" height="20" forecolor="#FFFFFF" uuid="79211e9c-5167-4cbb-bd2c-20d5e61c3fef"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance12_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="460" width="60" height="20" forecolor="#FFFFFF" uuid="af78817c-dbf0-49c9-86f7-256db7d239a4"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance1_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="480" width="60" height="20" forecolor="#FFFFFF" uuid="a4c63c96-4a35-42ab-b50f-5bb7a4a05644"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance2_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="500" width="60" height="20" forecolor="#FFFFFF" uuid="3422abae-0389-48d7-bc70-6bfb6e3eb5b3"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance3_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="520" width="60" height="20" forecolor="#FFFFFF" uuid="84f30701-dbcf-438c-b11d-d6d5ee9cfcf1"/>
+							<textFieldExpression><![CDATA[$V{performanceDiv_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="540" width="60" height="20" forecolor="#FFFFFF" uuid="72e7b8f7-3d99-4248-a113-906de4cfb8ef"/>
+							<textFieldExpression><![CDATA[$V{orgnNm_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="560" width="60" height="20" forecolor="#FFFFFF" uuid="7aec334b-b21c-4225-a0d7-3562f9f87c34"/>
+							<textFieldExpression><![CDATA[$V{createdBy_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="580" width="60" height="20" forecolor="#FFFFFF" uuid="529f13d9-8685-40fb-9f08-ac60654cb403"/>
+							<textFieldExpression><![CDATA[$V{budget_MEASURE}]]></textFieldExpression>
+						</textField>
+					</cellContents>
+				</crosstabCell>
+				<crosstabCell width="60" height="600" rowTotalGroup="detailItem">
+					<cellContents mode="Opaque" style="Crosstab_CG">
+						<textField>
+							<reportElement x="0" y="0" width="60" height="20" uuid="e770801e-c003-4064-af83-6261451748a2"/>
+							<textFieldExpression><![CDATA[$V{plandiv1_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="20" width="60" height="20" uuid="ff3c7d11-9d75-40bf-9cb5-345c12536280"/>
+							<textFieldExpression><![CDATA[$V{plandiv2_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="40" width="60" height="20" uuid="2c6ead40-d239-4f17-a717-ed872acc9239"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule1_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="60" width="60" height="20" uuid="4d34176d-ed11-4c13-9390-6696243029b6"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule2_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="80" width="60" height="20" uuid="a4d2ce71-c136-420a-be92-56458cde883a"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule3_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="100" width="60" height="20" uuid="280be8cb-569f-4e7c-9ed6-1a954bd4fffb"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule4_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="120" width="60" height="20" uuid="27db53fc-b7f1-43a7-a7e9-936b598dc817"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule5_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="140" width="60" height="20" uuid="94e22890-2583-403f-b190-bcf08768d7b9"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule6_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="160" width="60" height="20" uuid="7e22d599-e2d3-4785-b948-9de110acba83"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule7_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="180" width="60" height="20" uuid="5d6a1901-c86b-456c-89b7-e11244bd3eec"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule8_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="200" width="60" height="20" uuid="f67b6092-5d66-461e-a3b2-c29322ec9f21"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule9_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="220" width="60" height="20" uuid="630b9a47-a844-4125-b380-59f4ca9de725"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule10_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="240" width="60" height="20" uuid="8db6f33e-ea99-4802-a413-dedb8fc72f7e"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule11_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="260" width="60" height="20" uuid="c3ec76b4-3d34-48d8-b4e1-17885d9c0827"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule12_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="280" width="60" height="20" uuid="dfb9dfd1-80e6-4808-8da1-3031159e8512"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance4_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="300" width="60" height="20" uuid="aae6e4e4-3572-4404-a3ae-ce84752ec640"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance5_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="320" width="60" height="20" uuid="26c341c5-cda1-41fc-bd59-7cf1af78ccab"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance6_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="340" width="60" height="20" uuid="b2797901-4bf9-4acd-9c60-c322453eee16"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance7_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="360" width="60" height="20" uuid="44c7ab39-d5f3-497b-b3e1-2cd0e286b048"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance8_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="380" width="60" height="20" uuid="6d6f7a98-eaed-4337-8e4f-edf1b1b3ebf0"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance9_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="400" width="60" height="20" uuid="c7a5cd24-4a24-45b3-bb63-bb5015cf811f"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance10_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="420" width="60" height="20" uuid="5fc595d8-a019-4617-9458-117c18581c70"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance11_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="440" width="60" height="20" uuid="ecf2cdca-0469-4fa4-886b-cbc1ceb2a3e9"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance12_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="460" width="60" height="20" uuid="c0ac8f65-ae30-4b83-9f2c-f7387732ee6f"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance1_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="480" width="60" height="20" uuid="b724cf80-c272-4540-ae4a-a541b9fa2df6"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance2_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="500" width="60" height="20" uuid="6c712b4e-53db-477e-a96a-66121bbf6f43"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance3_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="520" width="60" height="20" uuid="90d35aa4-20d0-4c7f-99a6-786bee422b75"/>
+							<textFieldExpression><![CDATA[$V{performanceDiv_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="540" width="60" height="20" uuid="2f21af98-0466-4d60-bdbd-ce1a1786ddfa"/>
+							<textFieldExpression><![CDATA[$V{orgnNm_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="560" width="60" height="20" uuid="dfcc6abc-50f6-4d17-b0ac-38c178eaa9a7"/>
+							<textFieldExpression><![CDATA[$V{createdBy_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="580" width="60" height="20" uuid="b7bd87e8-876d-4bc0-ad78-eea1fb910654"/>
+							<textFieldExpression><![CDATA[$V{budget_MEASURE}]]></textFieldExpression>
+						</textField>
+					</cellContents>
+				</crosstabCell>
+				<crosstabCell width="60" height="600" rowTotalGroup="detailItem" columnTotalGroup="compId">
+					<cellContents mode="Opaque" style="Crosstab_CT">
+						<textField>
+							<reportElement x="0" y="0" width="60" height="20" forecolor="#FFFFFF" uuid="bd692732-bd32-481d-a870-3a9c123372d5"/>
+							<textFieldExpression><![CDATA[$V{plandiv1_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="20" width="60" height="20" forecolor="#FFFFFF" uuid="366680b6-2c6c-453a-859f-15f912cf87b9"/>
+							<textFieldExpression><![CDATA[$V{plandiv2_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="40" width="60" height="20" forecolor="#FFFFFF" uuid="14956cdd-8e42-4f0d-8e68-ce9c2b6f329d"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule1_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="60" width="60" height="20" forecolor="#FFFFFF" uuid="67d1f357-f409-446a-833e-c517c06e0b78"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule2_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="80" width="60" height="20" forecolor="#FFFFFF" uuid="d5f381a3-a25f-4284-be02-854f7fc5a81e"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule3_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="100" width="60" height="20" forecolor="#FFFFFF" uuid="3c701c70-b255-4550-b67b-e288cb459c6e"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule4_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="120" width="60" height="20" forecolor="#FFFFFF" uuid="2b51c786-7f43-444a-b0f0-4fdbf06191c0"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule5_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="140" width="60" height="20" forecolor="#FFFFFF" uuid="75d480ed-91b9-40d4-a9fb-272b351f8bab"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule6_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="160" width="60" height="20" forecolor="#FFFFFF" uuid="a3373a67-0c3d-49af-8d43-2d1ee4945e29"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule7_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="180" width="60" height="20" forecolor="#FFFFFF" uuid="d6030847-4ed7-416f-b1ef-40f65c3587d8"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule8_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="200" width="60" height="20" forecolor="#FFFFFF" uuid="49a4986f-4e49-4bbd-8a16-d94cabacaf93"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule9_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="220" width="60" height="20" forecolor="#FFFFFF" uuid="4b9a8464-9a33-46b9-92d1-260d28786673"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule10_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="240" width="60" height="20" forecolor="#FFFFFF" uuid="1f3549c6-f403-452b-8e56-62621c9d52f0"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule11_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="260" width="60" height="20" forecolor="#FFFFFF" uuid="5c38f9e8-facf-4520-b523-94f78836df27"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule12_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="280" width="60" height="20" forecolor="#FFFFFF" uuid="72976b4d-a0c1-4051-9b80-203df190e025"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance4_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="300" width="60" height="20" forecolor="#FFFFFF" uuid="8ba836f7-86d2-4fae-b74a-21a457cb1dd1"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance5_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="320" width="60" height="20" forecolor="#FFFFFF" uuid="8e85c42d-55c4-41d7-8985-812e8cfed0ed"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance6_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="340" width="60" height="20" forecolor="#FFFFFF" uuid="63242fa2-f277-4bdd-a27d-00ad86a6e822"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance7_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="360" width="60" height="20" forecolor="#FFFFFF" uuid="5bda49b3-7b13-4a35-a51b-d27c24583d25"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance8_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="380" width="60" height="20" forecolor="#FFFFFF" uuid="a15ce7e1-36da-4467-9217-8f2b27307f3c"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance9_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="400" width="60" height="20" forecolor="#FFFFFF" uuid="afd5cd82-2c61-467b-bb25-783a8ef423bd"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance10_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="420" width="60" height="20" forecolor="#FFFFFF" uuid="c2f7a130-12c2-4a7e-8068-9ef166dc52ff"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance11_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="440" width="60" height="20" forecolor="#FFFFFF" uuid="6de81b44-838e-4623-b177-9b1ba61ad29c"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance12_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="460" width="60" height="20" forecolor="#FFFFFF" uuid="5594bf4b-3df8-4754-afe6-c8f0f268728c"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance1_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="480" width="60" height="20" forecolor="#FFFFFF" uuid="5ba0c7d7-1c8a-417e-9fcb-b533affebd36"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance2_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="500" width="60" height="20" forecolor="#FFFFFF" uuid="ad6ff46e-df49-466d-879c-0f44bce7486e"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance3_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="520" width="60" height="20" forecolor="#FFFFFF" uuid="610f53c4-56dc-4121-82a1-5259996b7ab0"/>
+							<textFieldExpression><![CDATA[$V{performanceDiv_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="540" width="60" height="20" forecolor="#FFFFFF" uuid="bf9846a3-dd07-42a8-8954-8e2fb26c2444"/>
+							<textFieldExpression><![CDATA[$V{orgnNm_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="560" width="60" height="20" forecolor="#FFFFFF" uuid="a1c21bd3-ec01-4d35-b099-c418a0ea78c0"/>
+							<textFieldExpression><![CDATA[$V{createdBy_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="580" width="60" height="20" forecolor="#FFFFFF" uuid="6070e0fa-1a0e-4767-ae9a-cc1239d7c261"/>
+							<textFieldExpression><![CDATA[$V{budget_MEASURE}]]></textFieldExpression>
+						</textField>
+					</cellContents>
+				</crosstabCell>
+				<crosstabCell width="60" height="600" rowTotalGroup="detailPlan">
+					<cellContents mode="Opaque" style="Crosstab_CG">
+						<textField>
+							<reportElement x="0" y="0" width="60" height="20" uuid="dd45cdaa-8af4-43cc-bdcb-639b46f29eb6"/>
+							<textFieldExpression><![CDATA[$V{plandiv1_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="20" width="60" height="20" uuid="3ba895bc-7945-49ad-855c-85ecad349004"/>
+							<textFieldExpression><![CDATA[$V{plandiv2_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="40" width="60" height="20" uuid="4ac5702e-5069-4eec-a536-a98c9cdbe6f5"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule1_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="60" width="60" height="20" uuid="544b903f-d0c8-43a1-b744-7daa6b127e20"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule2_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="80" width="60" height="20" uuid="a17e165c-e583-4e37-b082-f9da65ef984c"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule3_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="100" width="60" height="20" uuid="7a4caeef-811c-4031-8549-d21ea47304d9"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule4_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="120" width="60" height="20" uuid="5c068643-cb0c-46c4-bd52-916cd3039b18"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule5_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="140" width="60" height="20" uuid="1bdda686-f805-4018-b52e-97c411c1e363"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule6_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="160" width="60" height="20" uuid="5d4dfbda-f3dd-4c6c-a3db-bd60278a80e1"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule7_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="180" width="60" height="20" uuid="9f160d4e-c55d-4b0d-bde8-d76799484d95"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule8_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="200" width="60" height="20" uuid="2799aa16-5e95-442c-9e79-926bd5ef5b22"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule9_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="220" width="60" height="20" uuid="92e18c5d-aeda-42e8-b81d-17431ded04a4"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule10_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="240" width="60" height="20" uuid="091b34b6-4a08-4b1f-897f-fe4c8b8751de"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule11_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="260" width="60" height="20" uuid="b681ed02-ca90-47bd-869f-9dbc1739397d"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule12_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="280" width="60" height="20" uuid="93540b4c-9df4-4b67-907c-c03d019c8156"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance4_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="300" width="60" height="20" uuid="75c3cb0e-d05f-46dd-bbb4-8acb4730bbc6"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance5_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="320" width="60" height="20" uuid="3188bc30-fdb3-4c12-8cf9-b6c54fa1465c"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance6_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="340" width="60" height="20" uuid="be020fbb-196e-4caa-a50f-503489399cd6"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance7_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="360" width="60" height="20" uuid="17f1ae78-75e5-4167-a93f-0aee531b531f"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance8_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="380" width="60" height="20" uuid="ddc4976c-62ff-4cd1-93f7-7e04011e0517"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance9_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="400" width="60" height="20" uuid="41bb6095-b3e4-456e-bd30-2ab0514fe49f"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance10_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="420" width="60" height="20" uuid="afae5034-ec42-4ad4-8fe4-3ef0c993a944"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance11_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="440" width="60" height="20" uuid="579db9da-98ee-4bae-8db0-9357746aadf5"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance12_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="460" width="60" height="20" uuid="e5a383e6-18fd-40ce-bd5d-637366e9960e"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance1_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="480" width="60" height="20" uuid="3dbdada4-f0ef-4dba-870a-35ed3dc82f2d"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance2_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="500" width="60" height="20" uuid="3f61ec02-16a4-42f0-be1d-f726977566d7"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance3_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="520" width="60" height="20" uuid="796668a2-8ad5-4f5d-a8e0-dc66d243db27"/>
+							<textFieldExpression><![CDATA[$V{performanceDiv_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="540" width="60" height="20" uuid="d96d3f14-346f-4e25-b0fb-fc1620aebc7e"/>
+							<textFieldExpression><![CDATA[$V{orgnNm_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="560" width="60" height="20" uuid="3097b4c2-01ab-41b0-aa3a-49206d5b6944"/>
+							<textFieldExpression><![CDATA[$V{createdBy_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="580" width="60" height="20" uuid="1138057e-e363-46c9-b3f9-73d32059cea4"/>
+							<textFieldExpression><![CDATA[$V{budget_MEASURE}]]></textFieldExpression>
+						</textField>
+					</cellContents>
+				</crosstabCell>
+				<crosstabCell width="60" height="600" rowTotalGroup="detailPlan" columnTotalGroup="compId">
+					<cellContents mode="Opaque" style="Crosstab_CT">
+						<textField>
+							<reportElement x="0" y="0" width="60" height="20" forecolor="#FFFFFF" uuid="509e9bad-102f-4c70-90ad-21484d45d75c"/>
+							<textFieldExpression><![CDATA[$V{plandiv1_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="20" width="60" height="20" forecolor="#FFFFFF" uuid="ffe9efd7-7394-4f65-9bf5-c6a977a69784"/>
+							<textFieldExpression><![CDATA[$V{plandiv2_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="40" width="60" height="20" forecolor="#FFFFFF" uuid="51a9fca9-09bb-467c-9b7a-98e4c24ee440"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule1_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="60" width="60" height="20" forecolor="#FFFFFF" uuid="6a7a78b8-0573-4700-9825-c0000658bd51"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule2_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="80" width="60" height="20" forecolor="#FFFFFF" uuid="adfb5e65-9f4a-43dd-a00e-f8c6166d7459"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule3_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="100" width="60" height="20" forecolor="#FFFFFF" uuid="d8f61cbc-d036-4980-afb2-2478b7a3ee3c"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule4_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="120" width="60" height="20" forecolor="#FFFFFF" uuid="9438d68e-910d-4271-92af-a75f87c81714"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule5_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="140" width="60" height="20" forecolor="#FFFFFF" uuid="379211fd-e1a9-46ac-a370-8b96d4086473"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule6_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="160" width="60" height="20" forecolor="#FFFFFF" uuid="f08ad395-c50c-4353-b91c-23727b2f0fc1"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule7_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="180" width="60" height="20" forecolor="#FFFFFF" uuid="7db86957-78a9-4034-9cfd-cddc9942cd40"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule8_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="200" width="60" height="20" forecolor="#FFFFFF" uuid="96a3dfdf-3644-403a-9dc8-e1874fbbd2e9"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule9_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="220" width="60" height="20" forecolor="#FFFFFF" uuid="debd17c9-1a2c-464b-b2cd-b2d3165d6a27"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule10_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="240" width="60" height="20" forecolor="#FFFFFF" uuid="e3b8e98d-8ed2-4b47-aa8f-3ae2c277f4c0"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule11_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="260" width="60" height="20" forecolor="#FFFFFF" uuid="c0f00b89-5d3e-43a9-b758-c4bdb9b2635e"/>
+							<textFieldExpression><![CDATA[$V{actionSchedule12_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="280" width="60" height="20" forecolor="#FFFFFF" uuid="9b8dd647-d11a-4504-816c-a4d9e4b69741"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance4_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="300" width="60" height="20" forecolor="#FFFFFF" uuid="6afef5a3-a4e6-42f3-a5aa-bd6d03555f01"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance5_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="320" width="60" height="20" forecolor="#FFFFFF" uuid="1403a408-7170-41b4-a717-9545bfe1c1ee"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance6_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="340" width="60" height="20" forecolor="#FFFFFF" uuid="f35a22e1-ecdb-4bb9-be95-6dd548bc22a8"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance7_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="360" width="60" height="20" forecolor="#FFFFFF" uuid="bad3577d-6e8c-4567-9cae-840abdb2d5be"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance8_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="380" width="60" height="20" forecolor="#FFFFFF" uuid="84a94ac3-ffdd-42a7-9bf8-00d1c8d2c8db"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance9_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="400" width="60" height="20" forecolor="#FFFFFF" uuid="ecf777f0-e2d6-4723-bb70-23dd6f855a10"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance10_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="420" width="60" height="20" forecolor="#FFFFFF" uuid="af4f98e3-ec9a-4f3b-b9d2-18f26e94c27d"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance11_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="440" width="60" height="20" forecolor="#FFFFFF" uuid="cfab20b5-f10a-43a0-9cf2-5a7d0fdae67b"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance12_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="460" width="60" height="20" forecolor="#FFFFFF" uuid="eb83a57a-22d9-4e66-a073-9ee3ac144ad7"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance1_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="480" width="60" height="20" forecolor="#FFFFFF" uuid="a774315f-489f-4c79-a11a-848c2c8a1df7"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance2_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="500" width="60" height="20" forecolor="#FFFFFF" uuid="10ecfcf6-c67b-4ae4-ad2b-e62a3df4b688"/>
+							<textFieldExpression><![CDATA[$V{actionPerformance3_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="520" width="60" height="20" forecolor="#FFFFFF" uuid="15cb96f9-6fd5-40bf-ac29-62030796e74a"/>
+							<textFieldExpression><![CDATA[$V{performanceDiv_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="540" width="60" height="20" forecolor="#FFFFFF" uuid="6460a8da-8bb9-4fac-bd85-63cd4421b854"/>
+							<textFieldExpression><![CDATA[$V{orgnNm_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="560" width="60" height="20" forecolor="#FFFFFF" uuid="22595696-b0b7-4ab1-85f8-f3112189feaf"/>
+							<textFieldExpression><![CDATA[$V{createdBy_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="580" width="60" height="20" forecolor="#FFFFFF" uuid="3c7804db-d13b-4423-8eec-159870953f58"/>
+							<textFieldExpression><![CDATA[$V{budget_MEASURE}]]></textFieldExpression>
+						</textField>
+					</cellContents>
+				</crosstabCell>
+				<crosstabCell width="60" height="20" rowTotalGroup="seq5">
+					<cellContents/>
+				</crosstabCell>
+				<crosstabCell width="60" height="20" rowTotalGroup="seq5" columnTotalGroup="compId">
+					<cellContents/>
+				</crosstabCell>
+			</crosstab>
+			<crosstab>
+				<reportElement x="560" y="4" width="256" height="80" uuid="32aa1e5c-78f3-4b94-b525-45534e72acfc">
+					<property name="com.jaspersoft.studio.layout" value="com.jaspersoft.studio.editor.layout.VerticalRowLayout"/>
+					<property name="com.jaspersoft.studio.crosstab.style.header" value="Crosstab 1_CH"/>
+					<property name="com.jaspersoft.studio.crosstab.style.group" value="Crosstab 1_CG"/>
+					<property name="com.jaspersoft.studio.crosstab.style.total" value="Crosstab 1_CT"/>
+					<property name="com.jaspersoft.studio.crosstab.style.detail" value="Crosstab 1_CD"/>
+				</reportElement>
+				<crosstabDataset>
+					<dataset resetType="Report">
+						<datasetRun subDataset="signatureList" uuid="f770b2a7-f8ba-4e09-9a3d-2be6a8c365c7">
+							<dataSourceExpression><![CDATA[$P{signatureList}]]></dataSourceExpression>
+						</datasetRun>
+					</dataset>
+				</crosstabDataset>
+				<rowGroup name="type" width="20">
+					<bucket order="Descending" class="java.lang.String">
+						<bucketExpression><![CDATA[$F{type}]]></bucketExpression>
+					</bucket>
+					<crosstabRowHeader>
+						<cellContents mode="Opaque" style="Crosstab 1_CH">
+							<property name="com.jaspersoft.studio.unit.width" value="px"/>
+							<property name="com.jaspersoft.studio.unit.height" value="px"/>
+							<textField textAdjust="StretchHeight">
+								<reportElement mode="Opaque" x="0" y="0" width="20" height="80" backcolor="#C4C4C4" uuid="f5d8644c-05fb-4ca2-8279-58c197b823ab"/>
+								<box>
+									<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+									<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+									<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+									<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+								</box>
+								<textElement textAlignment="Center" verticalAlignment="Middle">
+									<font size="14"/>
+								</textElement>
+								<textFieldExpression><![CDATA[$V{type}]]></textFieldExpression>
+							</textField>
+						</cellContents>
+					</crosstabRowHeader>
+					<crosstabTotalRowHeader>
+						<cellContents>
+							<staticText>
+								<reportElement x="0" y="0" width="-2147483648" height="-2147483648" uuid="adf04a31-256f-4d91-ac20-cb804c2c4d4a"/>
+								<text><![CDATA[Total type]]></text>
+							</staticText>
+						</cellContents>
+					</crosstabTotalRowHeader>
+				</rowGroup>
+				<columnGroup name="ordSeq" height="0">
+					<bucket class="java.lang.Integer">
+						<bucketExpression><![CDATA[$F{ordSeq}]]></bucketExpression>
+					</bucket>
+					<crosstabColumnHeader>
+						<cellContents mode="Opaque" style="Crosstab 1_CH">
+							<property name="com.jaspersoft.studio.unit.height" value="px"/>
+						</cellContents>
+					</crosstabColumnHeader>
+					<crosstabTotalColumnHeader>
+						<cellContents>
+							<staticText>
+								<reportElement x="0" y="0" width="-2147483648" height="-2147483648" uuid="b7aff9f5-2bb2-4fd2-9ba4-7d85ae2eea18"/>
+								<text><![CDATA[Total ordSeq]]></text>
+							</staticText>
+						</cellContents>
+					</crosstabTotalColumnHeader>
+				</columnGroup>
+				<columnGroup name="title" height="0">
+					<bucket order="Descending" class="java.lang.String">
+						<bucketExpression><![CDATA[$F{title}]]></bucketExpression>
+					</bucket>
+					<crosstabColumnHeader>
+						<cellContents mode="Opaque" style="Crosstab 1_CH"/>
+					</crosstabColumnHeader>
+					<crosstabTotalColumnHeader>
+						<cellContents>
+							<staticText>
+								<reportElement x="0" y="0" width="-2147483648" height="-2147483648" uuid="f0600e9b-08e1-489a-9552-c1b4e182e9ee"/>
+								<text><![CDATA[Total title]]></text>
+							</staticText>
+						</cellContents>
+					</crosstabTotalColumnHeader>
+				</columnGroup>
+				<measure name="title_MEASURE" class="java.lang.String">
+					<measureExpression><![CDATA[$F{title}]]></measureExpression>
+				</measure>
+				<measure name="signature_MEASURE" class="java.io.InputStream">
+					<measureExpression><![CDATA[$F{signature}]]></measureExpression>
+				</measure>
+				<measure name="name_MEASURE" class="java.lang.String">
+					<measureExpression><![CDATA[$F{name}]]></measureExpression>
+				</measure>
+				<crosstabCell width="75" height="80">
+					<cellContents mode="Opaque" style="Crosstab 1_CD">
+						<property name="com.jaspersoft.studio.layout" value="com.jaspersoft.studio.editor.layout.FreeLayout"/>
+						<property name="com.jaspersoft.studio.unit.width" value="px"/>
+						<textField textAdjust="StretchHeight">
+							<reportElement mode="Opaque" x="0" y="0" width="75" height="20" backcolor="#C4C4C4" uuid="005bb6c9-68bd-44c3-ac6c-5979305f6c7d">
+								<property name="com.jaspersoft.studio.unit.height" value="px"/>
+							</reportElement>
+							<box>
+								<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+								<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+								<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+								<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+							</box>
+							<textElement textAlignment="Center" verticalAlignment="Middle">
+								<font size="12"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{title_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField textAdjust="StretchHeight">
+							<reportElement x="0" y="60" width="75" height="20" uuid="367bc165-95d2-451d-a975-92e65ca2f08b">
+								<property name="com.jaspersoft.studio.unit.height" value="px"/>
+							</reportElement>
+							<box>
+								<pen lineWidth="0.5"/>
+							</box>
+							<textElement textAlignment="Center" verticalAlignment="Middle"/>
+							<textFieldExpression><![CDATA[$V{name_MEASURE}]]></textFieldExpression>
+						</textField>
+						<image hAlign="Center" vAlign="Middle">
+							<reportElement x="0" y="20" width="75" height="40" uuid="59a0102a-173e-4973-b26d-c05d9e80247a"/>
+							<box>
+								<pen lineWidth="0.5"/>
+							</box>
+							<imageExpression><![CDATA[$V{signature_MEASURE}]]></imageExpression>
+						</image>
+					</cellContents>
+				</crosstabCell>
+				<crosstabCell width="60" height="60" columnTotalGroup="ordSeq">
+					<cellContents mode="Opaque" style="Crosstab 1_CT">
+						<textField>
+							<reportElement x="0" y="0" width="60" height="20" forecolor="#FFFFFF" uuid="82d84890-58f1-4811-b8cd-a18ff6d5930d"/>
+							<textFieldExpression><![CDATA[$V{title_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="20" width="60" height="20" forecolor="#FFFFFF" uuid="45033f8e-59e4-4776-ab99-40551c635253"/>
+							<textFieldExpression><![CDATA[$V{signature_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="40" width="60" height="20" forecolor="#FFFFFF" uuid="95257473-f853-42d7-9dcb-9ed64c02a49d"/>
+							<textFieldExpression><![CDATA[$V{name_MEASURE}]]></textFieldExpression>
+						</textField>
+					</cellContents>
+				</crosstabCell>
+				<crosstabCell width="60" height="60" columnTotalGroup="title">
+					<cellContents mode="Opaque" style="Crosstab 1_CG">
+						<textField>
+							<reportElement x="0" y="0" width="60" height="20" uuid="3d081a75-e02c-45b0-95f8-e618fc9c9f7e"/>
+							<textFieldExpression><![CDATA[$V{title_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="20" width="60" height="20" uuid="f4f4ce11-f3c7-41f9-9a56-bf4c4dfe26a4"/>
+							<textFieldExpression><![CDATA[$V{signature_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="40" width="60" height="20" uuid="df420ef9-6f19-4fdd-84d3-5d9db6d82652"/>
+							<textFieldExpression><![CDATA[$V{name_MEASURE}]]></textFieldExpression>
+						</textField>
+					</cellContents>
+				</crosstabCell>
+				<crosstabCell width="60" height="60" rowTotalGroup="type">
+					<cellContents mode="Opaque" style="Crosstab 1_CT">
+						<textField>
+							<reportElement x="0" y="0" width="60" height="20" forecolor="#FFFFFF" uuid="e316ba64-e8af-491f-a826-016a73870cee"/>
+							<textFieldExpression><![CDATA[$V{title_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="20" width="60" height="20" forecolor="#FFFFFF" uuid="34c182bd-4f4b-465e-bbb4-20400cde861b"/>
+							<textFieldExpression><![CDATA[$V{signature_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="40" width="60" height="20" forecolor="#FFFFFF" uuid="dc627907-e133-4bc9-b268-1803f8393ddc"/>
+							<textFieldExpression><![CDATA[$V{name_MEASURE}]]></textFieldExpression>
+						</textField>
+					</cellContents>
+				</crosstabCell>
+				<crosstabCell width="60" height="60" rowTotalGroup="type" columnTotalGroup="ordSeq">
+					<cellContents mode="Opaque" style="Crosstab 1_CT">
+						<textField>
+							<reportElement x="0" y="0" width="60" height="20" forecolor="#FFFFFF" uuid="519d086d-cc0c-4570-992e-988ca8003cd0"/>
+							<textFieldExpression><![CDATA[$V{title_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="20" width="60" height="20" forecolor="#FFFFFF" uuid="3bf42bd6-c546-4405-ac5b-4e89043c3e3d"/>
+							<textFieldExpression><![CDATA[$V{signature_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="40" width="60" height="20" forecolor="#FFFFFF" uuid="e8a186c2-3043-4408-bb72-ead48da31c85"/>
+							<textFieldExpression><![CDATA[$V{name_MEASURE}]]></textFieldExpression>
+						</textField>
+					</cellContents>
+				</crosstabCell>
+				<crosstabCell width="60" height="60" rowTotalGroup="type" columnTotalGroup="title">
+					<cellContents mode="Opaque" style="Crosstab 1_CT">
+						<textField>
+							<reportElement x="0" y="0" width="60" height="20" forecolor="#FFFFFF" uuid="99d8e55e-304d-4a23-8991-eef587fb8fce"/>
+							<textFieldExpression><![CDATA[$V{title_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="20" width="60" height="20" forecolor="#FFFFFF" uuid="2c8d9fcb-c17b-407e-91b3-5f50e405dbfd"/>
+							<textFieldExpression><![CDATA[$V{signature_MEASURE}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="0" y="40" width="60" height="20" forecolor="#FFFFFF" uuid="6148c59d-472a-4149-bbe6-7935d214f807"/>
+							<textFieldExpression><![CDATA[$V{name_MEASURE}]]></textFieldExpression>
+						</textField>
+					</cellContents>
+				</crosstabCell>
+			</crosstab>
+		</band>
+		<band height="20">
+			<textField textAdjust="StretchHeight">
+				<reportElement stretchType="ContainerHeight" mode="Opaque" x="716" y="0" width="50" height="20" backcolor="#F2F2F2" uuid="a61eb333-33d3-4849-a53b-afce2dd2de29"/>
+				<box topPadding="0" leftPadding="0" bottomPadding="0" rightPadding="5">
+					<pen lineWidth="0.5" lineColor="#FFFFFF"/>
+				</box>
+				<textElement textAlignment="Right" verticalAlignment="Middle"/>
+				<textFieldExpression><![CDATA[$P{totalBudget}]]></textFieldExpression>
+			</textField>
+			<textField textAdjust="StretchHeight">
+				<reportElement stretchType="ContainerHeight" mode="Opaque" x="766" y="0" width="50" height="20" backcolor="#F2F2F2" uuid="7c479a77-de2c-4bc1-9dd0-394f92b17165"/>
+				<box topPadding="0" leftPadding="0" bottomPadding="0" rightPadding="5">
+					<pen lineWidth="0.5" lineColor="#FFFFFF"/>
+				</box>
+				<textElement textAlignment="Right" verticalAlignment="Middle"/>
+				<textFieldExpression><![CDATA[$P{totalPerformanceAmount}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement stretchType="ContainerHeight" mode="Opaque" x="-14" y="0" width="730" height="20" backcolor="#C4C4C4" uuid="d70709eb-54fc-42b6-8ac2-63fbefcbe373"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#FFFFFF"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font isBold="true"/>
+				</textElement>
+				<text><![CDATA[합 계]]></text>
+			</staticText>
+		</band>
+	</detail>
+	<pageFooter>
+		<band height="30">
+			<textField>
+				<reportElement x="351" y="0" width="100" height="30" uuid="9caac2c7-d496-45ef-acdf-4b7787853454"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="맑은 고딕" size="12"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{page} <= 0 ? $V{PAGE_NUMBER} > 1 ? ($V{PAGE_NUMBER} - 1) : "" : $P{page}+$V{PAGE_NUMBER} - 1]]></textFieldExpression>
+			</textField>
+		</band>
+	</pageFooter>
+</jasperReport>

@@ -1,0 +1,332 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.mobile.hsePolicy.dao.postgres.V1HsePolicyDAO">
+    <resultMap id="HsePolicyResultMap" type="kr.co.igns.mobile.hsePolicy.model.HsePolicyDetailVO">
+        <id property="id" column="id"/>
+        <result property="title" column="title"/>
+        <result property="latest" column="latest"/>
+        <result property="agreement" column="agreement"/>
+        <result property="totalReplyCount" column="totalreplycount"/>
+        <result property="createdAt" column="createdAt"/>
+        <!-- Use custom JsonTypeHandler -->
+        <result property="recentlyReplies" column="recentlyreplies"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+    </resultMap>
+    <resultMap id="HsePolicyRepliesResultMap" type="kr.co.igns.mobile.hsePolicy.model.HsePolicyRepliesVO">
+        <id property="id" column="id"/>
+        <result property="content" column="content"/>
+        <result property="createdAt" column="created_at"/>
+        <!-- Use custom JsonTypeHandler -->
+        <result property="writer" column="writer"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+    </resultMap>
+
+    <!-- 위원회 참석자 서명 조회 -->
+    <select id="getHsePolicyList" parameterType="kr.co.igns.mobile.hsePolicy.model.HsePolicySearchVO" resultType="kr.co.igns.mobile.hsePolicy.model.HsePolicyVO">
+		WITH latest_policy AS ( -- 최종 안전보건 경영방침
+		    SELECT 
+		        write_year AS latest_write_year,
+		        doc_type AS latest_doc_type,
+		        doc_no AS latest_doc_no
+		    FROM 
+		         esg.tb_hse_policy
+		    WHERE 
+		        comp_id = #{compId} -- :comp_id
+		        AND use_yn = 'Y'
+		        AND write_year = (SELECT TO_CHAR(NOW(), 'YYYY') AS current_year)
+		    ORDER BY 
+		        doc_no::integer DESC
+		    LIMIT 1
+		)
+		SELECT -- 목록 조회 쿼리 본문
+		    CONCAT(p.write_year, '-', p.doc_type, '-', p.doc_no) AS id, -- 안전보건 경영방침 ID
+		    p.content_header AS title, -- 안전보건 경영방침 제목
+		    COALESCE(COUNT(s.doc_seq), 0) AS totalReplyCount, -- 총 근로자 의견수
+		    CASE WHEN p.write_year = lp.latest_write_year 
+		        AND p.doc_type = lp.latest_doc_type 
+		        AND p.doc_no = lp.latest_doc_no
+		                THEN TRUE 
+		        ELSE FALSE 
+		    END AS latest, -- 최종 여부
+		    p.created_at AS createdAt -- 생성일시
+		FROM 
+		    esg.tb_hse_policy p
+		LEFT JOIN 
+		    esg.tb_hse_policy_suggestion s
+		    ON p.write_year = s.write_year 
+		    AND p.doc_type = s.doc_type 
+		    AND p.doc_no = s.doc_no 
+		    AND p.comp_id = s.comp_id
+		    AND s.use_yn = 'Y'
+		LEFT JOIN latest_policy lp ON TRUE
+		WHERE 
+		    p.comp_id = #{compId} -- :comp_id
+		    AND p.use_yn = 'Y'
+        <if test="year != null">
+		    AND p.write_year = #{year} -- :write_year 
+	    </if>
+		GROUP BY 
+		    p.write_year, p.doc_type, p.doc_no, p.content_header, 
+		    p.created_at, p.use_yn, 
+		    lp.latest_write_year, lp.latest_doc_type, lp.latest_doc_no
+		ORDER BY 
+		    p.created_at DESC
+	</select>	
+	<select id="getHsePolicyDetail" parameterType="kr.co.igns.mobile.hsePolicy.model.HsePolicySearchVO" resultMap="HsePolicyResultMap">
+		WITH latest_policy AS ( -- 최종 안전보건 경영방침
+		    SELECT 
+		        write_year AS latest_write_year,
+		        doc_type AS latest_doc_type,
+		        doc_no AS latest_doc_no
+		    FROM esg.tb_hse_policy
+		    WHERE comp_id = #{compId} -- :comp_id
+		        AND write_year = (SELECT TO_CHAR(NOW(), 'YYYY') AS current_year)
+		        AND use_yn = 'Y'
+		    ORDER BY doc_no::integer DESC
+		    LIMIT 1
+		),
+		user_agreement AS ( -- 조회자 동의 여부
+		    SELECT
+		        CASE 
+		            WHEN COUNT(*) > 0 THEN TRUE
+		            ELSE FALSE
+		        END AS agreement
+		    FROM esg.tb_hse_policy_agreement a
+		    WHERE a.comp_id = #{compId} -- :comp_id
+		        AND a.write_year = #{writeYear} -- :write_year
+		        AND a.doc_type = #{docType} -- :doc_type
+		        AND a.doc_no = #{docNo} -- :doc_no
+		        AND a.hr_id = #{hrId} -- :hr_id
+		    LIMIT 1
+		),
+		recently_replies AS ( -- 최신 근로자 의견 목록
+		    SELECT
+		        json_agg( 
+		            json_build_object(
+		                'id', s.id,
+		                'content', s.content,
+		                'createdAt', s.created_at,
+		                'writer', json_build_object(
+		                    'hrId', s.hr_id,
+		                    'name', h.hr_nm,
+		                    'jobTitle', cd.jbrp_nm,
+		                    'orgName', o.orgn_nm,
+		                    'profileImageId', f.file_id
+		                )
+		            )
+		        ) AS replies
+		    FROM (
+		        SELECT
+		            CONCAT(write_year,'-', doc_type, '-', doc_no, '-', doc_seq) AS id,
+		            comp_id,
+		            worker_suggestion AS content,
+		            hr_id,
+		            created_at -- 작성일시
+		        FROM esg.tb_hse_policy_suggestion 
+		        WHERE
+		            write_year = #{writeYear} -- :write_year
+		            AND doc_type = #{docType} -- :doc_type
+		            AND doc_no = #{docNo} -- :doc_no
+		            AND comp_id = #{compId} -- :comp_id
+		            AND use_yn = 'Y'      
+		        ORDER BY created_at LIMIT 5
+		    ) s
+		    LEFT JOIN esg.v_hr_info h ON s.hr_id = h.hr_id
+		    LEFT JOIN esg.tb_sys_file f ON f.target_type = 'hrImg' AND f.target_id = h.hr_id AND f.del_yn = 'N'
+		    LEFT JOIN esg.tb_orgn_info o ON h.orgn_id = o.orgn_id AND o.comp_id = s.comp_id AND o.use_yn = 'Y'
+		    left join esg.tb_hr_info_jbrp jbrp
+				on jbrp.jbrp_id = h.jbrp
+				AND jbrp.use_yn ='Y'
+		),
+		replies_count AS (
+		    SELECT
+		        COUNT(doc_seq)
+		    FROM esg.tb_hse_policy_suggestion 
+		    WHERE
+		        write_year = #{writeYear} -- :write_year
+		        AND doc_type = #{docType} -- :doc_type
+		        AND doc_no = #{docNo} -- :doc_no
+		        AND comp_id = #{compId} -- :comp_id
+		        AND use_yn = 'Y'      
+		)
+		SELECT -- 상제 조회 쿼리 본문
+		    CONCAT(p.write_year, '-', p.doc_type, '-', p.doc_no) AS id, -- 안전보건 경영방침 ID
+		    p.content_header AS title, -- 안전보건 경영방침 제목
+		    CASE 
+		        WHEN p.write_year = lp.latest_write_year 
+		            AND p.doc_type = lp.latest_doc_type 
+		            AND p.doc_no = lp.latest_doc_no 
+		            THEN TRUE
+		        ELSE FALSE
+		    END AS latest, -- 최종 여부
+		    ua.agreement, -- 조회자의 방침 동의 여부
+		    rc.count AS totalReplyCount, -- 총 근로자 의견 수
+		    rr.replies AS recentlyReplies, -- 최신 근로자 의견
+		    p.created_at AS createdAt
+		FROM esg.tb_hse_policy p
+		LEFT JOIN latest_policy lp ON TRUE
+		LEFT JOIN user_agreement ua ON TRUE
+		LEFT JOIN recently_replies rr ON TRUE
+		LEFT JOIN replies_count rc ON TRUE
+		WHERE p.write_year = #{writeYear} -- :write_year
+		        AND p.doc_type = #{docType}-- :doc_type
+		        AND p.doc_no = #{docNo} -- :doc_no
+		        AND p.comp_id = #{compId} -- :comp_id
+		        AND p.use_yn = 'Y'	
+	</select>
+
+    <!-- 안전보건 경영방침 pdf 조회 -->
+    <select id="getHsePolicyPDF" parameterType="kr.co.igns.mobile.hsePolicy.model.HsePolicySearchVO" resultType="kr.co.igns.mobile.hsePolicy.model.HsePolicyPdfVO">
+		WITH latest_policy AS ( -- 최종 안전보건 경영방침
+		        SELECT 
+		        write_year AS latest_write_year,
+		        doc_type AS latest_doc_type,
+		        doc_no AS latest_doc_no
+		    FROM 
+		        esg.tb_hse_policy
+		    WHERE 
+		        comp_id = #{compId}
+		        AND use_yn = 'Y'
+		    ORDER BY 
+		        created_at DESC
+		        LIMIT 1
+		)
+		SELECT -- 상제 조회 쿼리 본문
+		    CONCAT(p.write_year, p.doc_no) AS target_id,
+		    p.doc_type AS target_type,
+		    p.data_type,  -- 0001 이면 title, content, footer로 PDF 생성, 0002면 이미지 파일로 PDF 생성 (2. 안전보건 경영방침 이미지 파일 조회 참조)
+		    CASE 
+		            WHEN p.write_year = lp.latest_write_year 
+		                        AND p.doc_type = lp.latest_doc_type 
+		            AND p.doc_no = lp.latest_doc_no 
+		        THEN TRUE
+		                ELSE FALSE
+		    END AS latest, -- 최종 여부
+		    p.content_header AS title, -- 안전보건 경영방침 제목
+		    p.content_body AS content, -- 안전보건 경영방침 제목
+		    p.content_footer AS footer, -- 안전보건 경영방침 제목
+		    p.created_at AS createdAt
+		FROM esg.tb_hse_policy p
+		LEFT JOIN latest_policy lp ON TRUE
+		WHERE 
+		        comp_id = #{compId}
+		        AND write_year = #{writeYear}
+		        AND doc_type = #{docType}
+		        AND doc_no = #{docNo}
+		        AND use_yn = 'Y'
+		ORDER BY 
+		        created_at DESC
+		LIMIT 1	
+	</select>
+
+    <!-- 안전보건 경영방침 이미지 파일 정보 조히(dataType: 0002) -->
+    <select id="getHsePolicyFileInfo" parameterType="kr.co.igns.mobile.hsePolicy.model.HsePolicyPdfVO" resultType="kr.co.igns.system.common.model.FileVO">
+		SELECT file_id
+		FROM esg.tb_sys_file f 
+		WHERE comp_id = #{compId}
+	      AND target_type = 'PLC'     -- 안전보건경영방침의 doc_type
+	      AND target_id= #{targetId}  -- 안전보건경영방침의 write_year, doc_no
+	      AND use_yn = 'Y' 
+		ORDER BY file_seq ASC
+	</select>
+
+    <!-- 안전보건 경영방침 동의 -->
+    <insert id="agreeHsePolicy" parameterType="kr.co.igns.mobile.hsePolicy.model.HsePolicySearchVO">
+		WITH my_id AS (
+		    SELECT 
+		        user_id
+		    FROM 
+		        esg.v_hr_info h
+		    WHERE h.hr_id = #{hrId}
+		
+		)
+		INSERT INTO esg.tb_hse_policy_agreement(
+		        comp_id, 
+		        write_year, 
+		        doc_type, 
+		        doc_no, 
+		        hr_id, 
+		        created_by
+		) VALUES (
+		        #{compId}, -- :comp_id
+		        #{writeYear}, -- :write_year
+		        #{docType}, -- :doc_type
+		        #{docNo}, -- :doc_no
+		        #{hrId}, -- :hr_id
+		        (SELECT user_id FROM my_id) -- created_by
+		) ON CONFLICT (comp_id, write_year, doc_type, doc_no, hr_id) DO NOTHING	
+	</insert>
+
+    <!-- 안전보건 경영방침 의견 목록 조회 -->
+    <select id="getHsePolicyReplies" parameterType="kr.co.igns.mobile.hsePolicy.model.HsePolicySearchVO" resultMap="HsePolicyRepliesResultMap">
+		SELECT
+		    CONCAT(s.write_year, '-', s.doc_type, '-', s.doc_no, '-', s.doc_seq) AS id, -- 의견 ID
+		    s.worker_suggestion AS content, -- 의견 내용
+		    s.created_at, -- 작성일시
+		    JSON_BUILD_OBJECT(
+	            'hrId', s.hr_id,
+		        'name', h.hr_nm,
+		        'jobTitle', jbrp.jbrp_nm,
+		        'orgName', o.orgn_nm,
+		        'profileImageId', f.file_id
+		    ) AS writer  -- 작성자 정보
+		FROM esg.tb_hse_policy_suggestion s
+		        LEFT JOIN esg.v_hr_info h ON s.hr_id = h.hr_id
+		        LEFT JOIN esg.tb_sys_file f ON f.target_type = 'hrImg' AND f.target_id = h.hr_id AND f.del_yn = 'N'
+		        LEFT JOIN esg.tb_orgn_info o ON h.orgn_id = o.orgn_id AND o.comp_id = s.comp_id ANd o.use_yn = 'Y'
+		        left join esg.tb_hr_info_jbrp jbrp
+					on jbrp.jbrp_id = h.jbrp
+					AND jbrp.use_yn = 'Y'
+		WHERE
+		        s.write_year = #{writeYear} -- :write_year
+		        AND s.doc_type = #{docType} -- :doc_type
+		        AND s.doc_no = #{docNo} -- :doc_no
+		        AND s.use_yn = 'Y'
+		        AND s.comp_id = #{compId} -- :comp_id
+		ORDER BY s.created_at DESC	
+	</select>
+
+    <!-- 안전보건 경영방침 의견 등록 -->
+    <select id="saveHsePolicyReplies" parameterType="kr.co.igns.mobile.hsePolicy.model.HsePolicySearchVO" resultType="kr.co.igns.mobile.hsePolicy.model.HsePolicySearchVO">
+		WITH next_seq AS (
+		    SELECT 
+		        LPAD((COALESCE(MAX(doc_seq::integer), 0) + 1)::text, 5, '0') AS next_doc_seq 
+		    FROM 
+		        esg.tb_hse_policy_suggestion
+		    WHERE 
+		        write_year = #{writeYear}
+		        AND doc_type = #{docType}
+		        AND doc_no = #{docNo}
+		        AND comp_id = #{compId}
+		), my_id AS (
+		    SELECT 
+		        user_id
+		    FROM 
+		        esg.v_hr_info h
+		    WHERE h.hr_id = #{hrId}
+		
+		)
+		INSERT INTO esg.tb_hse_policy_suggestion (
+		    write_year, 
+		    doc_type, 
+		    doc_no, 
+		    doc_seq, 
+		    comp_id, 
+		    hr_id, 
+		    worker_suggestion, 
+		    created_at, 
+		    created_by
+		) VALUES (
+		    #{writeYear}, -- write_year
+		    #{docType}, -- doc_type
+		    #{docNo}, -- doc_no
+		    (SELECT next_doc_seq FROM next_seq), -- doc_seq
+		    #{compId}, -- comp_id
+		    #{hrId}, -- hr_id
+		    #{content}, -- worker_suggestion
+		    NOW(), -- created_at
+		    (SELECT user_id FROM my_id) -- created_by
+		)
+	</select>	
+</mapper>

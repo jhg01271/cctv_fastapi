@@ -1,0 +1,360 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.system.setting.dao.postgres.GroupDAO">
+
+	<sql id='selectCol'>
+		cg.grp_id,
+		cg.grp_nm,
+		cg.ord_seq as grp_odr,
+		cg.use_yn,
+	</sql>
+
+	<sql id="filter">
+		<if test='searchWords != "" and searchWords != null and searchWords.size > 0'>
+			AND
+			(
+			<foreach collection='searchWords' item='searchWord' index='idx' separator='OR' open='(' close=')'>
+				cg.grp_id LIKE CONCAT('%',#{searchWord},'%')
+			</foreach>
+			OR
+			<foreach collection='searchWords' item='searchWord' index='idx' separator='OR' open='(' close=')'>
+				cg.grp_nm LIKE CONCAT('%',#{searchWord},'%')
+			</foreach>
+			)
+		</if>
+	</sql>
+	<sql id="viewFilter">
+		<if test='searchWords != "" and searchWords != null and searchWords.size > 0'>
+			AND
+			(
+			<foreach collection='searchWords' item='searchWord' index='idx' separator='OR' open='(' close=')'>
+				vhi.hr_nm LIKE CONCAT('%',#{searchWord},'%')
+			</foreach>
+			OR
+			<foreach collection='searchWords' item='searchWord' index='idx' separator='OR' open='(' close=')'>
+				jbrp.minor_nm LIKE CONCAT('%',#{searchWord},'%')
+			</foreach>
+			)
+		</if>
+	</sql>
+
+	<select id='searchCount' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='int'>
+
+		SELECT
+		count(1)
+		FROM esg.tb_group cg
+		WHERE 1 = 1
+<!--		 <include refid='kr.co.igns.system.setting.dao.postgres.GroupDAO.filter' />-->
+
+	</select>
+
+<!--	<select id='searchMember' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.base.model.HrVO'>-->
+
+<!--		SELECT vhi.hr_id,-->
+<!--               vhi.hr_nm,-->
+<!--               vhi.sex_div,-->
+<!--               vhi.birth_dt,-->
+<!--               vhi.sabun,-->
+<!--               vhi.orgn_id,-->
+<!--               vhi.jbrp,-->
+<!--               vhi.part_comp_id,-->
+<!--               vhi.working_at,-->
+<!--               vhi.fire_at,-->
+<!--               vhi.remark,-->
+<!--               vhi.use_yn,-->
+<!--               vhi.created_at,-->
+<!--               vhi.created_by,-->
+<!--               vhi.updated_at,-->
+<!--               vhi.updated_by,-->
+<!--               vhi.user_id,-->
+<!--               vhi.risk_ass_role,-->
+<!--               vhi.email,-->
+<!--               vhi.phone,-->
+<!--               vhi.signature,-->
+<!--               rar.minor_nm as risk_ass_role_nm,-->
+<!--               jbrp.minor_nm as jbrp_nm-->
+<!--        FROM esg.v_hr_info vhi-->
+<!--		left join esg.tb_group_hr_map ghm on vhi.hr_id = ghm.hr_id-->
+<!--		LEFT JOIN esg.tb_common_d jbrp ON vhi.jbrp = jbrp.minor_cd AND jbrp.major_cd = 'C0005'-->
+<!--        LEFT JOIN esg.tb_common_d rar ON vhi.risk_ass_role = rar.minor_cd AND rar.major_cd = 'C0006'-->
+
+<!--		WHERE 1=1 AND-->
+
+<!--		ghm.grp_id = #{grpId}-->
+<!--		 <include refid='kr.co.igns.system.setting.dao.postgres.GroupDAO.viewFilter' />-->
+<!--		LIMIT #{listSize, jdbcType=NUMERIC} OFFSET #{listStart, jdbcType=NUMERIC}-->
+
+<!--	</select>-->
+	<select id='searchMember' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.base.model.HrVO'>
+
+		SELECT thi.hr_id,
+		thi.hr_nm,
+		thi.sex_div,
+		thi.birth_dt,
+		thi.sabun,
+		thi.orgn_id,
+		thi.jbrp,
+		thi.part_comp_id,
+		thi.working_at,
+		thi.fire_at,
+		thi.remark,
+		thi.use_yn,
+		thi.created_at,
+		thi.created_by,
+		thi.updated_at,
+		thi.updated_by,
+		thi.user_id,
+		thi.risk_ass_role,
+		tui.email,
+		tui.phone,
+		tui.signature,
+        (
+            SELECT STRING_AGG(traocor.orgn_role_nm, ', ' ORDER BY traocor.orgn_role_nm)
+            FROM esg.tb_safety_duties_doc_user tsddu
+            LEFT JOIN esg.tb_safety_duties_doc tsdd
+            ON tsddu.write_year = tsdd.write_year
+            AND tsddu.doc_no = tsdd.doc_no
+            LEFT JOIN esg.tb_risk_assessment_organ_chart_orgn_role traocor
+            ON tsdd.comp_id = traocor.comp_id
+            AND tsdd.orgn_role_id = traocor.orgn_role_id
+            AND traocor.use_yn = 'Y'
+            WHERE thi.hr_id = tsddu.hr_id
+        ) AS risk_ass_role_nm,
+		jbrp.jbrp_nm
+		FROM esg.tb_hr_info thi
+		LEFT JOIN esg.tb_user_info tui ON thi.user_id::text = tui.user_id::text
+		LEFT JOIN esg.tb_group_hr_map ghm ON thi.hr_id = ghm.hr_id
+		left join esg.tb_hr_info_jbrp jbrp
+             on (jbrp.jbrp_id = thi.jbrp and jbrp.comp_id = #{compId} )
+		WHERE 1=1
+		AND ghm.grp_id = #{grpId}
+		and ghm.comp_id = #{compId}
+
+<!--		<if test='searchWords != "" and searchWords != null and searchWords.size > 0'>-->
+<!--			AND (-->
+<!--			<foreach collection='searchWords' item='searchWord' index='idx' separator='OR' open='(' close=')'>-->
+<!--				thi.hr_nm LIKE CONCAT('%',#{searchWord},'%')-->
+<!--			</foreach>-->
+<!--			OR-->
+<!--			<foreach collection='searchWords' item='searchWord' index='idx' separator='OR' open='(' close=')'>-->
+<!--				jbrp.jbrp_nm LIKE CONCAT('%',#{searchWord},'%')-->
+<!--			</foreach>-->
+<!--			)-->
+<!--		</if>-->
+
+		LIMIT #{listSize, jdbcType=NUMERIC} OFFSET #{listStart, jdbcType=NUMERIC}
+
+	</select>
+
+	<!-- ghm.comp_id = #{compId} AND -->
+	<select id='search' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.setting.model.GroupVO'>
+
+		SELECT
+		cg.grp_id,
+		cg.grp_nm,
+		cg.ord_seq as grp_odr,
+		cg.use_yn,
+		count(ghm.*) as count
+		FROM esg.tb_group cg
+		left join esg.tb_group_hr_map ghm on cg.comp_id = ghm.comp_id and cg.grp_id = ghm.grp_id
+		WHERE 1 = 1
+		AND cg.comp_id=#{compId}
+<!--		 <include refid='kr.co.igns.system.setting.dao.postgres.GroupDAO.filter' />-->
+		GROUP BY cg.grp_id, cg.grp_nm, cg.use_yn, cg.ord_seq
+		ORDER BY cg.ord_seq
+		LIMIT #{listSize, jdbcType=NUMERIC} OFFSET #{listStart, jdbcType=NUMERIC}
+
+	</select>
+
+	<select id='searchLists' resultType='kr.co.igns.system.setting.model.GroupVO'>
+
+		SELECT *
+		FROM esg.tb_group
+		WHERE 1 = 1
+
+	</select>
+
+	<select id='findOne' parameterType="kr.co.igns.system.setting.model.GroupVO" resultType='kr.co.igns.system.setting.model.GroupVO'>
+
+		SELECT
+		<include refid='kr.co.igns.system.setting.dao.postgres.GroupDAO.selectCol' />
+		created_at,
+		updated_at,
+		'U' cmd
+		FROM esg.tb_group cg
+		WHERE cg.grp_id = #{grpId}
+		and cg.comp_id = #{compId}
+	</select>
+
+	<insert id="insert" parameterType="kr.co.igns.system.setting.model.GroupVO" useGeneratedKeys="true" keyProperty="grpId">
+		<selectKey keyProperty="grpId" resultType="kr.co.igns.system.setting.model.GroupVO" order="BEFORE">
+    	     select to_char(now(), 'yyyymmdd') ||
+				   lpad(
+					   (coalesce(max(substring(grp_id from 9 for 4))::int, 0) + 1)::text,
+					   4,
+					   '0'
+				   ) as grp_id
+			from esg.tb_group
+			where grp_id like to_char(now(), 'YYYYMMDD') || '%';
+    	</selectKey>
+		INSERT INTO
+		esg.tb_group (
+			comp_id,
+			grp_id,
+			grp_nm,
+		    ord_seq,
+		    use_yn,
+			created_at,
+			created_by
+		) VALUES (
+			#{compId},
+			#{grpId},
+			#{grpNm},
+			#{grpOdr},
+			#{useYn},
+			now(),
+			#{createdBy}
+		)
+
+	</insert>
+	<insert id="insertMember" parameterType="kr.co.igns.system.setting.model.GroupMemberVO">
+
+		INSERT INTO
+		esg.tb_group_hr_map (
+		comp_id,
+		grp_id,
+		hr_id,
+		created_at,
+		created_by
+		) VALUES (
+		#{compId},
+		#{grpId},
+		#{hrId},
+		now(),
+		#{createdBy}
+		)
+
+	</insert>
+
+	<update id="update" parameterType="kr.co.igns.system.setting.model.GroupVO">
+
+		UPDATE esg.tb_group
+		SET
+			grp_id = #{grpId},
+			grp_nm = #{grpNm},
+			ord_seq = #{grpOdr},
+			use_yn = #{useYn},
+			updated_at = now(),
+			updated_by = #{updatedBy}
+		WHERE grp_id = #{grpId}
+	</update>
+
+	<delete id="delete" parameterType="kr.co.igns.system.setting.model.GroupVO">
+
+		DELETE FROM esg.tb_group
+		WHERE grp_id = #{grpId}
+			AND comp_id = #{compId}
+
+	</delete>
+
+	<delete id="deleteMember" parameterType='kr.co.igns.system.setting.model.GroupMemberDeleteDto'>
+		DELETE FROM esg.tb_group_hr_map
+		WHERE grp_id = #{grpId} AND
+		comp_id = #{compId} AND
+		hr_id = #{hrId};
+	</delete>
+	<delete id="deleteMemberMenuByGroup" parameterType='kr.co.igns.system.setting.model.GroupMemberDeleteDto'>
+		DELETE FROM esg.tb_hr_menu
+		WHERE comp_id = #{compId}
+		AND hr_id = #{hrId}
+		AND menu_id IN
+		(SELECT menu_id FROM esg.tb_group_menu
+		WHERE grp_id = #{grpId} AND
+		comp_id = #{compId});
+	</delete>
+
+	<!-- 데이터셋 API-->
+	<!-- 그룹목록 데이터셋 조회 -->
+	<select id='getDatasetGroupList' parameterType="kr.co.igns.system.common.model.SpSearchVO" resultType='kr.co.igns.system.setting.model.GroupVO'>
+		SELECT
+			temp_grp_id
+			, grp_nm
+			, grp_desc as desc
+			, ord_seq
+		FROM dataset.tb_dataset_group
+		WHERE use_yn = 'Y'
+		ORDER BY ord_seq ASC
+	</select>
+
+
+	<!-- 그룹목록 데이터셋 저장(복사) -->
+	<insert id="insertGroupDataset" parameterType="kr.co.igns.system.setting.model.GroupVO">
+			insert into esg.tb_group (
+				comp_id,
+				grp_id,
+				grp_nm,
+				ord_seq,
+				use_yn,
+				created_at,
+				created_by
+			)
+			select
+				#{compId} as comp_id
+				, #{tempGrpId}
+				, grp_nm
+				, ord_seq
+				, 'Y' as use_yn
+				, now() as created_at
+				, #{createdBy} as created_by
+			from dataset.tb_dataset_group
+			where temp_grp_id = #{tempGrpId}
+	</insert>
+	<!-- 그룹메뉴 데이터셋 저장(복사) -->
+	<insert id="insertGroupMenuDataset" parameterType="kr.co.igns.system.setting.model.GroupVO">
+			insert into esg.tb_group_menu (
+				comp_id,
+				grp_id,
+				menu_id,
+				add_ah,
+				sav_ah,
+				del_ah,
+				exl_ah,
+				upl_ah,
+				dwn_ah,
+				fn1_ah,
+				fn2_ah,
+				fn3_ah,
+				created_at,
+				created_by,
+				param
+			)
+			select
+				#{compId} as comp_id
+				, #{tempGrpId}
+				, menu_id
+				, add_ah
+				, sav_ah
+				, del_ah
+				, exl_ah
+				, upl_ah
+				, dwn_ah
+				, fn1_ah
+				, fn2_ah
+				, fn3_ah
+				, now() as created_at
+				, #{createdBy} as created_by
+				, param
+			from dataset.tb_dataset_group_menu
+			where temp_grp_id = #{tempGrpId}
+	</insert>
+
+	<select id='findUserGroup' parameterType="kr.co.igns.system.setting.model.GroupVO" resultType='kr.co.igns.system.setting.model.GroupVO'>
+		SELECT c.hr_nm, a.hr_id, a.grp_id, b.grp_nm
+		  FROM esg.tb_group_hr_map a
+	 LEFT JOIN esg.tb_group b ON a.comp_id = b.comp_id AND a.grp_id = b.grp_id
+	 LEFT JOIN esg.tb_hr_info c ON a.hr_id = c.hr_id
+		WHERE a.comp_id = #{compId}
+		   AND a.hr_id = #{hrId}
+	</select>
+</mapper>

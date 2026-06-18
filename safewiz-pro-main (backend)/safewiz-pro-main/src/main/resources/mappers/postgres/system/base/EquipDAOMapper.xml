@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.system.base.dao.postgres.EquipDAO">
+    <select id='getEquip' parameterType='kr.co.igns.system.common.model.SpSearchVO'  resultType='kr.co.igns.system.base.model.EquipVO'>
+        SELECT tei.*,
+               sf.file_id as file_id
+          FROM esg.tb_equipment_info tei
+              -- 파일
+                   LEFT JOIN esg.tb_sys_file sf on sf.target_id = tei.equipment_id and sf.target_type='equipment'
+         WHERE 1=1
+           AND tei.comp_id = #{compId}
+      ORDER BY tei.use_yn DESC, tei.ord_seq ASC
+        --, tei.equipment_id DESC
+    </select>
+
+    <select id='getEquipDetail' parameterType='kr.co.igns.system.common.model.SpSearchVO'  resultType='kr.co.igns.system.base.model.EquipVO'>
+        SELECT tei.*,
+               sf.file_id as file_id,
+               tdt.std_eq_nm
+        FROM esg.tb_equipment_info tei
+        LEFT JOIN esg.tb_dataset_typeofequipment tdt ON tdt.std_eq_id = tei.std_eq_id AND tdt.comp_id = tei.comp_id
+                -- 파일
+        LEFT JOIN esg.tb_sys_file sf on sf.target_id = tei.equipment_id and sf.target_type='equipment'
+        WHERE tei.equipment_id = #{searchText};
+    </select>
+
+    <insert id="insertEquip" parameterType="kr.co.igns.system.base.model.EquipVO">
+        <selectKey keyProperty="equipmentId" resultType="kr.co.igns.system.base.model.EquipVO" order="BEFORE">
+            select to_char(now(), 'yyyymmdd') ||
+				   lpad(
+					   (coalesce(max(substring(equipment_id from 9 for 4))::int, 0) + 1)::text,
+					   4,
+					   '0'
+				   ) as equipment_id
+			from esg.tb_equipment_info
+			where equipment_id like to_char(now(), 'YYYYMMDD') || '%'
+    	</selectKey>
+        INSERT INTO esg.tb_equipment_info (
+            comp_id,
+            equipment_id,
+            equipment_nm,
+            usage_type,
+            setup_location,
+            mgmt_num,
+            mf_comp,
+            mf_spec,
+            mf_date,
+            setup_at,
+            discard_at,
+            ord_seq,
+            remark,
+            created_at,
+            created_by,
+            use_yn,
+            std_eq_id
+        )
+        VALUES (
+            #{compId},
+            #{equipmentId},
+            #{equipmentNm},
+            #{usageType},
+            #{setupLocation},
+            #{mgmtNum},
+            #{mfComp},
+            #{mfSpec},
+            #{mfDate},
+            #{setupAt},
+            #{discardAt},
+            #{ordSeq},
+            #{remark},
+            now(),
+            #{createdBy},
+            #{useYn},
+            #{stdEqId}
+        )
+
+    </insert>
+
+    <update id="updateEquip" parameterType="kr.co.igns.system.base.model.EquipVO">
+
+        UPDATE esg.tb_equipment_info
+        SET
+            equipment_nm = #{equipmentNm},
+            usage_type = #{usageType},
+            setup_location = #{setupLocation},
+            mgmt_num = #{mgmtNum},
+            mf_comp = #{mfComp},
+            mf_spec = #{mfSpec},
+            mf_date = #{mfDate},
+            setup_at = #{setupAt},
+            discard_at = #{discardAt},
+            ord_seq = #{ordSeq},
+            remark = #{remark},
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy},
+            std_eq_id = #{stdEqId}
+        WHERE equipment_id = #{equipmentId}
+
+    </update>
+
+    <select id='getEquipById' parameterType='String' resultType='kr.co.igns.system.base.model.EquipVO'>
+
+        SELECT *
+        FROM esg.tb_equipment_info
+        WHERE 1=1
+          AND equipment_id = #{equipmentId}
+
+    </select>
+
+    <delete id="deleteEquip" parameterType="kr.co.igns.system.base.model.EquipVO">
+
+        UPDATE esg.tb_equipment_info
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE equipment_id = #{equipmentId}
+
+    </delete>
+
+    <select id='getStdEquips' parameterType='String' resultType='kr.co.igns.system.base.model.EquipVO'>
+        SELECT tdt.std_eq_id, tdt.std_eq_nm, tdt.std_eq_eng_nm, tdt.std_eq_desc AS remark, tdt.ord_seq, tdt.use_yn
+        FROM esg.tb_dataset_typeofEquipment tdt
+        WHERE 1=1
+          AND comp_id = #{compId}
+        ORDER BY use_yn DESC, ord_seq ASC, std_eq_id ASC
+    </select>
+
+    <update id="deleteStdEquips" parameterType="kr.co.igns.business.dataset.model.TypeofEquipmentVO">
+        UPDATE esg.tb_dataset_typeofequipment
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+            AND std_eq_id = #{stdEqId}
+    </update>
+
+    <update id="updateStdEquips" parameterType="kr.co.igns.business.dataset.model.TypeofEquipmentVO">
+
+        UPDATE esg.tb_dataset_typeofequipment
+        SET
+            std_eq_nm = #{stdEqNm},
+            std_eq_eng_nm = #{stdEqEngNm},
+            std_eq_desc = #{remark},
+            ord_seq = #{ordSeq},
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+            AND std_eq_id = #{stdEqId}
+    </update>
+
+    <insert id="insertStdEquips" parameterType="kr.co.igns.business.dataset.model.TypeofEquipmentVO">
+        <selectKey keyProperty="stdEqId" resultType="string" order="BEFORE">
+            SELECT
+            CASE
+            	WHEN #{stdEqId} IS NULL OR #{stdEqId} = ''
+            		THEN to_char(now(), 'yyyymmdd') || lpad((coalesce(max(substring(std_eq_id from 9 for 4))::int, 0) + 1)::text, 4, '0')
+            	ELSE #{stdEqId}
+            END
+            FROM esg.tb_dataset_typeofequipment
+            WHERE std_eq_id LIKE to_char(now(), 'yyyymmdd') || '%'
+            AND comp_id = #{compId}
+        </selectKey>
+
+        INSERT INTO esg.tb_dataset_typeofequipment (
+            comp_id,
+            std_eq_id,
+            std_eq_nm,
+            std_eq_eng_nm,
+            std_eq_desc,
+            ord_seq,
+            use_yn,
+            created_at,
+            created_by
+        ) VALUES (
+            #{compId},
+            #{stdEqId},
+            #{stdEqNm},
+            #{stdEqEngNm},
+            #{remark},
+            #{ordSeq},
+            #{useYn},
+            now(),
+            #{createdBy}
+        )
+    </insert>
+
+    <select id='getEquipmentByType' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.base.model.EquipVO'>
+        SELECT tei.*,
+               tdt.std_eq_nm
+        FROM esg.tb_equipment_info tei
+	    LEFT JOIN esg.tb_dataset_typeofequipment tdt ON tdt.std_eq_id = tei.std_eq_id AND tdt.comp_id = tei.comp_id
+        where tei.comp_id = #{compId}
+			and tei.std_eq_id = #{searchText}
+    </select>
+    
+    
+    <select id='getStdEqList' parameterType='kr.co.igns.system.common.model.SpSearchVO'  resultType='kr.co.igns.system.base.model.EquipVO'>
+        SELECT 
+		    tei.std_eq_id,
+		    t1.std_eq_nm as std_eq_nm
+		FROM 
+		    esg.tb_equipment_info tei
+		LEFT JOIN 
+		    esg.tb_dataset_typeofEquipment t1
+		    ON tei.comp_id = t1.comp_id 
+		    and tei.std_eq_id = t1.std_eq_id 
+		WHERE 
+		    tei.comp_id = #{compId}
+		GROUP BY 
+		    tei.std_eq_id, t1.std_eq_nm 
+    </select>
+</mapper>
+

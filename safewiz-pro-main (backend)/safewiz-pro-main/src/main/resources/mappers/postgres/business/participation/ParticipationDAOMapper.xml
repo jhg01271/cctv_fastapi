@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.participation.dao.postgres.ParticipationDAO">
+    
+    
+    <insert id="insert" parameterType="kr.co.igns.business.participation.model.ParticipationVo">
+        <selectKey keyProperty="docNo" resultType="kr.co.igns.business.participation.model.ParticipationVo" order="BEFORE">
+				select LPAD((coalesce(MAX(SUBSTRING(doc_no, 1, 5)::INTEGER), 0) + 1)::text, 5, '0') as docNo
+                from esg.tb_committee
+                where write_year = #{writeYear}
+                    and doc_type = #{docType}
+	    </selectKey>
+        INSERT INTO esg.tb_committee (
+            write_year,
+            doc_no,
+            doc_type,
+            comm_nm,
+            comp_id,
+            comm_dt,
+            comm_at,
+            comm_div,
+            comm_agenda,
+            location,
+            remark,
+            created_at,
+            created_by
+        )
+        VALUES (
+            #{writeYear},
+            #{docNo},
+            #{docType},
+            #{commNm},
+            #{compId},
+            #{commDt},
+            #{commAt},
+            #{commDiv},
+            #{commAgenda},
+            #{location},
+            #{remark},
+            now(),
+            #{createdBy}
+        )
+
+    </insert>
+    <update id="update" parameterType="kr.co.igns.business.participation.model.ParticipationVo">
+        UPDATE esg.tb_committee
+        SET
+            comm_nm= #{commNm},
+            comm_dt =#{commDt},
+            comm_at =#{commAt},
+            comm_div=#{commDiv},
+            location=#{location},
+            remark=#{remark},
+            use_yn=#{useYn},
+            comm_agenda=#{commAgenda},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE 
+            write_year = #{writeYear} AND
+            doc_no = #{docNo} AND
+            doc_type= #{docType}
+
+    </update>
+    <delete id="deleteContent" parameterType="kr.co.igns.business.participation.model.ParticipationVo">
+        DELETE FROM esg.tb_committee_content_map
+		WHERE doc_type=#{docType} and write_year=#{writeYear} and doc_no=#{docNo}
+    </delete>
+    <update id="delete" parameterType="kr.co.igns.business.participation.model.ParticipationVo">
+        UPDATE esg.tb_committee SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE doc_type=#{docType} and write_year=#{writeYear} and doc_no=#{docNo}
+    </update>
+<!--    <delete id="delete" parameterType="kr.co.igns.business.participation.model.ParticipationVo">-->
+<!--        DELETE FROM esg.tb_committee-->
+<!--		WHERE doc_type=#{docType} and write_year=#{writeYear} and doc_no=#{docNo}-->
+<!--    </delete>-->
+    <delete id="deleteMember" parameterType="String">
+        DELETE FROM esg.tb_approval_info
+		WHERE target_type = #{targetType} AND target_id=#{targetId}
+    </delete>
+    <insert id="insertMember" parameterType="kr.co.igns.business.participation.model.SignatureDto">
+        
+        INSERT INTO esg.tb_approval_info(
+            target_type,
+            target_id,
+            hr_id,
+            hr_nm,
+            orgn_nm,
+            jbrp_nm,
+            signature,
+            param,
+            created_at,
+            created_by
+        )
+        VALUES (
+            #{targetType},
+            #{targetId},
+            #{hrId},
+            #{hrNm},
+            #{orgnNm},
+            #{jbrpNm},
+            #{signature},
+            #{param},
+            now(),
+            #{createdBy}
+        )
+    </insert>
+    <insert id="insertContent" parameterType="kr.co.igns.business.participation.model.ContentDto">
+        <selectKey keyProperty="docSeq" resultType="string" order="BEFORE">
+         <![CDATA[
+            SELECT LPAD((COALESCE(MAX(SUBSTRING(doc_seq, 1, 5)::INTEGER), 0) + 1)::TEXT, 5, '0') AS docSeq
+             FROM esg.tb_committee_content_map
+            WHERE write_year = #{writeYear} 
+               AND doc_type = #{docType}
+               AND doc_no = #{docNo}
+         ]]>
+      </selectKey>
+        INSERT INTO esg.tb_committee_content_map(
+            write_year,
+            doc_no,
+            doc_type,
+            doc_seq,
+            percent,
+            ord_seq,
+            content
+        )
+        VALUES (
+            #{writeYear},
+            #{docNo},
+            #{docType},
+            #{docSeq},
+            #{percent},
+            #{ordSeq},
+            #{content}
+        )
+    </insert>
+
+    <select id='searchList' resultType='kr.co.igns.business.participation.model.ParticipationVo' parameterType='kr.co.igns.system.common.model.SpSearchVO'>
+
+        SELECT tc.*, COUNT(DISTINCT tccm.*) as count, AVG(tccm.percent) as percent,
+        COUNT(DISTINCT taic.*) as companyCount, COUNT(DISTINCT taip.*) as partnerCount, COUNT(DISTINCT taie.*) as employeeCount,
+        esg.fn_getapprovalstatus(#{type}, tc.write_year || tc.doc_no) as approvalStatus
+        FROM esg.tb_committee tc
+        LEFT JOIN esg.tb_committee_content_map tccm ON tccm.write_year = tc.write_year AND 
+        tccm.doc_type = tc.doc_type AND tccm.doc_no = tc.doc_no
+        LEFT JOIN esg.tb_approval_info taic ON taic.target_type = #{searchCd}
+        AND taic.target_id = CONCAT(tc.write_year,tc.doc_no)
+        AND taic.type = 'company'
+        LEFT JOIN esg.tb_approval_info taip ON taip.target_type = #{searchCd}
+        AND taip.target_id = CONCAT(tc.write_year,tc.doc_no)
+        AND taip.type = 'partner'
+        LEFT JOIN esg.tb_approval_info taie ON taie.target_type = #{searchCd}
+        AND taie.target_id = CONCAT(tc.write_year,tc.doc_no)
+        AND taie.type = 'employee'
+        WHERE tc.comp_id = #{compId} AND tc.doc_type = #{searchCd}
+        GROUP BY tc.comp_id, tc.write_year, tc.doc_type, tc.doc_no
+        ORDER BY tc.use_yn desc, tc.comm_dt desc 
+    </select>
+
+    <select id='search' resultType='kr.co.igns.business.participation.model.ParticipationVo' parameterType='kr.co.igns.system.common.model.SpSearchVO'>
+
+        SELECT tc.*
+        FROM esg.tb_committee tc
+        WHERE tc.doc_type=#{docType} and tc.write_year=#{writeYear} and tc.doc_no=#{docNo}
+    </select>
+
+    <select id='findMemberById' resultType='kr.co.igns.business.participation.model.SignatureDto' parameterType='kr.co.igns.business.participation.model.ParticipationVo'>
+
+        SELECT tai.*, sf.file_id as logo_id, pci.part_comp_nm
+        FROM esg.tb_approval_info tai
+        LEFT JOIN esg.tb_sys_file sf on sf.target_id = tai.hr_id and sf.target_type='hrImg'
+        LEFT JOIN esg.tb_hr_info hi on hi.hr_id = tai.hr_id
+        LEFT JOIN esg.tb_partner_comp_info pci on pci.part_comp_id = hi.part_comp_id
+        WHERE tai.target_type = #{docType} AND tai.target_id = CONCAT(#{writeYear},#{docNo})
+
+    </select>
+
+    <select id='findContentById' resultType='kr.co.igns.business.participation.model.ContentDto' parameterType='kr.co.igns.business.participation.model.ParticipationVo'>
+
+        SELECT tccm.*
+        FROM esg.tb_committee_content_map tccm
+        WHERE tccm.write_year = #{writeYear} AND 
+        tccm.doc_type = #{docType} AND tccm.doc_no = #{docNo}
+        ORDER BY CAST(tccm.ord_seq AS BIGINT) asc
+    </select>
+
+</mapper>
+

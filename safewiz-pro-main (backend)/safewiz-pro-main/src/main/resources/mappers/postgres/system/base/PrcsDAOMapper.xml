@@ -1,0 +1,365 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.system.base.dao.postgres.PrcsDAO">
+    <select id='getPrcs' parameterType='kr.co.igns.system.common.model.SpSearchVO'  resultType='kr.co.igns.system.base.model.PrcsVO'>
+        SELECT tpi.*,
+               sf.file_id as file_id,
+               sc.minor_nm as usage_type_nm
+        FROM esg.tb_process_info tpi
+            -- 파일
+                 LEFT JOIN esg.tb_sys_file sf on sf.target_id = tpi.process_id and sf.target_type='process' AND sf.comp_id = #{compId}
+            -- 사용처 시스템 코드
+                 LEFT JOIN esg.tb_common_d sc ON tpi.usage_type = sc.minor_cd AND sc.major_cd = 'C0010'
+        WHERE 1=1
+          AND tpi.comp_id = #{compId}
+        ORDER BY tpi.use_yn DESC, tpi.ord_seq ASC
+    </select>
+
+    <select id='getPrcsDetail' parameterType='kr.co.igns.system.common.model.SpSearchVO'  resultType='kr.co.igns.system.base.model.PrcsVO'>
+        SELECT tpi.*,
+               sf.file_id as file_id
+        FROM esg.tb_process_info tpi
+            -- 파일
+                 LEFT JOIN esg.tb_sys_file sf on sf.target_id = tpi.process_id and sf.target_type='process' AND sf.comp_id = #{compId}
+        WHERE 1=1
+          AND tpi.process_id = #{searchText}
+    </select>
+
+
+    <insert id="insertPrcs" parameterType="kr.co.igns.system.base.model.PrcsVO">
+        <selectKey keyProperty="processId" resultType="kr.co.igns.system.base.model.PrcsVO" order="BEFORE">
+            select to_char(now(), 'yyyymmdd') ||
+				   lpad(
+					   (coalesce(max(substring(process_id from 9 for 4))::int, 0) + 1)::text,
+					   4,
+					   '0'
+				   ) as process_id
+			from esg.tb_process_info
+			where process_id like to_char(now(), 'YYYYMMDD') || '%'
+    	</selectKey>
+        INSERT INTO esg.tb_process_info (
+            comp_id,
+            process_id,
+            process_nm,
+            usage_type,
+            ord_seq,
+            remark,
+            created_at,
+            created_by,
+            use_yn
+        )
+        VALUES (
+            #{compId},
+            #{processId},
+            #{processNm},
+            #{usageType},
+            #{ordSeq},
+            #{remark},
+            now(),
+            #{createdBy},
+            #{useYn}
+        )
+
+    </insert>
+
+    <update id="updatePrcs" parameterType="kr.co.igns.system.base.model.PrcsVO">
+
+        UPDATE esg.tb_process_info
+        SET
+            process_nm = #{processNm},
+            usage_type = #{usageType},
+            ord_seq = #{ordSeq},
+            remark = #{remark},
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE process_id = #{processId}
+
+    </update>
+
+    <select id='getPrcsById' parameterType='String' resultType='kr.co.igns.system.base.model.PrcsVO'>
+
+        SELECT *
+        FROM esg.tb_process_info
+        WHERE 1=1
+          AND process_id = #{processId}
+
+    </select>
+
+    <delete id="deletePrcs" parameterType="kr.co.igns.system.base.model.PrcsVO">
+
+        UPDATE esg.tb_process_info
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE process_id = #{processId}
+
+    </delete>
+
+    <select id='getPrcsRevList' parameterType='String'  resultType='kr.co.igns.system.base.model.PrcsCnfmVO'>
+        SELECT *
+        FROM esg.tb_process_work_cnfm tpwc
+        WHERE 1=1
+          AND tpwc.process_id = #{processId}
+        ORDER BY tpwc.use_yn DESC, tpwc.rev_no DESC
+    </select>
+
+    <select id='getPrcsCnfmWorkList' parameterType='kr.co.igns.system.base.model.PrcsCnfmVO'  resultType='kr.co.igns.system.base.model.PrcsWorkVO'>
+        SELECT tpwc.prcs_cnfm_id,
+               tpwc.rev_no,
+               tpwc.process_id,
+               tpwc.cnfm_at,
+               tpwc.cnfm_yn,
+               tpwc.use_yn as rev_use_yn,
+               tpwc.cnfm_by,
+               tpw.*
+        FROM esg.tb_process_work_cnfm tpwc
+   LEFT JOIN esg.tb_process_work tpw on tpwc.prcs_cnfm_id = tpw.prcs_cnfm_id
+        WHERE 1=1
+          AND tpwc.process_id = #{processId}
+          AND tpwc.cnfm_yn = 'Y'
+          AND tpw.use_yn = 'Y'
+     ORDER BY tpw.ord_seq
+    </select>
+
+    <select id='getPrcsWorkList' parameterType='kr.co.igns.system.base.model.PrcsCnfmVO'  resultType='kr.co.igns.system.base.model.PrcsWorkVO'>
+        SELECT tpwc.prcs_cnfm_id,
+               tpwc.rev_no,
+               tpwc.rev_nm,
+               tpwc.process_id,
+               tpi.process_nm,
+               tpwc.cnfm_at,
+               tpwc.cnfm_yn,
+               tpwc.use_yn as rev_use_yn,
+               tpwc.cnfm_by,
+               tpw.*
+        FROM esg.tb_process_work_cnfm tpwc
+   LEFT JOIN esg.tb_process_work tpw on tpwc.prcs_cnfm_id = tpw.prcs_cnfm_id
+   LEFT JOIN esg.tb_process_info tpi on tpi.process_id = tpwc.process_id
+        WHERE 1=1
+        <if test="processId != null and !processId.equals('')">
+          AND tpwc.process_id = #{processId}
+          AND tpwc.rev_no = #{revNo}
+        </if>
+        <!-- 확정된 모든 작업내용을 불러오기 위함 LJH-->
+        <if test="processId == null or processId.equals('')">
+          AND tpwc.cnfm_yn = 'Y'
+          AND tpw.use_yn = 'Y'
+          AND tpi.comp_id = #{compId}
+        </if>
+        ORDER BY tpw.use_yn DESC, tpwc.process_id, tpw.ord_seq, tpw.created_at
+    </select>
+
+    <insert id="insertPrcsRev" parameterType="kr.co.igns.system.base.model.PrcsCnfmVO">
+        <selectKey keyProperty="revNo" resultType="kr.co.igns.system.base.model.PrcsCnfmVO" order="BEFORE">
+            SELECT
+                TO_CHAR(current_date, 'YYYYMMDD') || LPAD((COALESCE(MAX(SUBSTRING(rev_no FROM 10)::INTEGER), 0) + 1)::TEXT, 4, '0') AS revNo
+            FROM esg.tb_process_work_cnfm
+            WHERE SUBSTRING(rev_no FROM 1 FOR 8) = TO_CHAR(current_date, 'YYYYMMDD')
+                and process_id = #{processId}
+        </selectKey>
+
+        INSERT INTO esg.tb_process_work_cnfm (
+            prcs_cnfm_id,
+            rev_no,
+            process_id,
+            use_yn,
+            created_at,
+            created_by
+        ) VALUES (
+            (select coalesce(max(prcs_cnfm_id)+1, 1) as prcsCnfmId from esg.tb_process_work_cnfm),
+            #{revNo},
+            #{processId},
+            #{useYn},
+            now(),
+            #{createdBy}
+        );
+
+    </insert>
+
+    <select id='getPrcsRevMax' resultType='kr.co.igns.system.base.model.PrcsCnfmVO'>
+
+        SELECT *
+        FROM esg.tb_process_work_cnfm
+        WHERE 1=1
+          AND process_id = #{processId}
+        ORDER BY CAST(rev_no AS BIGINT) DESC
+            LIMIT 1;
+
+    </select>
+
+    <update id="updatePrcsRev" parameterType="kr.co.igns.system.base.model.PrcsCnfmVO">
+
+        UPDATE esg.tb_process_work_cnfm
+        SET
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE process_id = #{processId}
+          AND rev_no = #{revNo}
+
+    </update>
+
+    <update id="updatePrcsRevCnfm" parameterType="kr.co.igns.system.base.model.PrcsCnfmVO">
+
+        UPDATE esg.tb_process_work_cnfm
+        SET
+            cnfm_yn = #{cnfmYn},
+            updated_at = now(),
+            updated_by = #{updatedBy},
+            cnfm_by = CASE WHEN #{cnfmYn} = 'N' THEN NULL ELSE #{updatedBy} END,
+            cnfm_at = CASE WHEN #{cnfmYn} = 'N' THEN NULL ELSE now() END
+        WHERE process_id = #{processId}
+          AND rev_no = #{revNo}
+
+    </update>
+
+    <insert id="insertPrcsWork" parameterType="kr.co.igns.system.base.model.PrcsWorkVO">
+    <selectKey keyProperty="prcsWorkId" resultType="kr.co.igns.system.base.model.PrcsWorkVO" order="BEFORE">
+        SELECT (coalesce(max(prcs_work_id)+1, 1)) :: VARCHAR as prcsWorkId
+        FROM esg.tb_process_work
+    </selectKey>
+        INSERT INTO esg.tb_process_work (
+            prcs_work_id,
+            prcs_cnfm_id,
+            work_content,
+            work_desc,
+            ord_seq,
+            created_at,
+            created_by,
+            use_yn
+        ) VALUES (
+            CAST(#{prcsWorkId} AS BIGINT),
+            CAST(#{prcsCnfmId} AS BIGINT),
+            #{workContent},
+            #{workDesc},
+            #{ordSeq},
+            now(),
+            #{createdBy},
+            #{useYn}
+        );
+
+    </insert>
+
+    <update id="updatePrcsWork" parameterType="kr.co.igns.system.base.model.PrcsWorkVO">
+
+        UPDATE esg.tb_process_work
+        SET
+            work_content = #{workContent},
+            work_desc = #{workDesc},
+            ord_seq = #{ordSeq},
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE prcs_work_id = CAST(#{prcsWorkId} AS BIGINT)
+
+    </update>
+    <update id="updatePrcsWorkCnfm" parameterType="kr.co.igns.system.base.model.PrcsWorkVO">
+
+        UPDATE esg.tb_process_work_cnfm
+        SET
+            rev_nm = #{revNm},
+            use_yn = #{revUseYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE prcs_cnfm_id = CAST(#{prcsCnfmId} AS BIGINT)
+
+    </update>
+
+
+    <select id='getPrcsWorkMap' parameterType='kr.co.igns.system.base.model.BaseMapVO' resultType='kr.co.igns.system.base.model.PrcsWorkMapVO'>
+
+        SELECT tpwm.*
+         FROM esg.tb_process_work_map tpwm
+        WHERE 1=1
+          AND tpwm.target_id = #{targetId}
+          AND tpwm.target_type = #{targetType}
+
+    </select>
+
+    <select id='getPrcsWorkMapByUseYn' parameterType='kr.co.igns.system.base.model.BaseMapVO' resultType='kr.co.igns.system.base.model.PrcsWorkVO'>
+       SELECT  tpwc.rev_no,
+               tpwc.process_id,
+               tpwc.cnfm_at,
+               tpwc.cnfm_yn,
+               tpwc.use_yn as rev_use_yn,
+               tpwc.cnfm_by,
+               tpw.*,
+               tpi.process_nm
+         FROM esg.tb_process_work_map tpwm
+    LEFT JOIN esg.tb_process_work tpw on tpwm.prcs_work_id = tpw.prcs_work_id
+    INNER JOIN esg.tb_process_work_cnfm tpwc on tpw.prcs_cnfm_id = tpwc.prcs_cnfm_id
+    LEFT JOIN esg.tb_process_info tpi on tpwm.process_id = tpi.process_id
+        WHERE 1=1
+          AND tpwm.target_id = #{targetId}
+          AND tpwm.target_type = #{targetType}
+          AND tpwm.use_yn = 'Y'
+        ORDER BY tpwc.process_id DESC
+    </select>
+
+    <insert id="addPrcsWorkMap" parameterType="kr.co.igns.system.base.model.PrcsWorkMapVO">
+
+        INSERT INTO esg.tb_process_work_map (
+            target_type,
+            target_id,
+            prcs_work_id,
+            process_id,
+            created_at,
+            created_by,
+            use_yn
+        )
+        VALUES (
+                   #{targetType},
+                   #{targetId},
+                   CAST(#{id} AS BIGINT),
+                   #{processId},
+                   now(),
+                   #{createdBy},
+                   #{useYn}
+               )
+
+    </insert>
+
+    <update id="updatePrcsWorkMap" parameterType="kr.co.igns.system.base.model.PrcsWorkMapVO">
+
+        UPDATE esg.tb_process_work_map
+        SET
+            prcs_work_id = CAST(#{id} AS BIGINT),
+            process_id = #{processId}
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE target_id = #{targetId}
+          AND target_type = #{targetType}
+
+    </update>
+
+    <update id="updateUseYnPrcsWorkMap" parameterType="kr.co.igns.system.base.model.BaseMapVO">
+
+        UPDATE esg.tb_process_work_map
+        SET
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE target_id = #{targetId}
+          AND target_type = #{targetType}
+          AND prcs_work_id = CAST(#{id} AS BIGINT)
+
+    </update>
+
+    <delete id="deletePrcsWorkMap" parameterType="kr.co.igns.system.base.model.BaseMapVO">
+
+        UPDATE esg.tb_process_work_map
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE target_id = #{targetId}
+          AND target_type = #{targetType}
+          AND use_yn = 'Y'
+
+    </delete>
+</mapper>
+

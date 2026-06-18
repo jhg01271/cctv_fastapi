@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.support.dao.postgres.EducationTrainingDAO">
+    <select id='getEduTraining' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.support.model.EducationTrainingVO'>
+        SELECT
+            'jobCompetencyAssessment' AS title
+            ,'/JobCompetencyAssessment' AS route
+            ,'jobCompetencyAssessmentDesc' AS description
+            , case when jobCompetencyAssessment.exist then 'Y'
+            	else 'N'
+            	end as activeYn
+        FROM
+        (
+            SELECT EXISTS (
+                SELECT 1
+                FROM esg.tb_job_competency_assessment tjca
+                WHERE tjca.comp_id  = #{compId}
+                    AND tjca.write_year = #{searchText}
+            ) as exist
+        ) AS jobCompetencyAssessment
+        UNION ALL
+        SELECT
+            'annualSAndHTrainingPlan' AS title
+            ,'/AnnualSAndHTrainingPlan' AS route 
+            ,'annualSAndHTrainingPlanDesc' AS description
+            , CASE WHEN annualSAndHTrainingPlan.exist THEN 'Y'
+            	ELSE 'N'
+            	END AS activeYn
+        FROM
+        (
+            SELECT EXISTS (
+                SELECT 1
+                FROM esg.tb_approval_info tai
+                LEFT JOIN esg.tb_training_plan_annual trpa
+                    ON tai.target_type = 'ATP'
+                    AND tai.target_id = trpa.write_year || trpa.comp_id
+                WHERE trpa.comp_id  = #{compId}
+                    AND	trpa.write_year = #{searchText}
+                    AND	trpa.use_yn = 'Y'
+                    AND tai.target_type = 'ATP'
+                    AND tai.param = 'approver'
+                    AND tai.signature is not null
+            ) as exist
+        ) AS annualSAndHTrainingPlan
+        UNION ALL
+        SELECT
+            'sAndHTrainingImplPlan' AS title
+            ,'/SAndHTrainingImplPlan' AS route
+            ,'sAndHTrainingImplPlanDesc' AS description
+            , CASE WHEN sAndHTrainingImplPlan.exist THEN 'Y'
+            	ELSE 'N'
+            	END AS activeYn
+        FROM
+        (
+           SELECT EXISTS (
+                SELECT 1
+                FROM esg.tb_approval_info tai
+                left join esg.tb_training_plan_implementation taco
+                	on tai.target_type = 'TPI'
+                	and tai.param = 'approver'-- 추후 수정 필요 (확인자 서명 여부를 위해)
+                	and tai.target_id = taco.write_year || taco.doc_no
+                WHERE taco.comp_id  = #{compId}
+                    AND	taco.write_year = #{searchText}
+                    AND	taco.use_yn = 'Y'
+            ) as exist
+        ) AS sAndHTrainingImplPlan
+        UNION ALL
+        SELECT
+            'sAndHTrainingResultsPlan' AS title
+            ,'/SAndHTrainingResultsPlan' AS route
+            ,'sAndHTrainingResultsPlanDesc' AS description
+            , CASE WHEN sAndHTrainingResultsPlan.exist THEN 'Y'
+            	ELSE 'N'
+            	END AS activeYn
+        FROM
+        (
+           SELECT EXISTS (
+                SELECT 1
+                FROM esg.tb_approval_info tai
+                inner join esg.tb_training_result_report taco
+                	on tai.target_type = 'TRR'
+                	and tai.param = 'approver'-- 추후 수정 필요 (확인자 서명 여부를 위해)
+                	and tai.target_id = taco.write_year || taco.doc_no
+                WHERE taco.comp_id  = #{compId}
+                    AND	taco.write_year = #{searchText}
+                    AND	taco.use_yn = 'Y'
+            ) as exist
+        ) AS sAndHTrainingResultsPlan
+        UNION ALL
+        SELECT
+            'educationStatus' AS title
+            ,'/EducationStatus' AS route
+            ,'educationStatusDesc' AS description
+            , CASE WHEN educationStatus.exist THEN 'Y'
+            	ELSE 'N'
+            	END AS activeYn
+        FROM
+        (
+           SELECT EXISTS (
+                SELECT 1
+                FROM esg.tb_training_result_report ttrr
+                WHERE ttrr.comp_id  = #{compId}
+                    AND	ttrr.write_year = #{searchText}
+                    AND ttrr.use_yn = 'Y'
+            ) as exist
+        ) AS educationStatus
+    </select>
+
+</mapper>

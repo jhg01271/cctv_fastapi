@@ -1,0 +1,398 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.support.dao.postgres.TrainingResultReportDAO">
+
+    <resultMap id="trainingResultDetailResultMap" type="kr.co.igns.business.support.model.TrainingResultReportVO">
+        <!-- doc_no가 중복데이터 그룹핑 key 역할 -->
+        <id property="docNo" column="doc_no"/>
+
+        <!-- 단일값 컬럼들 매핑 -->
+        <result property="writeYear" column="write_year"/>
+        <result property="docType" column="doc_type"/>
+        <result property="compId" column="comp_id"/>
+        <result property="title" column="title"/>
+        <result property="trainingDate" column="training_date"/>
+        <result property="trainingStart" column="training_start"/>
+        <result property="trainingEnd" column="training_end"/>
+        <result property="trainingType" column="training_type"/>
+        <result property="budget" column="budget"/>
+        <result property="requiredDetails" column="required_details"/>
+        <result property="trainingGoal" column="training_goal"/>
+        <result property="expectedEffect" column="expected_effect"/>
+
+        <result property="materialsEtc" column="materials_etc"/>
+        <result property="materials" column="materials"/>
+        <result property="projector" column="projector"/>
+        <result property="vtr" column="vtr"/>
+        <result property="trainingContent" column="training_content"/>
+        <result property="trainingInstitute" column="training_institute"/>
+        <result property="trainingInstructor" column="training_instructor"/>
+        <result property="trainingLocation" column="training_location"/>
+        <result property="qnaYn" column="qna_yn"/>
+        <result property="reportYn" column="report_yn"/>
+        <result property="deliveryTrainingYn" column="delivery_training_yn"/>
+        <result property="testYn" column="test_yn"/>
+        <result property="effectivenessEtc" column="effectiveness_etc"/>
+        <result property="goodCondition" column="good_condition"/>
+        <result property="normalCondition" column="normal_condition"/>
+        <result property="noConcern" column="no_concern"/>
+        <result property="remark" column="remark"/>
+        <result property="useYn" column="use_yn"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="updatedBy" column="updated_by"/>
+        <result property="planWriteYear" column="plan_write_year"/>
+        <result property="planDocType" column="plan_doc_type"/>
+        <result property="planDocNo" column="plan_doc_no"/>
+        <result property="planTitle" column="plan_title"/>
+        <result property="trainingPeriod" column="training_period"/>
+        <result property="trainingTypeNm" column="trainingtypenm"/>
+        <result property="trainingInstituteNm" column="traininginstitutenm"/>
+        <result property="trainingInstructorNm" column="traininginstructornm"/>
+        <result property="trainingLocationNm" column="traininglocationnm"/>
+        <result property="approvalStatus" column="approval_status"/>
+        <collection property="chargeList" ofType="kr.co.igns.business.support.model.TrainingPlanImplHrVO" >
+            <id property="docSeq" column="doc_seq"/>
+            <result property="id" column="id"/>
+            <result property="nm" column="nm"/>
+        </collection>
+        <collection property="hrList" ofType="kr.co.igns.business.support.model.TrainingPlanImplHrVO" >
+            <id property="rowNum" column="row_num"/>
+            <result property="hrId" column="hr_id"/>
+            <result property="hrNm" column="hr_nm"/>
+            <result property="orgnId" column="orgn_id"/>
+            <result property="orgnNm" column="orgn_nm"/>
+        </collection>
+
+    </resultMap>
+
+
+
+    <select id='getTrainingResult' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.support.model.TrainingResultReportVO'>
+        SELECT ttpi.*,
+               ttpsc.courses_nm as trainingTypeNm,
+               ttptc.center_nm as trainingInstituteNm,
+               ttpinst.instructor_nm as trainingInstructorNm,
+               ttptl.location_nm as trainingLocationNm,
+               esg.fn_getapprovalstatus('TRR', ttpi.write_year || ttpi.doc_no) as approval_status,
+               (
+                    SELECT COUNT(*)
+                      FROM esg.tb_approval_info
+                     WHERE target_type = 'TRR'
+                       AND target_id = ttpi.write_year || ttpi.doc_no || '1'
+                       AND type = 'attendee'
+                ) AS result_cnt
+          FROM esg.tb_training_result_report ttpi
+     LEFT JOIN esg.tb_training_plan_subject_courses ttpsc ON ttpsc.comp_id = ttpi.comp_id AND ttpsc.courses_id = ttpi.training_type
+     LEFT JOIN esg.tb_training_plan_training_center ttptc ON ttptc.comp_id = ttpi.comp_id AND ttptc.center_id = ttpi.training_institute
+     LEFT JOIN esg.tb_training_plan_instructor ttpinst ON ttpinst.comp_id = ttpi.comp_id AND ttpinst.instructor_id = ttpi.training_instructor
+     LEFT JOIN esg.tb_training_plan_training_location ttptl ON ttptl.comp_id = ttpi.comp_id AND ttptl.location_id = ttpi.training_location
+         WHERE ttpi.comp_id = #{compId}
+           AND ttpi.write_year = #{writeYear}
+      ORDER BY ttpi.use_yn DESC, ttpi.doc_no DESC
+    </select>
+
+    <select id='getTrainingResultDetail' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultMap='trainingResultDetailResultMap'>
+        SELECT ttpi.*,
+        	   ttpi.training_start || ' ~ ' || ttpi.training_end AS training_period,
+               ttpih.doc_seq,
+               ttpih.hr_id as id,
+               ttpih.hr_nm as nm,
+               ttpsc.courses_nm as trainingTypeNm,
+               ttptc.center_nm as trainingInstituteNm,
+               ttpinst.instructor_nm as trainingInstructorNm,
+               ttptl.location_nm as trainingLocationNm,
+               plan.title as plan_title,
+               tai.hr_id,
+               tai.hr_nm,
+               toi.orgn_id,
+               toi.orgn_nm,
+               row_number() over(order by ttpih.doc_seq asc) as row_number
+          FROM esg.tb_training_result_report ttpi
+     LEFT JOIN esg.tb_training_plan_implementation plan ON ttpi.plan_write_year = plan.write_year AND ttpi.plan_doc_type = plan.doc_type AND ttpi.plan_doc_no = plan.doc_no
+     LEFT JOIN esg.tb_training_plan_subject_courses ttpsc ON ttpsc.comp_id = ttpi.comp_id AND ttpsc.courses_id = ttpi.training_type
+     LEFT JOIN esg.tb_training_plan_training_center ttptc ON ttptc.comp_id = ttpi.comp_id AND ttptc.center_id = ttpi.training_institute
+     LEFT JOIN esg.tb_training_plan_instructor ttpinst ON ttpinst.comp_id = ttpi.comp_id AND ttpinst.instructor_id = ttpi.training_instructor
+     LEFT JOIN esg.tb_training_plan_training_location ttptl ON ttptl.comp_id = ttpi.comp_id AND ttptl.location_id = ttpi.training_location
+     LEFT JOIN esg.tb_training_result_report_hr ttpih ON ttpi.doc_no = ttpih.doc_no AND ttpi.doc_type = ttpih.doc_type
+     LEFT JOIN esg.tb_approval_info tai ON tai.target_id = ttpih.write_year || ttpih.doc_no || '1' AND ttpi.doc_type = ttpih.doc_type and tai.type = 'attendee'
+     LEFT JOIN esg.tb_hr_info thi ON thi.hr_id = tai.hr_id
+     LEFT JOIN esg.tb_orgn_info toi ON toi.comp_id = ttpi.comp_id and toi.orgn_id = thi.orgn_id
+        WHERE ttpi.comp_id = #{compId}
+           AND ttpi.write_year = #{writeYear}
+           AND ttpi.doc_no = #{docNo}
+           AND ttpi.doc_type = #{docType}
+    </select>
+
+    <select id='getTrainingResultDetailPlanHrList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.base.model.HrVO'>
+        select t1.hr_id
+        	, t2.hr_nm
+        	, t3.orgn_id
+        	, t3.orgn_nm
+        from esg.tb_training_plan_implementation_learner t1
+        left join esg.tb_hr_info t2
+        	on t1.hr_id = t2.hr_id
+        left join esg.tb_orgn_info t3
+        	on t2.orgn_id = t3.orgn_id
+        where write_year = #{writeYear}
+        	and doc_type = #{docType}
+        	and doc_no = #{docNo}
+    </select>
+
+    <select id='getTrainingResultDetailFileList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType="kr.co.igns.system.common.model.FileVO">
+        SELECT FILE_ID,
+               FILE_NM AS FILE_NAME,
+               FILE_SIZE,
+               FILE_TYPE AS DOC_TYPE,
+               "extension"
+          FROM ESG.TB_SYS_FILE
+         WHERE TARGET_ID = CONCAT(#{writeYear}, #{docNo})
+           AND TARGET_TYPE = #{docType}
+    </select>
+
+    <insert id="insertTrainingResultReport" parameterType="kr.co.igns.business.support.model.TrainingResultReportVO">
+
+        <selectKey keyProperty="docNo" resultType="kr.co.igns.business.support.model.TrainingResultReportVO" order="BEFORE">
+            <![CDATA[
+            SELECT
+                LPAD((COALESCE(MAX(SUBSTRING(doc_no, 1, 5)::INTEGER), 0) + 1)::TEXT, 5, '0') AS docNo
+              FROM esg.tb_training_result_report
+            WHERE write_year = #{writeYear}
+              AND doc_type = #{docType}
+         ]]>
+        </selectKey>
+
+        INSERT INTO esg.tb_training_result_report (
+            write_year,
+            doc_no,
+            doc_type,
+            comp_id,
+            title,
+            training_date,
+            training_start,
+            training_end,
+            training_type,
+            budget,
+            required_details,
+            training_goal,
+            expected_effect,
+            materials_etc,
+            materials,
+            projector,
+            vtr,
+            training_content,
+            training_institute,
+            training_instructor,
+            training_location,
+            qna_yn,
+            report_yn,
+            delivery_training_yn,
+            test_yn,
+            effectiveness_etc,
+            good_condition,
+            normal_condition,
+            no_concern,
+            remark,
+            plan_doc_type,
+            plan_doc_no,
+            plan_write_year,
+            use_yn,
+            created_at,
+            created_by
+        )
+        VALUES (
+                   #{writeYear},
+                   #{docNo},
+                   #{docType},
+                   #{compId},
+                   #{title},
+                   #{trainingDate},
+                   #{trainingStart},
+                   #{trainingEnd},
+                   #{trainingType},
+                   #{budget},
+                   #{requiredDetails},
+                   #{trainingGoal},
+                   #{expectedEffect},
+                   #{materialsEtc},
+                   #{materials},
+                   #{projector},
+                   #{vtr},
+                   #{trainingContent},
+                   #{trainingInstitute},
+                   #{trainingInstructor},
+                   #{trainingLocation},
+                   #{qnaYn},
+                   #{reportYn},
+                   #{deliveryTrainingYn},
+                   #{testYn},
+                   #{effectivenessEtc},
+                   COALESCE(#{goodCondition}, 'N'),
+                   COALESCE(#{normalCondition}, 'N'),
+                   COALESCE(#{noConcern}, 'N'),
+                   #{remark},
+                   #{planDocType},
+                   #{planDocNo},
+                   #{planWriteYear},
+                   #{useYn},
+                   now(),
+                   #{createdBy}
+               )
+
+    </insert>
+    
+    <insert id="insertTrainingResultReportHr" parameterType="kr.co.igns.business.support.model.TrainingResultReportHrVO">
+
+        <selectKey keyProperty="docSeq" resultType="kr.co.igns.business.support.model.TrainingResultReportHrVO" order="BEFORE">
+            <![CDATA[
+            SELECT
+                LPAD((COALESCE(MAX(SUBSTRING(doc_seq, 1, 5)::INTEGER), 0) + 1)::TEXT, 5, '0') AS docSeq
+              FROM esg.tb_training_result_report_hr
+            WHERE write_year = #{writeYear}
+              AND doc_type = #{docType}
+              AND doc_no = #{docNo}
+         ]]>
+        </selectKey>
+
+        INSERT INTO esg.tb_training_result_report_hr (
+            write_year,
+            doc_no,
+            doc_type,
+            doc_seq,
+            hr_id,
+            hr_nm,
+            created_at,
+            created_by
+        )
+        VALUES (
+                   #{writeYear},
+                   #{docNo},
+                   #{docType},
+                   #{docSeq},
+                   #{id},
+                   #{nm},
+                   now(),
+                   #{createdBy}
+               )
+
+    </insert>
+
+    <update id="updateTrainingResultReport" parameterType="kr.co.igns.business.support.model.TrainingResultReportVO">
+
+        UPDATE esg.tb_training_result_report
+        SET
+            title = #{title},
+            training_date = #{trainingDate},
+            training_start = #{trainingStart},
+            training_End = #{trainingEnd},
+            training_type = #{trainingType},
+            budget = #{budget},
+            required_details = #{requiredDetails},
+            training_goal = #{trainingGoal},
+            expected_effect = #{expectedEffect},
+            materials_etc = #{materialsEtc},
+            materials = #{materials},
+            projector = #{projector},
+            vtr = #{vtr},
+            training_content = #{trainingContent},
+            training_institute = #{trainingInstitute},
+            training_instructor = #{trainingInstructor},
+            training_location = #{trainingLocation},
+            qna_yn = #{qnaYn},
+            report_yn = #{reportYn},
+            delivery_training_yn = #{deliveryTrainingYn},
+            test_yn = #{testYn},
+            effectiveness_etc = #{effectivenessEtc},
+            good_condition = #{goodCondition},
+            normal_condition = #{normalCondition},
+            no_concern = #{noConcern},
+            remark = #{remark},
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+
+    </update>
+
+    <delete id="deleteTrainingResultReport" parameterType="kr.co.igns.business.support.model.TrainingResultReportVO">
+
+        UPDATE esg.tb_training_result_report
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+
+    </delete>
+    
+    <delete id="deleteTrainingResultReportHr" parameterType="kr.co.igns.business.support.model.TrainingResultReportVO">
+
+        DELETE FROM esg.tb_training_result_report_hr
+        WHERE write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+
+    </delete>
+
+
+    <select id='getTrainingResultReportById' parameterType='kr.co.igns.business.support.model.TrainingResultReportVO' resultType='kr.co.igns.business.support.model.TrainingResultReportVO'>
+
+        SELECT *
+        FROM esg.tb_training_result_report
+        WHERE comp_id = #{compId}
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+
+    </select>
+
+    <select id='getCurrentAndPreviousYear' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.support.model.TrainingResultReportVO'>
+        SELECT ttrr.*,
+            case when taia.signature is not null then 'Y'
+                 when taiR.signature is not null then 'I'
+                 when taiw.signature is not null then 'W'
+                 else 'C'
+            end as approvalStatus
+        FROM esg.tb_training_result_report ttrr
+   LEFT JOIN esg.tb_approval_info taiw
+          ON taiw.target_type = 'TRR'
+         AND taiw.target_id = ttrr.write_year || ttrr.doc_no
+         AND taiw.param = 'writer'
+   LEFT JOIN esg.tb_approval_info tair
+          ON tair.target_type = 'TRR'
+         AND tair.target_id = ttrr.write_year || ttrr.doc_no
+         AND tair.param = 'reviewer'
+   LEFT JOIN esg.tb_approval_info taia
+          ON taia.target_type = 'TRR'
+         AND taia.target_id = ttrr.write_year || ttrr.doc_no
+         AND taia.param = 'approver'
+        WHERE ttrr.comp_id = #{compId}
+          AND ttrr.doc_type = 'TRR'
+          AND (
+            (   ttrr.write_year = (#{writeYear}::integer -1)::varchar
+                    AND ttrr.use_yn = 'Y'
+                )
+                OR ttrr.write_year = #{writeYear}
+            )
+        ORDER BY ttrr.use_yn DESC, ttrr.write_year, ttrr.doc_no DESC
+    </select>
+
+     <!-- 일괄출력용 -->
+    <select id='getAllReport' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='String'>
+        select t1.doc_no
+        from esg.tb_training_result_report t1
+        where t1.use_yn = 'Y'
+            and t1.write_year = #{writeYear}
+            and t1.comp_id = #{compId}
+            and substring(t1.training_date from 5 for 2) = #{searchText}
+        order by t1.training_date asc
+    </select>
+</mapper>

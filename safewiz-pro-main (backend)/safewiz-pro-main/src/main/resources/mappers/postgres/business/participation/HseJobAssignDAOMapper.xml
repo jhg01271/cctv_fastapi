@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.participation.dao.postgres.HseJobAssignDAO">
+
+    <select id='getJobAssign' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.participation.model.HseJobAssignVO'>
+        <![CDATA[
+        select vhi.hr_id
+            , thicm.user_id
+            , case when thja.write_year is null then 'I'
+			   	 else 'U'
+			   	 end as cmd
+			, case when thja.write_year is null then #{writeYear}
+				else thja.write_year
+				end as write_year
+			, case when thja.doc_type is null then 'JOB'
+				else thja.doc_type
+				end as doc_type
+            , thja.comp_id
+            , thja.doc_no
+        	, vhi.hr_nm
+        	, toi.orgn_nm
+            , thij.jbrp_nm
+            , thja.backup_hr_id
+            , vhi2.hr_nm as backup_hr_nm
+            , thja.assign_task
+            , case when thja.doc_no is null then 'Y'
+                else thja.use_yn
+              end as use_yn
+            , thja.created_at
+            , thja.created_by
+            , thja.updated_at
+            , thja.updated_by
+            , (
+            	select count(*)
+               	from esg.tb_task_manager_detail ttmd
+        		where ttmd.task_detail_user_id = vhi.user_id
+		  			and to_char(ttmd.req_dt, 'YYYYMMDD') like write_year||'%'
+		  			and ttmd.comp_id = #{compId}
+			        and ttmd.complete_dt is null
+			        and ttmd.cancel_dt is null
+        		    and ttmd.use_yn = 'Y'
+			   ) as not_completed_cnt
+        from esg.v_hr_info vhi
+        left join esg.tb_hr_info_comp_map thicm
+        	on vhi.hr_id = thicm.hr_id
+       	left join esg.tb_orgn_info toi
+       		on vhi.orgn_id = toi.orgn_id
+        left join esg.tb_hr_info_jbrp thij
+            on thij.jbrp_id = vhi.jbrp
+            and thij.comp_id = #{compId}
+        left join esg.tb_hse_job_assignment thja
+        	on vhi.hr_id = thja.hr_id
+        	and thicm.comp_id = thja.comp_id
+        ]]>
+        <if test="writeYear != '' and writeYear != null">
+            and thja.write_year = #{writeYear}
+            <if test="hrId != '' and hrId != null and docNo != '' and docNo != null">
+                and thja.doc_no = #{docNo}
+            </if>
+        </if>
+        <![CDATA[
+        LEFT JOIN esg.v_hr_info vhi2
+        	on thja.backup_hr_id = vhi2.hr_id
+        where 1=1
+            and thicm.comp_id = #{compId}
+        	and vhi.use_yn = 'Y'
+        ]]>
+        <if test="writeYear != '' and writeYear != null">
+            <![CDATA[
+                and to_char(vhi.created_at, 'YYYY') <= #{writeYear}
+            ]]>
+        </if>
+        <if test="hrId != '' and hrId != null ">
+            and vhi.hr_id = #{hrId}
+        </if>
+        order by vhi.ord_seq asc, write_year desc, thja.doc_no asc
+    </select>
+
+    <select id='getJobAssignDetail' parameterType='kr.co.igns.system.common.model.SpSearchVO'  resultType='kr.co.igns.business.participation.model.HseJobAssignVO'>
+        SELECT thja.*,
+               vhi.hr_nm,
+               toi.orgn_id,
+               toi.orgn_nm,
+               jbrp.jbrp_id,
+               jbrp.jbrp_nm,
+               vhi2.hr_nm as backup_hr_nm,
+               vhi.user_id
+        FROM esg.tb_hse_job_assignment thja
+        LEFT JOIN esg.v_hr_info vhi on vhi.hr_id = thja.hr_id
+        LEFT JOIN esg.tb_orgn_info toi on toi.orgn_id = vhi.orgn_id
+        left join esg.tb_hr_info_jbrp jbrp
+                    on jbrp.jbrp_id = vhi.jbrp and jbrp.comp_id = #{compId}
+        LEFT JOIN esg.v_hr_info vhi2 on vhi2.hr_id = thja.backup_hr_id
+        WHERE thja.comp_id = #{compId}
+          AND thja.write_year = #{writeYear}
+          AND thja.doc_no = #{docNo}
+          AND thja.doc_type = #{docType}
+    </select>
+
+    <select id='getMyJobAssign' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.participation.model.HseJobAssignVO'>
+        SELECT thja.*,
+        vhi.hr_nm,
+        toi.orgn_nm,
+        jbrp.jbrp_nm,
+        vhi2.hr_nm as backup_hr_nm,
+        (
+        SELECT count(*)
+        FROM esg.tb_task_manager_detail ttmd
+        WHERE ttmd.task_detail_user_id = vhi.user_id
+        AND ttmd.comp_id = #{compId}
+        AND to_char(ttmd.req_dt, 'YYYYMMDD') like #{writeYear}||'%'
+        AND ttmd.complete_dt IS null
+        AND ttmd.cancel_dt IS null
+        AND ttmd.use_yn = 'Y'
+        ) as not_completed_cnt
+        FROM esg.tb_hse_job_assignment thja
+        LEFT JOIN esg.v_hr_info vhi on vhi.hr_id = thja.hr_id
+        LEFT JOIN esg.tb_orgn_info toi on toi.orgn_id = vhi.orgn_id
+        left join esg.tb_hr_info_jbrp jbrp
+        on jbrp.jbrp_id = vhi.jbrp and jbrp.comp_id = #{compId}
+        LEFT JOIN esg.v_hr_info vhi2 on vhi2.hr_id = thja.backup_hr_id
+        WHERE thja.comp_id = #{compId}
+          AND vhi.hr_id = #{hrId}
+        ORDER BY thja.use_yn DESC, thja.doc_no DESC
+    </select>
+
+
+    <insert id="insertJobAssign" parameterType="kr.co.igns.business.participation.model.HseJobAssignVO">
+
+        <selectKey keyProperty="docNo" resultType="kr.co.igns.business.participation.model.HseJobAssignVO" order="BEFORE">
+            <![CDATA[
+            SELECT
+                LPAD((COALESCE(MAX(SUBSTRING(doc_no, 1, 5)::INTEGER), 0) + 1)::TEXT, 5, '0') AS docNo
+              FROM esg.tb_hse_job_assignment
+            WHERE write_year = #{writeYear}
+              AND doc_type = #{docType}
+         ]]>
+        </selectKey>
+
+        INSERT INTO esg.tb_hse_job_assignment (
+            write_year,
+            doc_no,
+            doc_type,
+            hr_id,
+            backup_hr_id,
+            assign_task,
+            use_yn,
+            comp_id,
+            created_at,
+            created_by
+        )
+        VALUES (
+                   #{writeYear},
+                   #{docNo},
+                   #{docType},
+                   #{hrId},
+                   #{backupHrId},
+                   #{assignTask},
+                   COALESCE(#{useYn},'N'),
+                   #{compId},
+                   now(),
+                   #{createdBy}
+               )
+
+    </insert>
+
+    <update id="updateJobAssign" parameterType="kr.co.igns.business.participation.model.HseJobAssignVO">
+
+        UPDATE esg.tb_hse_job_assignment
+        SET
+            hr_id = #{hrId},
+            backup_hr_id = #{backupHrId},
+            assign_task = #{assignTask},
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+
+    </update>
+
+    <delete id="deleteJobAssign" parameterType="kr.co.igns.business.participation.model.HseJobAssignVO">
+
+        UPDATE esg.tb_hse_job_assignment
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+
+    </delete>
+
+
+    <select id='getJobAssignById' parameterType='kr.co.igns.business.participation.model.HseJobAssignVO' resultType='kr.co.igns.business.participation.model.HseJobAssignVO'>
+
+        SELECT *
+        FROM esg.tb_hse_job_assignment
+        WHERE comp_id = #{compId}
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+
+    </select>
+
+    <select id='getPermitDocNo' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.common.model.SpSearchVO'>
+
+        SELECT doc_no,
+               write_year
+          FROM esg.tb_hse_job_assignment
+         WHERE comp_id = #{compId}
+           AND hr_id = #{currentUserHrId}
+           AND doc_type = #{docType}
+      ORDER BY write_year DESC
+               LIMIT 1;
+
+    </select>
+
+
+</mapper>

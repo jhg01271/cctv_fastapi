@@ -1,0 +1,352 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.notice.dao.postgres.OutputDAO">
+
+    <!-- 출력 가능 목록 가져오기 -->
+    <select id="getOutputList" parameterType="kr.co.igns.system.common.model.SpSearchVO"
+            resultType="kr.co.igns.business.notice.model.OutputVO">
+		select t1.minor_nm as nm
+   			, t2.router_nm as route
+   			, left(t1.minor_cd, LENGTH(t1.minor_cd)-4) as detailCd
+   			, t1.remark as desc
+   		from esg.tb_common_d t1
+   		left join esg.tb_sys_menu t2
+   			on t1.major_cd = 'C0043'
+   			and right(t1.minor_cd,4) = t2.menu_id
+   		where t1.major_cd = 'C0043'
+			order by t1.ord_seq asc
+    </select>
+
+	<!-- 상세 항목 불러오기 -->
+    <select id="getDetailList" parameterType="kr.co.igns.business.notice.model.OutputVO"
+            resultType="kr.co.igns.business.notice.model.OutputVO">
+		-- 상세 항목 불러오기
+		select t1.minor_cd as id
+			, t1.minor_nm as nm
+			, #{route}
+		from esg.tb_common_d t1
+		where t1.major_cd = #{detailCd}
+		order by t1.ord_seq asc
+    </select>
+	<!-- ###################################################################################### -->
+    <!-- TBM -->
+	<!-- ###################################################################################### -->
+    <select id="getCountTBM" parameterType="kr.co.igns.business.notice.model.OutputVO"
+            resultType="integer">
+	   		 select count(t1.*)
+			 from esg.tb_toolboxmeeting t1
+			 where t1.write_year = #{writeYear}
+			 	and t1.comp_id  = #{compId}
+			 	and t1.use_yn = 'Y'
+				and substring(t1.tbm_date from 5 for 2) = #{id}
+    </select>
+	<!-- ###################################################################################### -->
+	<!-- 위험성평가 -->
+	<!-- ###################################################################################### -->
+
+	<!-- 안전보건 정보 조사-->
+	<select id="getCountSAHIS" parameterType="kr.co.igns.business.notice.model.OutputVO"
+            resultType="integer">
+	   		 select count(t1.*)
+			 from esg.tb_safety_and_health_info_survey t1
+			 where t1.confirm_yn = 'Y'
+			 	and t1.comp_id  = #{compId}
+			 	and t1.use_yn = 'Y'
+    </select>
+
+	<!-- 공정/설비/물질 구분 -->
+	<select id="getCountCPE" parameterType="kr.co.igns.business.notice.model.OutputVO"
+            resultType="integer">
+	   		 select count(t1.*)
+			 from esg.tb_classification_process_equip_msds t1
+			 where t1.confirm_yn = 'Y'
+			 	and t1.comp_id  = #{compId}
+			 	and t1.use_yn = 'Y'
+    </select>
+
+	<!-- 공정/설비/물질 구분 -->
+	<select id="getCountCHD" parameterType="kr.co.igns.business.notice.model.OutputVO"
+            resultType="integer">
+	   		 select count(t1.*)
+			 from esg.tb_classification_hazards t1
+			 where t1.write_year = #{writeYear}
+			 	and t1.comp_id  = #{compId}
+			 	and t1.use_yn = 'Y'
+    </select>
+
+	<!-- 유해 위험요인 근로자 의견 -->
+	<select id="getCountWOOHA" parameterType="kr.co.igns.business.notice.model.OutputVO"
+            resultType="integer">
+	   		 select count(distinct t1.hr_id)
+			 from esg.tb_workers_opinions_on_hazards_info t1
+			 where t1.write_year = #{writeYear}
+			 	and t1.comp_id  = #{compId}
+			 	and t1.use_yn = 'Y'
+    </select>
+
+	<!-- 위험성평가 교육/참여 결과 -->
+	<select id="getCountRORAT" parameterType="kr.co.igns.business.notice.model.OutputVO"
+            resultType="integer">
+	   		 select count(t1.*)
+			 from esg.tb_result_of_risk_assessment_training t1
+			 where t1.write_year = #{writeYear}
+			 	and t1.comp_id  = #{compId}
+			 	and t1.use_yn = 'Y'
+    </select>
+
+	<!-- 위험성평가 이행 -->
+	<select id="getCountRAP" parameterType="kr.co.igns.business.notice.model.OutputVO"
+            resultType="integer">
+	   		 select count(distinct t1.doc_no)
+			 from esg.tb_risk_assessment_plan t1
+			 left join esg.tb_risk_assessment_implementation t2
+			 	on t1.write_year = t2.write_year
+			 	and t1.doc_type = t2.doc_type
+			 	and t1.doc_no = t2.doc_no
+			 where t1.write_year = #{writeYear}
+			 	and t1.comp_id  = #{compId}
+			 	and t1.use_yn = 'Y'
+			 	and t2.use_yn = 'Y'
+    </select>
+
+	<!-- ###################################################################################### -->
+    <!-- 비상시 대비 및 대응-->
+	<!-- ###################################################################################### -->
+	<!-- 비상통제 조직도 -->
+	<select id="getECOCData" parameterType="kr.co.igns.business.notice.model.OutputVO"
+            resultType="String">
+		select t1.chart_id
+		from esg.tb_emergency_control_org_chart t1
+		where t1.write_year = #{writeYear}
+			and t1.comp_id = #{compId}
+			and t1.confirm_yn = 'Y'
+			and t1.use_yn = 'Y'
+    </select>
+	<!-- 비상통제 조직별 업무 분장 -->
+	<select id="getCountECA" parameterType="kr.co.igns.business.notice.model.OutputVO"
+            resultType="integer">
+	   		 select count(t1.*)
+			 from esg.tb_emergency_control_task_asgmt t1
+			 where t1.write_year = #{writeYear}
+			 	and t1.comp_id  = #{compId}
+			 	and t1.use_yn = 'Y'
+    </select>
+	<!-- 비상대응 훈련 -->
+    <select id="getCountERT" parameterType="kr.co.igns.business.notice.model.OutputVO"
+            resultType="integer">
+	   		 select count(t1.*)
+			 from esg.tb_emergency_response_training t1
+			 left join esg.tb_emergency_response_training_result t2
+			 	on t1.write_year = t2.write_year
+			 	and t1.doc_type = t2.doc_type
+			 	and t1.doc_no = t2.doc_no
+			 	and t1.comp_id = t2.comp_id
+			 where t1.write_year = #{writeYear}
+			 	and t1.comp_id  = #{compId}
+			 	and t1.use_yn = 'Y'
+		<if test="docType.equals('first')">
+				and cast(substring(t2.action_dt from 5 for 2) AS integer) between 1 and 6; -- 상반기
+		</if>
+		<if test="docType.equals('second')">
+				and cast(substring(t2.action_dt from 5 for 2) AS integer) between 7 and 12; -- 하반기
+		</if>
+    </select>
+
+	<!-- ###################################################################################### -->
+    <!-- 조직의 상황 -->
+	<!-- ###################################################################################### -->
+	<select id="getORGSTList" parameterType="kr.co.igns.business.notice.model.OutputVO"
+            resultType="kr.co.igns.business.notice.model.OutputVO">
+		select t1.orgn_id as id
+			, t2.orgn_nm as nm
+			, count(*) as printableCnt
+		from (
+			select tab1.orgn_id, tab1.comp_id
+			from esg.tb_orgn_status tab1
+			where tab1.write_year = #{writeYear}
+				and tab1.comp_id = #{compId}
+				and tab1.use_yn = 'Y'
+			union all
+			select tab2.orgn_id, tab2.comp_id
+			from esg.tb_employees tab2
+			where tab2.write_year = #{writeYear}
+				and tab2.comp_id = #{compId}
+				and tab2.use_yn = 'Y'
+		) t1
+		left join esg.tb_orgn_info t2
+			on t1.orgn_id = t2.orgn_id
+			and t1.comp_id = t2.comp_id
+		group by t1.orgn_id, t2.orgn_nm, t2.ord_seq
+		order by t2.ord_seq asc
+    </select>
+
+	<!-- ###################################################################################### -->
+    <!-- 법규 관리 및 준수평가 -->
+	<!-- ###################################################################################### -->
+	<!-- 법규 관리 -->
+	<select id="getCountLGM" parameterType="kr.co.igns.business.notice.model.OutputVO"
+            resultType="integer">
+		select count(t1.*)
+			 from esg.tb_legal_manage t1
+			 where t1.write_year = #{writeYear}
+			 	and t1.comp_id  = #{compId}
+			 	and t1.use_yn = 'Y'
+    </select>
+	<!-- 법규 검토서 -->
+	<select id="getCountLGR" parameterType="kr.co.igns.business.notice.model.OutputVO"
+            resultType="integer">
+		select count(t1.*)
+			 from esg.tb_legal_review t1
+			 where t1.write_year = #{writeYear}
+			 	and t1.comp_id  = #{compId}
+			 	and t1.use_yn = 'Y'
+    </select>
+
+	<!-- ###################################################################################### -->
+    <!-- 리스크와 기회 -->
+	<!-- ###################################################################################### -->
+	<!-- 리스크와 기회 관리대장 -->
+	<select id="getRAOList" parameterType="kr.co.igns.business.notice.model.OutputVO"
+            resultType="kr.co.igns.business.notice.model.OutputVO">
+		select t1.orgn_id as id
+			, t2.orgn_nm as nm
+			, count(*) as printableCnt
+		from esg.tb_risks_and_opportunities t1
+		left join esg.tb_orgn_info t2
+			on t1.orgn_id = t2.orgn_id
+			and t1.comp_id = t2.comp_id
+		where t1.write_year = #{writeYear}
+			and t1.comp_id = #{compId}
+			and t1.use_yn = 'Y'
+		group by t1.orgn_id, t2.orgn_nm, t2.ord_seq
+		order by t2.ord_seq asc
+    </select>
+
+	<!-- ###################################################################################### -->
+    <!-- 시정조치 요구서 -->
+	<!-- ###################################################################################### -->
+	<!-- 시정조치 요구서 -->
+	<select id="getCARList" parameterType="kr.co.igns.business.notice.model.OutputVO"
+            resultType="kr.co.igns.business.notice.model.OutputVO">
+		select t1.ctrl_orgn_id as id
+			, t2.orgn_nm as nm
+			, count(*) as printableCnt
+		from esg.tb_corrective_action_request t1
+		left join esg.tb_orgn_info t2
+			on t1.ctrl_orgn_id = t2.orgn_id
+			and t1.comp_id = t2.comp_id
+		where t1.write_year = #{writeYear}
+			and t1.comp_id = #{compId}
+			and t1.use_yn = 'Y'
+		group by t1.ctrl_orgn_id, t2.orgn_nm, t2.ord_seq
+		order by t2.ord_seq asc
+    </select>
+
+	<!-- ###################################################################################### -->
+    <!-- 모니터링 및 측정 관리 -->
+	<!-- ###################################################################################### -->
+	<!-- 시정조치 요구서 -->
+	<select id="getCountER" parameterType="kr.co.igns.business.notice.model.OutputVO"
+            resultType="integer">
+		select count(t1.*)
+		  from (
+				select ter.write_year
+				  from esg.tb_evaluation_report ter
+				 where ter.write_year = #{writeYear}
+				   and ter.comp_id  = #{compId}
+				   and ter.use_yn = 'Y'
+				   and substring(ter.evaluation_dt from 5 for 2) = #{id}
+				 union all
+				select tlce.write_year
+				  from esg.tb_legal_comlpliance_evaluation tlce
+				 where tlce.write_year = #{writeYear}
+				   and tlce.comp_id  = #{compId}
+				   and tlce.use_yn = 'Y'
+				   and substring(tlce.legal_evaluation_dt from 5 for 2) = #{id}
+				) t1
+    </select>
+
+	<!-- ###################################################################################### -->
+    <!-- 교육 훈련 -->
+	<!-- ###################################################################################### -->
+	<!-- 직무 적격성 평가, 안전보건 연간 교육 계획서, 교육 실시 계획서, 교육 결과 보고서 -->
+	<select id="getCountEDU" parameterType="kr.co.igns.business.notice.model.OutputVO"
+            resultType="integer">
+		select count(t1.*)
+		from (
+			select tab1.write_year
+			from esg.tb_training_plan_implementation tab1
+			where tab1.use_yn = 'Y'
+				and tab1.write_year = #{writeYear}
+				and tab1.comp_id = #{compId}
+				and substring(tab1.training_date from 5 for 2) = #{id}
+			union all
+			select tab2.write_year
+			from esg.tb_training_result_report tab2
+			where tab2.use_yn = 'Y'
+				and tab2.write_year = #{writeYear}
+				and tab2.comp_id = #{compId}
+				and substring(tab2.training_date from 5 for 2) = #{id}
+		) t1
+    </select>
+
+	<!-- ###################################################################################### -->
+    <!-- HSE 목표 및 안전보건환경예산 -->
+	<!-- ###################################################################################### -->
+	<!-- 안전보건경영 방침, 목표 및 중점추진사항, 중점추진사항별 세부계획, 안전보건환경 예산 -->
+	<select id="getCountPLC" parameterType="kr.co.igns.business.notice.model.OutputVO"
+            resultType="integer">
+		select count(t1.*)
+		from esg.tb_hse_policy t1
+		where t1.comp_id = #{compId}
+			and t1.confirm_yn = 'Y'
+            and t1.use_yn = 'Y'
+    </select>
+	<select id="getCountOBJ" parameterType="kr.co.igns.business.notice.model.OutputVO"
+            resultType="integer">
+		select count(t1.*)
+		from esg.tb_action_objective_plan t1
+		where t1.write_year = #{writeYear}
+			and t1.comp_id = #{compId}
+			and t1.use_yn = 'Y'
+    </select>
+	<select id="getCountOBJM" parameterType="kr.co.igns.business.notice.model.OutputVO"
+            resultType="integer">
+		select count(t1.*)
+		from esg.tb_action_detail_plan t1
+		where t1.write_year = #{writeYear}
+			and t1.comp_id = #{compId}
+			and t1.use_yn = 'Y'
+    </select>
+	<select id="getCountOBJB" parameterType="kr.co.igns.business.notice.model.OutputVO"
+            resultType="integer">
+		select count(t1.*)
+		from esg.tb_action_detail_plan t1
+		where t1.write_year = #{writeYear}
+			and t1.comp_id = #{compId}
+			and t1.use_yn = 'Y'
+    </select>
+
+	<!-- ###################################################################################### -->
+    <!-- 안전보건목표 및 추진실적 -->
+	<!-- ###################################################################################### -->
+	<!-- 안전보건목표, HSE 중점 추진 실적 -->
+	<select id="getCountSHO" parameterType="kr.co.igns.business.notice.model.OutputVO"
+            resultType="integer">
+		select count(t1.*)
+		from esg.tb_safety_health_objectives t1
+		where t1.write_year = #{writeYear}
+			and t1.comp_id = #{compId}
+            and t1.use_yn = 'Y'
+    </select>
+
+	<select id="getCountSHOP" parameterType="kr.co.igns.business.notice.model.OutputVO"
+            resultType="integer">
+		select count(t1.*)
+		from esg.tb_safety_health_objectives t1
+		where t1.write_year = #{writeYear}
+			and t1.comp_id = #{compId}
+            and t1.use_yn = 'Y'
+    </select>
+</mapper>

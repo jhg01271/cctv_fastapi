@@ -42,3 +42,5 @@ volume/tests/
 *.avi
 *.jpg
 *.png
+
+safewiz-pro-main (backend)/safewiz-pro-main/src/main/resources/firebase/firebase_service_key.json

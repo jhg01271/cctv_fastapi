@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.planning.dao.postgres.RiskAssessmentDAO">
+    <select id='getRiskAssessment' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.planning.model.RiskAssessmentVO'>
+        SELECT
+            'preRiskAssessment' AS title
+            ,'/PreRiskAssessment' AS route
+            ,'preRiskAssessmentDesc' AS description
+            , case when preRiskAssessment.exist then 'Y'
+            	else 'N'
+            	end as activeYn
+        FROM
+        (
+            SELECT EXISTS (
+                SELECT 1
+                FROM esg.tb_safety_and_health_info_survey                
+                WHERE comp_id  = #{compId}
+                  AND confirm_yn = 'Y'
+                  AND use_yn = 'Y'
+                UNION ALL
+               SELECT 1
+                 FROM esg.tb_workers_opinions_on_hazards_info
+                WHERE comp_id  = #{compId}
+                  AND write_year = #{searchText}
+                  AND use_yn = 'Y'
+            ) as exist
+        ) AS preRiskAssessment
+        UNION ALL
+        SELECT
+            'classificationProcessEquipMsds' AS title
+            ,'/ClassificationProcessEquipMsds' AS route
+            ,'classificationProcessEquipMsdsDesc' AS description
+            , CASE WHEN classificationProcessEquipMsds.exist THEN 'Y'
+            	ELSE 'N'
+            	END AS activeYn
+        FROM
+        (
+            SELECT EXISTS (
+                SELECT 1
+                  FROM esg.tb_classification_process_equip_msds
+                 WHERE comp_id  = #{compId}
+                   AND confirm_yn = 'Y'
+                   AND use_yn = 'Y'
+            ) as exist
+        ) AS classificationProcessEquipMsds
+        UNION ALL
+        SELECT
+            'ResultOfRiskAssessmentTraining' AS title
+            ,'/ResultOfRiskAssessmentTraining' AS route
+            ,'ResultOfRiskAssessmentTrainingDesc' AS description
+            , CASE WHEN ResultOfRiskAssessmentTraining.exist THEN 'Y'
+            	ELSE 'N'
+            	END AS activeYn
+        FROM
+        (
+           SELECT EXISTS (
+                SELECT 1
+                  FROM esg.tb_result_of_risk_assessment_training
+                 WHERE comp_id  = #{compId}
+                   AND write_year = #{searchText}
+                   AND use_yn = 'Y'
+            ) as exist
+        ) AS ResultOfRiskAssessmentTraining
+        UNION ALL
+        SELECT
+            'riskAssessmentTable' AS title
+            ,'/RiskAssessmentTable' AS route
+            ,'riskAssessmentTableDesc' AS description
+            , CASE WHEN riskAssessmentTable.exist THEN 'Y'
+            	ELSE 'N'
+            	END AS activeYn
+        FROM
+        (
+           SELECT EXISTS (
+                SELECT 1
+                  FROM esg.tb_classification_hazards
+                 WHERE comp_id  = #{compId}
+                   AND write_year = #{searchText}
+                   AND use_yn = 'Y'
+                 UNION ALL
+                SELECT 1
+                  FROM esg.tb_risk_assessment_plan
+                 WHERE comp_id  = #{compId}
+                   AND write_year = #{searchText}
+                   AND use_yn = 'Y'
+                 UNION ALL
+                 SELECT 1
+                  FROM esg.tb_risk_assessment_implementation trai
+                  LEFT JOIN esg.tb_risk_assessment_plan trap
+                    ON trai.write_year = trap.write_year
+                   AND trai.doc_no = trap.doc_no
+                 WHERE trai.write_year = #{searchText} AND trap.comp_id = #{compId}
+                   AND trai.use_yn = 'Y' AND trap.use_yn = 'Y'
+            ) as exist
+        ) AS riskAssessmentTable
+        UNION ALL
+        SELECT
+            'improvementAndImplementation' AS title
+            ,'/ImprovementAndImplementation' AS route
+            ,'improvementAndImplementationDesc' AS description
+            , CASE WHEN improvementAndImplementation.exist THEN 'Y'
+            	ELSE 'N'
+            	END AS activeYn
+        FROM
+        (
+           SELECT EXISTS (
+                SELECT 1
+                  FROM esg.tb_risk_assessment_implementation trai
+                  LEFT JOIN esg.tb_risk_assessment_plan trap
+                    ON trai.write_year = trap.write_year
+                   AND trai.doc_no = trap.doc_no
+                  LEFT JOIN esg.tb_risk_assessment_implementation_reduction trair
+                    ON trai.write_year = trair.write_year
+                   AND trai.doc_no = trair.doc_no
+                 WHERE trai.write_year = #{searchText} AND trap.comp_id = #{compId}
+                   AND trai.use_yn = 'Y' AND trap.use_yn = 'Y'
+                   AND trair.completed_date IS NOT NULL
+            ) as exist
+        ) AS improvementAndImplementation
+        
+    </select>
+</mapper>

@@ -1,0 +1,182 @@
+--- # 프레임워크 공통설정
+spring:
+  application:
+    name: i-framework
+    version: "1.0.0"
+  output: # 로그 색상
+    ansi:
+      enabled: always
+  banner: # 배너
+    location: classpath:templates/banner.txt
+  main:
+    allow-circular-references: true # 순환 참조 허용
+  profiles: # 동작 profile
+    active: dev
+  messages: # 스프링 부트 메시지 관련 설정
+    basename: message/exception
+    encoding: UTF-8
+  jpa: # JPA 설정
+    open-in-view: true
+    generate-ddl: true
+    properties:
+      hibernate: # 방언 설정
+        show_sql: true # 하이버네이트가 실행하는 모든 SQL문을 콘솔로 출력
+        format_sql: true # 콘솔에 출력되는 JPA 실행 쿼리를 가독성있게 표현
+        use_sql_comments: true # 디버깅이 용이하도록 SQL문 이외에 추가적인 정보를 출력
+        ddl_auto: update # 서버 시작시 Entity와 실제 Table을 비교하여 변경된 내용을 반영하고, 없으면 새로 생성 (none, update)
+  restTemplate: # 다른 서버에 Rest요청을 할 때 필요한 설정을 해주는 클래스 (kr.co.igns.framework.config.restTemplate)
+    factory:
+      readTimeout: 5000
+      connectTimeout: 3000
+    httpClient:
+      maxConnTotal: 100
+      maxConnPerRoute: 5
+  thymeleaf: # 메일 발송 시 사용하는 html 템플릿
+    check-template-location: true
+    prefix: classpath:/templates/
+    surfix: html
+    mod: HTML5
+    encoding: UTF-8
+    cache: false
+    order: 0
+  mail:
+    host: mail.officehub.kr
+#    port: 465 # 보안 포트
+    port: 25 # 기본 포트
+    username: "rmadmin@i-gns.co.kr"
+    password: "!Gns25459"
+    properties:
+      mail:
+        debug: true
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+          ssl:
+            enable: false
+
+user:
+  default-status: waiting
+  reset-password-url: http://localhost:5173/resetUserPs?key=
+  remember-user-id: 2592000 # 60 * 60 * 24 * 30 (30일)
+
+jwt:
+  secretKey: WQJEQIEQWIEJQWID21312JMDKWQI99381DJWI1930D
+  access:
+    expiration: 36000000 # 1시간(60분) (1000L(ms -> s) * 60L(s -> m) * 60L(m -> h))
+    header: Authorization
+  refresh:
+    expiration: 2592000000 #  (1000L(ms -> s) * 60L(s -> m) * 60L(m -> h) * 24L(h -> 하루) * 30(한 달))
+    header: Authorization-refresh
+  invite:
+    expiration: 2592000000 #  (1000L(ms -> s) * 60L(s -> m) * 60L(m -> h) * 24L(h -> 하루) * 30(한 달))
+  verify:
+    expiration: 1800000 #  (1000L(ms -> s) * 60L(s -> m) * 30L(m -> 30m)) 30분
+  initialize:
+    expiration: 600000 #  (1000L(ms -> s) * 60L(s -> m) * 10L(m -> 10m)) 10분
+
+# sso 인증서버 활성화 여부
+sso:
+  enabled: false
+  auth: http://localhost:9000
+
+file:
+  #upload-dir: C:/src/esg # 로컬테스트 시 사용
+  #upload-dir: /file-uploads # 서버 파일 경로. docker-compose.xml에서도 설정 가능함
+  max-size: 10737418240 # 5242880 # 1024 * 1024 * 5
+  allow-delete: true
+  target: nas # local or nas
+  nas:
+    ip: 192.168.0.40
+    user: iljoouser
+    pass: "&Gns1234*00"
+    share-folder: FileServer
+    fo-path: "개발실/■ Project/ESG경영/ESG_File_Upload/safewizpro_dev"
+
+plantFile: /Users/thub34/source/i-back-end/발전소테스트
+boardFile: /Users/thub34/source/i-back-end/공지사항
+helpFile: /Users/thub34/source/i-back-end/help
+
+external-encrypt:
+  key: 'SCFOZXQyMDIw'
+  secret-key-factory: 'PBKDF2WithHmacSHA1'
+  cipher: 'AES/CBC/PKCS5Padding'  
+
+msds:
+  url: "https://msds.kosha.or.kr/openapi/service/msdschem"
+  key:
+    encoding: "4QeNdF3rnMBb16aF2Saf2wY7iS7YUrgkpaWNQTP3A8j8lnALHMyLxdgqNx%2BROBs3inLElfmLjSeZTMq%2FcHeKVA%3D%3D"
+    decoding: "4QeNdF3rnMBb16aF2Saf2wY7iS7YUrgkpaWNQTP3A8j8lnALHMyLxdgqNx+ROBs3inLElfmLjSeZTMq/cHeKVA=="
+
+dateFormat: yyyy.MM.dd # 날짜 포맷 설정
+#############################################################################################################################################################
+--- #개발(dev)
+server: # 서버 설정
+  port: 9000
+  servlet:
+    context-path: /
+spring:
+  config:
+    activate:
+      on-profile: dev
+#  redis: # redis 설정
+#    host: 127.0.0.1
+#    port: 6379
+#  cache:
+#    type: redis
+  datasource: # DB 접속정보
+    hikari:
+      first:
+        driver-class-name: net.sf.log4jdbc.sql.jdbcapi.DriverSpy
+        jdbc-url: jdbc:log4jdbc:postgresql://192.168.0.84:5432/safewizpro
+        username: safewizpro
+        password: esg2024
+        type: com.zaxxer.hikari.HikariDataSource
+#        keepalive-time: 180000
+#        maximum-pool-size: 20
+#      second:
+#        driver-class-name: net.sf.log4jdbc.sql.jdbcapi.DriverSpy
+#        jdbc-url: jdbc:log4jdbc:postgresql://192.168.0.24:5432/safewizpro
+#        username: safewizpro
+#        password: esg2024
+#        type: com.zaxxer.hikari.HikariDataSource
+        #keepalive-time: 180000
+        #maximum-pool-size: 20
+  servlet:
+    multipart:
+      max-file-size: 10GB
+      max-request-size: 10GB
+      enabled: true
+
+logging: # 로그 관련 설정
+  config: classpath:log4j/log4j2_dev.xml
+  console: UTF-8
+  file: UTF-8
+
+#############################################################################################################################################################
+--- #운영(prod)
+server: # 서버 설정
+  port: 9000
+  forward-headers-strategy: framework
+
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource: # DB 접속정보
+    hikari:
+      first:
+        driver-class-name: net.sf.log4jdbc.sql.jdbcapi.DriverSpy
+        jdbc-url: jdbc:log4jdbc:postgresql://192.168.0.24:5432/safewizpro
+        username: safewizpro
+        password: esg2024
+        type: com.zaxxer.hikari.HikariDataSource
+
+  servlet:
+    multipart:
+      max-file-size: 10GB
+      max-request-size: 10GB
+      enabled: true
+      
+logging: # 로그 관련 설정 파일 위치
+  config: classpath:log4j/log4j2_prod.xml

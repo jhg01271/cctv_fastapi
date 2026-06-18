@@ -1,0 +1,939 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.dashboard.dao.postgres.DashboardDAO">
+
+<!--    kr.co.igns.business.dashboard.model.DashboardVO-->
+    <select id='getLegalManageDashboard' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='int'>
+
+        SELECT COUNT(*)
+          FROM esg.tb_legal_manage
+         WHERE comp_id = #{compId}
+           AND confirmed_yn = 'Y'
+           AND use_yn = 'Y'
+
+    </select>
+
+    <select id='getLegalReviewDashboard' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='int'>
+
+        SELECT COUNT(*)
+          FROM esg.tb_legal_review
+         WHERE comp_id = #{compId}
+           AND write_year = #{writeYear}
+           AND use_yn = 'Y'
+
+    </select>
+
+    <select id='getRiskDashboard' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='int'>
+
+        SELECT COUNT(A.*)
+          FROM esg.tb_risks_and_opportunities_risk_detail A
+	 LEFT JOIN esg.tb_risks_and_opportunities B
+            ON A.write_year = B.write_year
+           AND A.doc_type = B.doc_type
+           AND A.doc_no = B.doc_no
+         WHERE B.comp_id = #{compId}
+           AND A.write_year = #{writeYear}
+           AND A.use_yn = 'Y'
+           AND B.use_yn = 'Y'
+
+    </select>
+
+    <select id='getRiskPerPresentDashboard' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.dashboard.model.DashboardPerVO'>
+
+         SELECT
+               A.present_level as name,
+               COUNT(A.*) AS cnt
+          FROM
+               esg.tb_risks_and_opportunities_risk_detail A
+     LEFT JOIN esg.tb_risks_and_opportunities B
+            ON A.write_year = B.write_year
+           AND A.doc_type = B.doc_type
+           AND A.doc_no = B.doc_no
+         WHERE B.comp_id = #{compId}
+           AND B.write_year = #{writeYear}
+           AND A.use_yn = 'Y'
+           AND B.use_yn = 'Y'
+      GROUP BY
+            A.present_level
+      ORDER BY
+            cnt DESC
+
+    </select>
+
+    <select id='getRiskPerMasureDashboard' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.dashboard.model.DashboardPerVO'>
+
+       SELECT
+              A.measure_level as name,
+              COUNT(A.*) AS cnt
+         FROM
+              esg.tb_risks_and_opportunities_risk_detail A
+    LEFT JOIN esg.tb_risks_and_opportunities B
+           ON A.write_year = B.write_year
+          AND A.doc_type = B.doc_type
+          AND A.doc_no = B.doc_no
+        WHERE B.comp_id = #{compId}
+          AND B.write_year = #{writeYear}
+          AND A.use_yn = 'Y'
+          AND B.use_yn = 'Y'
+     GROUP BY
+            A.measure_level
+     ORDER BY
+            cnt DESC
+
+    </select>
+
+    <select id='getOppDashboard' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='int'>
+
+        SELECT COUNT(A.*)
+          FROM esg.tb_risks_and_opportunities_opp_detail A
+     LEFT JOIN esg.tb_risks_and_opportunities B
+            ON A.write_year = B.write_year
+           AND A.doc_type = B.doc_type
+           AND A.doc_no = B.doc_no
+         WHERE B.comp_id = #{compId}
+           AND B.write_year = #{writeYear}
+           AND A.use_yn = 'Y'
+           AND B.use_yn = 'Y'
+
+    </select>
+
+    <select id='getOppPerDashboard' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.dashboard.model.DashboardPerVO'>
+
+        SELECT
+              A.opp_level as name,
+              COUNT(A.*) AS cnt
+          FROM
+              esg.tb_risks_and_opportunities_opp_detail A
+     LEFT JOIN esg.tb_risks_and_opportunities B
+            ON A.write_year = B.write_year
+           AND A.doc_type = B.doc_type
+           AND A.doc_no = B.doc_no
+         WHERE B.comp_id = #{compId}
+           AND B.write_year = #{writeYear}
+           AND A.use_yn = 'Y'
+           AND B.use_yn = 'Y'
+      GROUP BY
+            A.opp_level
+      ORDER BY
+            cnt DESC
+
+    </select>
+
+    <select id="getCorrectiveActionRequestDashboard" parameterType='kr.co.igns.system.common.model.SpSearchVO'  resultType='int'>
+
+        SELECT COUNT(A.*)
+          FROM esg.tb_corrective_action_request A
+         WHERE A.comp_id = #{compId}
+           AND A.write_year = #{writeYear}
+           AND A.use_yn = 'Y'
+           AND A.car_type='I'
+
+    </select>
+
+    <select id='getCorrectiveActionRequestPerDashboard' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.dashboard.model.DashboardPerVO'>
+
+        SELECT
+            CASE
+                WHEN A.result_validation_yn = 'N' THEN 'dashboard_actionPending'
+                WHEN A.result_validation_yn = 'S' THEN 'dashboard_actionCompleted'
+                WHEN A.result_validation_yn = 'F' THEN 'dashboard_nonConformance'
+                ELSE '기타' -- 다른 값이 있을 경우를 대비한 처리
+            END AS name,
+            COUNT(A.*) AS cnt
+          FROM esg.tb_corrective_action_request A
+         WHERE A.comp_id = #{compId}
+           AND A.write_year = #{writeYear}
+           AND A.use_yn = 'Y'
+           AND A.car_type = 'I'
+         GROUP BY
+            A.result_validation_yn
+         ORDER BY
+             cnt DESC
+
+    </select>
+    
+    <select id='getMonitoringActionRequestPerDashboard' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.dashboard.model.DashboardPerVO'>
+
+        SELECT
+            CASE
+                WHEN A.result_validation_yn = 'N' THEN 'dashboard_actionPending'
+                WHEN A.result_validation_yn = 'S' THEN 'dashboard_actionCompleted'
+                WHEN A.result_validation_yn = 'F' THEN 'dashboard_nonConformance'
+                ELSE '기타' -- 다른 값이 있을 경우를 대비한 처리
+            END AS name,
+            COUNT(A.*) AS cnt
+          FROM esg.tb_corrective_action_request A
+         WHERE A.comp_id = #{compId}
+           AND A.write_year = #{writeYear}
+           AND A.use_yn = 'Y'
+           AND A.car_type = 'E'
+         GROUP BY
+            A.result_validation_yn
+         ORDER BY
+             cnt DESC
+
+    </select>
+    
+    <select id='getOhsActionRequestPerDashboard' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.dashboard.model.DashboardPerVO'>
+
+        SELECT
+            CASE
+                WHEN A.validate = 'D' THEN 'dashboard_actionPending'
+                WHEN A.validate = 'Y' THEN 'dashboard_actionCompleted'
+                WHEN A.validate = 'N' THEN 'dashboard_nonConformance'
+                ELSE '기타' -- 다른 값이 있을 경우를 대비한 처리
+            END AS name,
+            COUNT(A.*) AS cnt
+          FROM esg.tb_ohs_corractive_action_request A
+         WHERE A.comp_id = #{compId}
+           AND A.write_year = #{writeYear}
+           AND A.use_yn = 'Y'
+         GROUP BY
+            A.validate
+         ORDER BY
+             cnt DESC
+
+    </select>
+
+    <select id='getCorrectiveActionRequestOrgnDashboard' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.dashboard.model.DashboardPerVO'>
+
+        SELECT
+                CASE
+                    WHEN A.action_orgn_nm = '' THEN '미설정'
+                    ELSE A.action_orgn_nm
+                END AS name,
+               COUNT(A.*) AS cnt
+          FROM esg.tb_corrective_action_request A
+         WHERE A.comp_id = #{compId}
+           AND A.write_year = #{writeYear}
+           AND A.use_yn = 'Y'
+           AND A.car_type='I'
+      GROUP BY
+                CASE
+                    WHEN A.action_orgn_nm = '' THEN '미설정'
+                    ELSE A.action_orgn_nm
+                END
+      ORDER BY
+               cnt DESC
+
+    </select>
+    
+    <select id='getMonitoringActionRequestOrgnDashboard' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.dashboard.model.DashboardPerVO'>
+
+        SELECT
+                CASE
+                    WHEN A.action_orgn_nm = '' THEN '미설정'
+                    ELSE A.action_orgn_nm
+                END AS name,
+               COUNT(A.*) AS cnt
+          FROM esg.tb_corrective_action_request A
+         WHERE A.comp_id = #{compId}
+           AND A.write_year = #{writeYear}
+           AND A.use_yn = 'Y'
+           AND A.car_type='E'
+      GROUP BY
+                CASE
+                    WHEN A.action_orgn_nm = '' THEN '미설정'
+                    ELSE A.action_orgn_nm
+                END
+      ORDER BY
+               cnt DESC
+
+    </select>
+    
+    <select id='getOhsActionRequestOrgnDashboard' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.dashboard.model.DashboardPerVO'>
+               
+		select 
+				CASE
+                    WHEN t3.orgn_nm = '' THEN '미설정'
+                    ELSE t3.orgn_nm
+                END AS name,
+                COUNT(t.*) AS cnt
+		from esg.tb_ohs_corractive_action_request t, esg.tb_audit_result_report t2, esg.tb_orgn_info t3 
+		where t.doc_no = t2.doc_no 
+		and t.doc_seq = t2.doc_seq
+		and t.use_yn  = 'Y'
+		and t2.use_yn  = 'Y'  
+		and t2.orgn_id = t3.orgn_id 
+		group by t3.orgn_nm
+		order by cnt desc
+
+    </select> 
+
+    <select id='getEvaluationDetailDashboard' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='int'>
+        SELECT COUNT(B.*)
+          FROM esg.tb_evaluation_report A
+     LEFT JOIN esg.tb_evaluation_report_detail B
+            ON A.write_year = B.write_year
+           AND A.doc_type = B.doc_type
+           AND A.doc_no = B.doc_no
+         WHERE A.comp_id = #{compId}
+           AND A.write_year = #{writeYear}
+           AND A.use_yn = 'Y'
+    </select>
+
+    <select id='getEvaluationDetailPerDashboard' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.dashboard.model.DashboardPerVO'>
+
+        WITH categories AS (
+            SELECT 'dashboard_compliance' AS name
+            UNION ALL
+            SELECT 'dashboard_high'
+            UNION ALL
+            SELECT 'dashboard_medium'
+            UNION ALL
+            SELECT 'dashboard_low'
+        ),
+        categorized_data AS (
+              SELECT
+                CASE
+                    WHEN B.achievement_rate >= 90 THEN 'dashboard_compliance'
+                    WHEN B.achievement_rate >= 80 THEN 'dashboard_high'
+                    WHEN B.achievement_rate >= 70 THEN 'dashboard_medium'
+                    ELSE 'dashboard_low'
+                    END AS name
+                FROM esg.tb_evaluation_report A
+           LEFT JOIN esg.tb_evaluation_report_detail B
+                  ON A.write_year = B.write_year
+                 AND A.doc_type = B.doc_type
+                 AND A.doc_no = B.doc_no
+               WHERE A.comp_id = #{compId}
+                 AND A.write_year = #{writeYear}
+                 AND A.use_yn = 'Y'
+        )
+        SELECT
+               C.name,
+               COUNT(D.*) AS cnt
+          FROM categories C
+     LEFT JOIN categorized_data D
+            ON C.name = D.name
+      GROUP BY
+            C.name
+      ORDER BY
+          CASE
+          WHEN C.name = 'dashboard_compliance' THEN 1
+          WHEN C.name = 'dashboard_high' THEN 2
+          WHEN C.name = 'dashboard_medium' THEN 3
+          WHEN C.name = 'dashboard_low' THEN 4
+        END
+
+    </select>
+
+    <select id='getAuditExecutionDashboard' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.dashboard.model.DashboardByOrgnVO'>
+
+        WITH audit_execution AS (SELECT
+                                       O.ord_seq,
+                                       O.orgn_nm,
+                                       CASE
+                                       WHEN E.signature != '' THEN 'dashboard_completed'
+                                       WHEN EXISTS (
+                                             SELECT 1
+                                               FROM esg.tb_audit_result_report_detail C
+                                              WHERE C.write_year = D.write_year
+                                                AND C.doc_no = D.doc_no
+                                                AND C.doc_seq = D.doc_seq
+                                       ) THEN 'dashboard_inProgress'
+                                       ELSE 'dashboard_pending'
+                                       END AS result_status
+                                 FROM esg.tb_audit_execution_plan_detail A
+                            LEFT JOIN esg.tb_audit_execution_plan B
+                                   ON A.write_year = B.write_year
+                                  AND A.doc_type = B.doc_type
+                                  AND A.doc_no = B.doc_no
+                            LEFT JOIN esg.tb_audit_result_report D
+                                   ON D.write_year = A.write_year
+                                  AND D.doc_no = A.doc_no
+                                  AND A.doc_seq = D.doc_seq
+                            LEFT JOIN esg.tb_approval_info E
+                                   ON E.target_type = 'ARR'
+                                  AND E.target_id = D.write_year || D.doc_no || D.doc_seq
+                                  AND E.param = 'writer'
+                            LEFT JOIN esg.tb_orgn_info O
+                                   ON O.orgn_id = A.orgn_id
+                                WHERE B.comp_id = #{compId}
+                                  AND B.write_year = #{writeYear}
+                                  AND A.use_yn = 'Y'
+                                  AND B.use_yn = 'Y'
+                                  AND (D.use_yn IS NULL OR D.use_yn = 'Y')
+<!--                                  AND TO_CHAR(TO_DATE(A.audit_dt, 'YYYYMMDD'), 'YYYY') = substring(#{searchText} from 0 for 5)-->
+                                  AND TO_CHAR(TO_DATE(A.audit_dt, 'YYYYMMDD'), 'YYYY') = #{writeYear}
+                           )
+        SELECT
+              orgn_nm,
+              SUM(CASE WHEN result_status = 'dashboard_inProgress' THEN 1 ELSE 0 END) AS progress,
+              SUM(CASE WHEN result_status = 'dashboard_completed' THEN 1 ELSE 0 END) AS complete,
+              SUM(CASE WHEN result_status = 'dashboard_pending' THEN 1 ELSE 0 END) AS waiting
+         FROM audit_execution
+     GROUP BY orgn_nm, ord_seq
+     ORDER BY ord_seq
+
+    </select>
+
+    <select id="getRiskAssessmentDashboard"
+            parameterType="kr.co.igns.system.common.model.SpSearchVO"
+            resultType="kr.co.igns.business.dashboard.model.DashboardRiskAssessmentVO">
+        <![CDATA[
+            SELECT D.orgn_nm,
+                   COUNT(DISTINCT CASE WHEN B.doc_seq IS NOT NULL THEN (B.write_year, B.doc_type, B.doc_no, B.doc_seq) END) AS risk_reg_cnt,
+                   COUNT(C.reduction_measures) AS reduct_reg_cnt,
+                   COUNT(C.reduction_measures) AS reduct_act_cnt1,
+                   COUNT(CASE WHEN C.completed_date != '' AND C.completed_date IS NOT NULL THEN 1 END) AS reduct_act_cnt2
+              FROM esg.tb_risk_assessment_plan A
+             INNER JOIN esg.tb_orgn_info D
+                ON A.orgn_id = D.orgn_id
+              LEFT JOIN esg.tb_risk_assessment_implementation B
+                ON A.write_year = B.write_year
+               AND A.doc_type = B.doc_type
+               AND A.doc_no = B.doc_no
+               AND B.use_yn = 'Y'
+              LEFT JOIN esg.tb_risk_assessment_implementation_reduction C
+                ON B.write_year = C.write_year
+               AND B.doc_type = C.doc_type
+               AND B.doc_no = C.doc_no
+               AND B.doc_seq = C.doc_seq
+               AND C.use_yn = 'Y'
+             WHERE A.comp_id = #{compId}
+               AND A.write_year = #{writeYear}
+               AND A.use_yn = 'Y'
+               AND (
+                        -- START_DATE가 해당 연도에 포함되는 경우
+                        (TO_DATE(A.START_DATE, 'YYYYMMDD') >= TO_DATE(#{writeYear}, 'YYYY')
+                        AND TO_DATE(A.START_DATE, 'YYYYMMDD') <= TO_DATE(#{writeYear}, 'YYYY') + INTERVAL '1 YEAR' - INTERVAL '1 DAY')
+                    OR
+                        -- END_DATE가 해당 연도에 포함되는 경우
+                        (TO_DATE(A.END_DATE, 'YYYYMMDD') >= TO_DATE(#{writeYear}, 'YYYY')
+                        AND TO_DATE(A.END_DATE, 'YYYYMMDD') <= TO_DATE(#{writeYear}, 'YYYY') + INTERVAL '1 YEAR' - INTERVAL '1 DAY')
+                    OR
+                        -- 해당 연도가 START_DATE와 END_DATE 사이에 포함되는 경우
+                        (TO_DATE(A.START_DATE, 'YYYYMMDD') <= TO_DATE(#{writeYear}, 'YYYY')
+                        AND TO_DATE(A.END_DATE, 'YYYYMMDD') >= TO_DATE(#{writeYear}, 'YYYY') + INTERVAL '1 YEAR' - INTERVAL '1 DAY')
+                    )
+             GROUP BY D.orgn_id, D.ord_seq
+             ORDER BY D.ord_seq, D.orgn_id;
+        ]]>
+    </select>
+
+    <select id='getNearMissDashboard' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.dashboard.model.DashboardByOrgnVO'>
+
+        WITH near_miss AS (
+            SELECT
+                CASE WHEN COALESCE(A.action_orgn_nm, '') = '' THEN '미설정'
+                     ELSE A.action_orgn_nm
+                    END AS action_orgn_nm,
+                CASE WHEN COALESCE(A.action_orgn_nm, '') = '' THEN 99
+                     ELSE O.ord_seq
+                    END AS ord_seq,
+                CASE
+                    WHEN A.action_dt != '' THEN 'dashboard_completed'
+                    WHEN A.receipt_dt != '' THEN 'dashboard_inProgress'
+                    ELSE 'dashboard_pending'
+                    END AS name
+             FROM esg.tb_near_miss_report A
+        LEFT JOIN esg.tb_orgn_info O
+               ON O.orgn_id = A.action_orgn_id
+            WHERE A.comp_id = #{compId}
+              AND A.write_year = #{writeYear}
+              AND A.use_yn = 'Y'
+<!--              AND TO_CHAR(TO_DATE(A.write_dt, 'YYYYMMDD'), 'YYYY') = substring(#{searchText} from 0 for 5)-->
+              AND TO_CHAR(TO_DATE(A.write_dt, 'YYYYMMDD'), 'YYYY') = #{writeYear}
+        )
+        SELECT
+            action_orgn_nm as orgn_nm,
+            SUM(CASE WHEN name = 'dashboard_completed' THEN 1 ELSE 0 END) AS complete,
+            SUM(CASE WHEN name = 'dashboard_inProgress' THEN 1 ELSE 0 END) AS progress,
+            SUM(CASE WHEN name = 'dashboard_pending' THEN 1 ELSE 0 END) AS waiting
+        FROM near_miss
+        GROUP BY action_orgn_nm, ord_seq
+        ORDER BY ord_seq
+
+    </select>
+
+    <select id='getHsePolicyDashboard' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='int'>
+
+        SELECT COUNT(*)
+          FROM esg.tb_hse_policy
+         WHERE comp_id  = #{compId}
+         	AND confirm_yn = 'Y'
+         	AND use_yn = 'Y'
+    </select>
+
+    <select id='getSafetyAndHealthObjectivesDashboard' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='int'>
+
+        SELECT COUNT(B.*)
+          FROM esg.tb_safety_health_objectives A
+     LEFT JOIN esg.tb_safety_health_objectives_detail B
+            ON B.doc_type = A.doc_type
+           AND B.doc_no = A.doc_no
+           AND B.orgn_id = A.orgn_id
+         WHERE A.comp_id  = #{compId}
+           AND A.write_year = #{writeYear}
+           AND A.use_yn = 'Y'
+           AND B.use_yn = 'Y'
+
+    </select>
+
+	<!-- 2025.11.14 BHJ 안전보건환경 예산 출력물의 합계와 맞추기 위해 만원단위 반올림 계산 적용 -->
+    <select id='getBudgetDashboard' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='int'>     
+        SELECT COALESCE(SUM(ROUND(COALESCE(d.budget, 0) / 10000.0)), 0) AS budget  
+          FROM esg.tb_action_master tam
+     LEFT JOIN esg.tb_action_objective_plan a ON tam.write_year = a.write_year and tam.doc_type = a.doc_type and tam.doc_no = a.doc_no and tam.comp_id = a.comp_id
+     LEFT JOIN esg.tb_action_detail_plan b ON a.write_year = b.write_year AND a.comp_id = b.comp_id AND a.doc_no = b.doc_no AND a.doc_seq = b.doc_seq
+     LEFT JOIN esg.tb_orgn_map c ON c.target_id = a.write_year || a.doc_no || a.doc_seq and c.target_type = tam.doc_type and c.use_yn = 'Y'
+     LEFT JOIN esg.tb_action_performance d ON a.write_year = d.write_year AND a.comp_id = d.comp_id AND a.doc_no = d.doc_no AND a.doc_seq = d.doc_seq AND b.doc_detail_seq = d.doc_detail_seq and c.orgn_id = d.orgn_id
+         WHERE a.comp_id = #{compId}
+           AND a.write_year = #{writeYear}
+           AND a.use_yn = 'Y'
+           AND b.use_yn = 'Y'
+    </select>
+
+	<!-- 2025.11.14 BHJ 안전보건환경 예산 출력물의 합계와 맞추기 위해 만원단위 반올림 계산 적용 -->
+    <select id='getPerformanceDashboard' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='int'>
+        SELECT COALESCE(SUM(ROUND(COALESCE(d.performance_amount, 0) / 10000.0)), 0) as performance
+          FROM esg.tb_action_objective_plan a
+        LEFT JOIN esg.tb_action_detail_plan b ON a.write_year = b.write_year and a.comp_id = b.comp_id and a.doc_type = b.doc_type AND a.doc_no = b.doc_no AND a.doc_seq  = b.doc_seq
+        LEFT JOIN esg.tb_action_performance c ON a.write_year = c.write_year and a.comp_id = c.comp_id AND a.doc_type = c.doc_type AND a.doc_no = c.doc_no AND a.doc_seq = c.doc_seq AND b.doc_detail_seq = c.doc_detail_seq
+        LEFT JOIN esg.tb_action_performance_detail d ON c.write_year = d.write_year AND a.comp_id = d.comp_id and c.doc_type = d.doc_type AND c.doc_no = d.doc_no AND c.doc_seq = d.doc_seq AND c.doc_detail_seq = d.doc_detail_seq AND c.doc_performance_seq = d.doc_performance_seq
+         WHERE a.comp_id = #{compId}
+           AND a.write_year = #{writeYear}
+           AND a.use_yn = 'Y'
+           AND b.use_yn = 'Y'
+           AND d.use_yn = 'Y'
+    </select>
+
+    <select id='getHseKeyPerformanceDashboard' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.dashboard.model.DashboardHseKeyPerformanceVO'>
+
+        SELECT D.detail_plan AS safety_health_goal,
+               100 as objective_per,
+               COUNT(CASE WHEN C.percent != '' THEN 1 END) as performance_cnt,
+               CASE
+                   WHEN COUNT(CASE WHEN C.percent != '' THEN 1 END) > 0
+                   THEN SUM(COALESCE(NULLIF(C.percent, '')::FLOAT, 0)) / COUNT(CASE WHEN C.percent != '' THEN 1 END)
+                   ELSE 0
+               END as per
+          FROM esg.tb_safety_health_objectives A
+     LEFT JOIN esg.tb_safety_health_objectives_detail B
+            ON B.doc_type = A.doc_type
+           AND B.doc_no = A.doc_no
+           AND B.orgn_id = A.orgn_id
+           AND B.use_yn = 'Y'
+     LEFT JOIN esg.tb_hse_key_performance_result C
+            ON B.doc_no = C.doc_no
+           AND B.write_year = C.write_year
+           AND B.doc_seq = C.doc_seq
+           AND (C.use_yn IS NULL OR C.use_yn = 'Y')
+     LEFT JOIN esg.tb_action_detail_plan D
+            ON B.write_year = D.write_year
+           AND B.action_doc_no = D.doc_no
+           AND B.action_doc_seq = D.doc_seq
+           AND B.action_doc_detail_seq = D.doc_detail_seq
+           AND D.use_yn = 'Y'
+           AND D.comp_id  = #{compId}
+         WHERE A.comp_id  = #{compId}
+           AND A.write_year = #{writeYear}
+           AND A.use_yn = 'Y'
+      GROUP BY B.write_year, B.action_doc_type, B.action_doc_no, B.action_doc_seq, B.action_doc_detail_seq, D.detail_plan
+      ORDER BY D.detail_plan
+
+    </select>
+
+    <select id='getToolBoxMeetingDashboard' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.dashboard.model.DashboardTBMVO'>
+
+            WITH date_series AS (
+                SELECT
+                GENERATE_SERIES(
+                    (CURRENT_DATE - (COALESCE(#{searchText2},'7') || ' DAYS')::INTERVAL ) + INTERVAL '1 DAY',
+                    CURRENT_DATE,
+                    INTERVAL '1 DAY'
+                )::DATE AS tbm_date
+            ),
+            signatures AS (
+                SELECT
+                       target_type,
+                       target_id,
+                       CASE
+                           WHEN COUNT(CASE WHEN signature IS NULL THEN 0 END) > 0 THEN 0
+                           ELSE 1
+                       END AS complete_yn
+                  FROM esg.tb_approval_info
+                 WHERE type IN ('attend', 'leader')
+              GROUP BY target_type,target_id
+            )
+            SELECT
+                  D.tbm_date,
+                  COALESCE(COUNT(A.*), 0) AS count_per_day,
+                  COALESCE(SUM(CASE WHEN C.complete_yn = 1 THEN 1 ELSE 0 END), 0) AS complete_per_day
+             FROM date_series D
+        LEFT JOIN esg.tb_toolboxmeeting A
+               ON TO_DATE(A.tbm_date, 'YYYYMMDD') = D.tbm_date
+              AND A.comp_id = #{compId}
+              AND A.write_year = #{writeYear}
+              AND A.use_yn = 'Y'
+        LEFT JOIN signatures C
+               ON C.target_type = A.doc_type
+              AND C.target_id = A.write_year || A.doc_no
+         GROUP BY D.tbm_date
+         ORDER BY D.tbm_date;
+
+    </select>
+
+    <select id='getAnnualTrainingPlanDashboard' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='int'>
+
+        SELECT COUNT(A.*)
+          FROM esg.tb_training_plan_annual A
+         WHERE A.comp_id = #{compId}
+           AND A.write_year = #{writeYear}
+           AND A.use_yn = 'Y'
+
+    </select>
+
+    <select id='getAnnualTrainingHrDashboard' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.dashboard.model.DashboardTrainingVO'>
+
+        WITH month_series AS (
+            SELECT TO_CHAR(TO_DATE(#{writeYear} || LPAD(i::text, 2, '0'), 'YYYYMM'), 'YYYYMM') AS training_month
+              FROM generate_series(1, 12) AS s(i)
+        ),
+        implementation_data AS (
+            SELECT
+                   TO_CHAR(TO_DATE(training_date, 'YYYYMMDD'), 'YYYYMM') AS training_month,
+                   COUNT(CASE WHEN B.hr_id != '' THEN 1 END) AS cnt
+              FROM esg.tb_training_plan_implementation A
+         LEFT JOIN esg.tb_training_plan_implementation_learner B ON A.write_year = B.write_year AND A.doc_type = B.doc_type AND A.doc_no = B.doc_no
+             WHERE A.comp_id = #{compId}
+               AND A.write_year = #{writeYear}
+               AND A.use_yn = 'Y'
+          GROUP BY TO_CHAR(TO_DATE(training_date, 'YYYYMMDD'), 'YYYYMM')
+        ),
+        result_data AS (
+            SELECT
+                  TO_CHAR(TO_DATE(training_date, 'YYYYMMDD'), 'YYYYMM') AS training_month,
+                  COUNT(CASE WHEN B.signature != '' THEN 1 END) AS cnt
+             FROM esg.tb_training_result_report A
+        LEFT JOIN esg.tb_approval_info B
+               ON B.target_type = A.doc_type
+              AND B.target_id like A.write_year || A.doc_no || '%'
+              AND B.type = 'attendee'
+            WHERE A.comp_id = #{compId}
+              AND A.write_year = #{writeYear}
+              AND A.use_yn = 'Y'
+         GROUP BY TO_CHAR(TO_DATE(training_date, 'YYYYMMDD'), 'YYYYMM')
+        )
+        SELECT
+              A.training_month,
+              COALESCE(B.cnt, 0) AS plan_hr,
+              COALESCE(C.cnt, 0) AS complete_hr
+         FROM month_series A
+    LEFT JOIN implementation_data B ON A.training_month = B.training_month
+    LEFT JOIN result_data C ON A.training_month = C.training_month
+     ORDER BY A.training_month
+
+
+    </select>
+
+    <select id='getSafetyChecklistDashboard' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='int'>
+
+        SELECT COUNT(A.*)
+          FROM esg.tb_safety_checklist A
+         WHERE A.comp_id = #{compId}
+           AND A.use_yn = 'Y'
+
+    </select>
+
+    <select id='getSafetyInspectionDashboard' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.dashboard.model.DashboardSafetyInspectionVO'>
+
+        WITH month_series AS (
+            SELECT TO_CHAR(TO_DATE(#{writeYear} || LPAD(i::text, 2, '0'), 'YYYYMM'), 'YYYYMM') AS check_month
+              FROM generate_series(1, 12) AS s(i)
+        ),
+        inspection_data as (
+               select TO_CHAR(TO_DATE(A.check_dt, 'YYYYMMDD'), 'YYYYMM') AS check_month,
+                      SUM(CASE WHEN B.acceptable_yn = 'Y' THEN 1 ELSE 0 END) AS acceptable_cnt,
+                      SUM(CASE WHEN B.non_compliant_yn = 'Y' THEN 1 ELSE 0 END) AS non_compliant_cnt
+                 FROM esg.tb_safety_inspection_log A
+            LEFT JOIN esg.tb_safety_inspection_log_detail B
+                   ON B.write_year = A.write_year
+                  AND B.doc_no = A.doc_no
+                  AND B.doc_type  = A.doc_type
+                  AND B.check_dt = A.check_dt
+                WHERE A.comp_id = #{compId}
+                  AND A.write_year = #{writeYear}
+                  AND A.use_yn = 'Y'
+             GROUP BY TO_CHAR(TO_DATE(A.check_dt, 'YYYYMMDD'), 'YYYYMM')
+             ORDER BY check_month
+        )
+        SELECT
+              A.check_month,
+              COALESCE(B.acceptable_cnt, 0) AS acceptable_cnt,
+              COALESCE(B.non_compliant_cnt, 0) AS non_compliant_cnt
+         FROM month_series A
+    LEFT JOIN inspection_data B ON A.check_month = B.check_month
+     ORDER BY A.check_month
+
+    </select>
+
+    <select id='getRiskAssessmentOrgnDashboard' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.dashboard.model.DashboardRiskAssessmentStatusVO'>
+
+        SELECT SUM(CASE WHEN B.chart_id != '' THEN 1 ELSE 0 END) AS registered_cnt,
+               SUM(CASE WHEN B.chart_id IS NULL OR B.chart_id = '' THEN 1 ELSE 0 END) AS unregistered_cnt
+          FROM esg.tb_orgn_info A
+     LEFT JOIN esg.tb_risk_assessment_organ_chart B
+            ON A.orgn_id = B.orgn_id
+           AND B.confirm_yn = 'Y'
+           AND B.use_yn = 'Y'
+         WHERE A.comp_id = #{compId}
+           AND A.use_yn = 'Y'
+
+    </select>
+
+    <select id='getSafetyAndHealthInfoSurveyDashboard' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.dashboard.model.DashboardRiskAssessmentStatusVO'>
+
+        WITH process_data AS (
+             SELECT
+                   COUNT(A.*) AS process_count
+              FROM esg.tb_process_info A
+             WHERE A.comp_id = #{compId}
+               AND A.use_yn = 'Y'
+        ),
+        survey_data AS (
+            SELECT
+                   COALESCE(SUM(survey_count), 0) AS total_survey_count
+              FROM (
+                   SELECT
+                          A.process_id,
+                          COALESCE(COUNT(B.process_id), 0) AS survey_count
+                     FROM esg.tb_process_info A
+                 LEFT JOIN esg.tb_safety_and_health_info_survey B
+                        ON A.process_id = B.process_id
+                       AND B.use_yn = 'Y'
+                 LEFT JOIN esg.tb_safety_and_health_info_survey_detail C
+                        ON B.write_year = C.write_year
+                       AND B.doc_type = C.doc_type
+                       AND B.doc_no = C.doc_no
+                       AND C.use_yn = 'Y'
+                 LEFT JOIN esg.tb_process_work D
+                        ON D.prcs_work_id = C.prcs_work_id::int8
+                       AND D.use_yn = 'Y'
+                     WHERE B.confirm_yn = 'Y'
+                       AND A.comp_id = #{compId}
+                       AND A.use_yn = 'Y'
+                  GROUP BY A.process_id
+            ) sub
+        )
+        SELECT
+              sd.total_survey_count AS registered_cnt,
+              pd.process_count - sd.total_survey_count AS unregistered_cnt
+         FROM process_data pd, survey_data sd;
+
+    </select>
+
+    <select id='getClassProcEquipMsdsDashboard' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.dashboard.model.DashboardRiskAssessmentStatusVO'>
+
+        WITH total_orgn AS (
+            SELECT DISTINCT toi.orgn_id
+              FROM esg.tb_orgn_info toi
+             WHERE toi.comp_id = #{compId}
+               AND toi.use_yn = 'Y'
+        ),
+        confirmed_survey AS (
+            SELECT DISTINCT (A.write_year, A.doc_no)
+              FROM esg.tb_safety_and_health_info_survey A
+             WHERE A.confirm_yn = 'Y'
+               AND A.comp_id = #{compId}
+               AND A.use_yn = 'Y'
+        ),
+        registered_orgn AS (
+            SELECT DISTINCT C.orgn_id
+              FROM esg.tb_safety_and_health_info_survey A
+              LEFT JOIN esg.tb_classification_process_equip_msds_analysis B
+                ON A.process_id = B.process_id
+               AND B.rev_no = A.rev_no
+              LEFT JOIN esg.tb_classification_process_equip_msds C
+                ON C.write_year = B.write_year
+               AND C.doc_type = B.doc_type
+               AND C.doc_no = B.doc_no
+               AND C.use_yn = 'Y'
+               AND C.confirm_yn = 'Y'
+             WHERE A.confirm_yn = 'Y'
+               AND A.comp_id = #{compId}
+               AND A.use_yn = 'Y'
+        )
+        SELECT
+            COUNT(DISTINCT r.orgn_id) AS registered_cnt,
+            COUNT(DISTINCT t.orgn_id) - COUNT(DISTINCT r.orgn_id) AS unregistered_cnt
+          FROM total_orgn t
+          LEFT JOIN registered_orgn r ON t.orgn_id = r.orgn_id;
+
+    </select>
+
+    <select id='getClassHazardsDashboard' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.dashboard.model.DashboardRiskAssessmentStatusVO'>
+
+        WITH classification_hazard_cnt AS (
+            SELECT
+                  A.doc_no,
+                  COUNT(B.doc_no) AS non_null_count
+             FROM esg.tb_safety_and_health_info_survey A
+        LEFT JOIN esg.tb_classification_hazards B
+               ON A.process_id = B.process_id
+              AND B.process_work_rev_no = A.rev_no
+              AND B.use_yn = 'Y'
+            WHERE A.write_year = #{writeYear}
+              AND A.comp_id = #{compId}
+              AND A.use_yn = 'Y'
+            GROUP BY A.doc_no
+        )
+        SELECT
+              COUNT(CASE WHEN non_null_count > 0 THEN 1 END) AS registered_cnt,
+              COUNT(*) - COUNT(CASE WHEN non_null_count > 0 THEN 1 END) AS unregistered_cnt
+         FROM classification_hazard_cnt;
+
+    </select>
+
+    <select id='getRiskAssessmentPlanDashboard' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.dashboard.model.DashboardRiskAssessmentStatusVO'>
+
+        WITH orgn_counts AS (
+            SELECT
+                A.orgn_id,
+                CASE
+                    WHEN COUNT(B.plan_nm) > 0 THEN 1
+                    ELSE 0
+                    END AS has_data
+            FROM ESG.TB_ORGN_INFO A
+       LEFT JOIN ESG.TB_RISK_ASSESSMENT_PLAN B
+              ON A.orgn_id = B.orgn_id
+             AND B.use_yn = 'Y'
+             AND B.write_year = #{writeYear}
+             AND B.comp_id = #{compId}
+           WHERE A.use_yn = 'Y'
+             AND A.comp_id = #{compId}
+        GROUP BY A.orgn_id
+        )
+        SELECT
+               SUM(CASE WHEN has_data = 1 THEN 1 ELSE 0 END) AS registered_cnt,
+               SUM(CASE WHEN has_data = 0 THEN 1 ELSE 0 END) AS unregistered_cnt
+          FROM orgn_counts;
+
+    </select>
+
+    <select id='getRiskAssessmentReductionDashboard' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.dashboard.model.DashboardRiskAssessmentStatusVO'>
+
+        WITH reduction_exist AS (
+            SELECT
+            A.write_year, A.doc_no, B.doc_seq,
+                  CASE
+                    WHEN COUNT(C.doc_seq_detail) > 0 THEN 1
+                    ELSE 0
+                  END AS has_data
+             FROM esg.tb_risk_assessment_plan A
+        LEFT JOIN esg.tb_risk_assessment_implementation B
+               ON A.write_year = B.write_year
+              AND A.doc_type = B.doc_type
+              AND A.doc_no = B.doc_no
+              AND B.use_yn = 'Y'
+        LEFT JOIN esg.tb_risk_assessment_implementation_reduction C
+               ON C.write_year = B.write_year
+              AND C.doc_type = B.doc_type
+              AND C.doc_no = B.doc_no
+              AND C.doc_seq = B.doc_seq
+              AND C.use_yn = 'Y'
+            WHERE A.use_yn = 'Y'
+              AND A.comp_id = #{compId}
+              AND A.write_year = #{writeYear}
+              AND B.doc_seq is not null
+         GROUP BY A.write_year, A.doc_no, B.doc_seq
+        )
+        SELECT
+            SUM(CASE WHEN has_data = 1 THEN 1 ELSE 0 END) AS registered_cnt,
+            SUM(CASE WHEN has_data = 0 THEN 1 ELSE 0 END) AS unregistered_cnt
+        FROM reduction_exist;
+
+    </select>
+
+    <select id='getRiskAssessmentImplementationDashboard' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.dashboard.model.DashboardRiskAssessmentStatusVO'>
+
+          SELECT
+                COUNT(CASE
+                      WHEN C.completed_date IS NULL OR C.completed_date = '' THEN 1
+                      END) AS unregistered_cnt,
+                COUNT(CASE
+                      WHEN C.completed_date IS NOT NULL AND C.completed_date != '' THEN 1
+                      END) AS registered_cnt
+           FROM esg.tb_risk_assessment_plan A
+      LEFT JOIN esg.tb_risk_assessment_implementation B
+             ON A.write_year = B.write_year
+            AND A.doc_type = B.doc_type
+            AND A.doc_no = B.doc_no
+      LEFT JOIN esg.tb_risk_assessment_implementation_reduction C
+             ON C.write_year = B.write_year
+            AND C.doc_type = B.doc_type
+            AND C.doc_no = B.doc_no
+            AND C.doc_seq = B.doc_seq
+          WHERE A.write_year = #{writeYear}
+            AND A.comp_id = #{compId}
+--             감소대책만 체크하기 위해서 use_yn = null인것도 제외
+            AND A.use_yn = 'Y'
+            AND B.use_yn = 'Y'
+            AND C.use_yn = 'Y'
+
+    </select>
+
+    <select id='getRiskAssessmentCompleteDashboard' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.dashboard.model.DashboardRiskAssessmentStatusVO'>
+
+        SELECT COUNT(CASE WHEN A.assessment_compl_date IS NOT NULL AND A.assessment_compl_date != '' THEN 1 END) AS registered_cnt,
+               COUNT(CASE WHEN A.assessment_compl_date IS NULL OR A.assessment_compl_date = '' THEN 1 END) AS unregistered_cnt
+          FROM esg.tb_risk_assessment_plan A
+         WHERE A.write_year = #{writeYear}
+           AND A.comp_id = #{compId}
+           AND A.use_yn = 'Y'
+
+    </select>
+
+    <select id='getRiskAssessmentFactorDashboard' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.dashboard.model.DashboardRiskAssessmentFactorVO'>
+
+        SELECT
+            D.MINOR_CD,
+            D.MINOR_NM AS HAZARDS_TYPE_NM,
+            COUNT(B.HAZARDS_TYPE) AS HAZARDS_CNT
+        FROM ESG.TB_COMMON_D D
+                 LEFT JOIN (
+            SELECT B.*
+            FROM ESG.TB_RISK_ASSESSMENT_IMPLEMENTATION B
+                     JOIN ESG.TB_RISK_ASSESSMENT_PLAN A
+                          ON A.WRITE_YEAR = B.WRITE_YEAR
+                              AND A.DOC_TYPE = B.DOC_TYPE
+                              AND A.DOC_NO = B.DOC_NO
+            WHERE B.USE_YN = 'Y'
+              AND B.WRITE_YEAR = #{writeYear}
+              AND A.USE_YN = 'Y'
+              AND A.COMP_ID = #{compId}
+        ) B ON D.MINOR_CD= B.HAZARDS_TYPE
+        WHERE D.MAJOR_CD = 'factor'
+          AND D.USE_YN = 'Y'
+        GROUP BY D.MINOR_CD, D.MINOR_NM
+        ORDER BY D.MINOR_CD
+
+    </select>
+
+    <!-- 청주산단 통합관제 모니터링 대시보드 연동 API -->
+    <select id='getCompDashboard' resultType='kr.co.igns.business.dashboard.model.ExternalDashboardVO$comp'>
+        select t1.comp_id
+			, t1.comp_nm
+			, t1.zip_cd
+			, t1.addrs1
+			, t1.addrs2
+			, t1.tel_no
+			, t1.biz_cd
+			, t1.biz_nm
+		from esg.tb_company_info t1
+        where t1.use_yn = 'Y'
+        order by t1.ord_seq ASC, t1.comp_id ASC
+    </select>
+    <select id='getCompValidation' parameterType="String" resultType='boolean'>
+        select exists (
+            select 1
+            from esg.tb_company_info t1
+            where t1.use_yn = 'Y'
+                and t1.comp_id = #{compId}
+        ) as is_exist
+    </select>
+
+
+</mapper>

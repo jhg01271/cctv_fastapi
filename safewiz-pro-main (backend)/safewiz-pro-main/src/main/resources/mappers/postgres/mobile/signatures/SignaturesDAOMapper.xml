@@ -1,0 +1,702 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.mobile.signatures.dao.postgres.SignaturesDAO">
+    <resultMap id="CommitteesSignaturesResultMap" type="kr.co.igns.mobile.signatures.model.CommitteeSignaturesVO">
+        <result property="company" column="company" typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+        <result property="partner" column="partner" typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+        <result property="employee" column="employee" typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+        <result property="writer" column="writer" typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+        <result property="reviewer" column="reviewer" typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+        <result property="approver" column="approver" typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+    </resultMap>
+
+    <resultMap id="ApprovalSignaturesResultMap" type="kr.co.igns.mobile.signatures.model.ApprovalSignaturesVO">
+        <result property="writer" column="writer" typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+        <result property="reviewer" column="reviewer" typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+        <result property="approver" column="approver" typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+    </resultMap>
+    <!-- 위원회 참석자 서명 조회 -->
+    <select id="getCommitteeSignatures" parameterType="kr.co.igns.mobile.signatures.model.SignaturesSearchVO" resultMap="CommitteesSignaturesResultMap">
+        <![CDATA[
+		WITH committee AS ( -- 사업장내 위원회 조회
+		    SELECT
+		        CONCAT(write_year, doc_no) AS target_id,
+		        doc_type AS target_type,
+		        comp_id
+		    FROM esg.tb_committee
+		    WHERE comp_id = #{compId} -- :comp_id
+		        AND write_year = #{writeYear} -- :write_year
+		        AND doc_type = #{docType} -- :doc_type
+		        AND doc_no = #{docNo} -- :doc_no
+		        AND use_yn = 'Y'
+		),
+		signatures AS ( -- 서명 목록 조회 (사측, 협력사측, 근로자측, 작성자, 검토자, 승인자)
+		    SELECT
+		        ai.param,
+		        json_build_object(
+		                        'hrId', ai.hr_id,
+		            'name', ai.hr_nm,
+		            'jobTitle', ai.jbrp_nm,
+		            'orgName', ai.orgn_nm,
+		            'profileImageId', f.file_id,
+		            'signed', CASE
+		                              WHEN ai.signature IS NOT NULL THEN TRUE
+		                        ELSE FALSE
+		                      END,
+		            'signedAt', ai.updated_at
+		        ) AS signs
+		    FROM esg.tb_approval_info ai
+		    JOIN committee c
+		        ON c.target_id = ai.target_id
+		                AND c.target_type = ai.target_type
+		    LEFT JOIN esg.tb_sys_file f
+		            ON f.target_type = 'hrImg'
+		                    AND f.target_id = ai.hr_id
+		                        AND f.del_yn = 'N'
+		    ORDER BY ai.param, ai.created_at
+		)
+		SELECT -- 서명 목록 조회 쿼리 본문
+		    (SELECT json_agg(signs) FROM signatures WHERE type = 'company') AS company,
+		    (SELECT json_agg(signs) FROM signatures WHERE type = 'partner') AS partner,
+		    (SELECT json_agg(signs) FROM signatures WHERE type = 'employee') AS employee,
+		    (SELECT signs FROM signatures WHERE param = 'writer' LIMIT 1) AS writer,
+		    (SELECT signs FROM signatures WHERE param = 'reviewer' LIMIT 1) AS reviewer,
+		    (SELECT signs FROM signatures WHERE param = 'approver' LIMIT 1) AS approver
+		FROM signatures
+		LIMIT 1
+	]]></select>
+    <!-- 위원회 참석자 서명 등록 -->
+    <update id="saveCommitteeSignatures" parameterType="kr.co.igns.mobile.signatures.model.SignaturesSearchVO"><![CDATA[
+		WITH committee_exists AS (
+		    SELECT 1
+		    FROM esg.tb_committee
+		    WHERE comp_id = #{compId} -- :comp_id
+		      AND write_year = #{writeYear} -- :write_year
+		      AND doc_type = #{docType} -- :doc_type
+		      AND doc_no = #{docNo} -- :doc_no
+		      AND use_yn = 'Y'
+		), my_user_info AS (
+		    SELECT
+		        user_id,
+		        signature
+		    FROM esg.v_hr_info
+		    WHERE hr_id = #{hrId} -- :hr_id
+		      AND signature IS NOT NULL
+		      AND use_yn = 'Y'
+		    LIMIT 1
+		)
+		UPDATE esg.tb_approval_info
+		SET
+		    signature = (SELECT signature FROM my_user_info),
+		    updated_at = NOW(),
+		    updated_by = (SELECT user_id FROM my_user_info)
+		WHERE
+		    target_type = #{docType} -- :doc_type
+		    AND target_id = CONCAT(#{writeYear}, #{docNo}) -- :writer_year, :doc_type
+		    AND hr_id = #{hrId} -- :hr_id
+		    AND param = #{type} -- :type 서명 타입 (company, partner, employee, writer, reviewer, approver)
+		    AND EXISTS (SELECT 1 FROM committee_exists)
+		    AND EXISTS (SELECT 1 FROM my_user_info)
+	]]></update>
+    <!-- 위원회 참석자 서명 취소 -->
+    <update id="deleteCommitteeSignatures" parameterType="kr.co.igns.mobile.signatures.model.SignaturesSearchVO">
+        <![CDATA[
+		WITH committee_exists AS (
+		    SELECT 1
+		    FROM esg.tb_committee
+		    WHERE comp_id = #{compId} -- :comp_id
+		      AND write_year = #{writeYear} -- :write_year
+		      AND doc_type = #{docType} -- :doc_type
+		      AND doc_no = #{docNo} -- :doc_no
+		      AND use_yn = 'Y'
+		)
+		UPDATE esg.tb_approval_info
+		SET
+		    signature = null,
+		    updated_at = null,
+		    updated_by = null
+		WHERE
+		    target_type = #{docType} -- :doc_type
+		    AND target_id = CONCAT(#{writeYear}, #{docNo}) -- :writer_year, :doc_type
+		    AND hr_id = #{hrId} -- :hr_id
+		    AND param = #{type} -- :type 서명 타입 (company, partner, employee, writer, reviewer, approver)
+		    AND EXISTS (SELECT 1 FROM committee_exists)
+	]]></update>
+
+    <!-- 교욱 참석자 서명 조회 -->
+    <select id="getTrainingsSignatures" parameterType="kr.co.igns.mobile.signatures.model.SignaturesSearchVO" resultType="kr.co.igns.mobile.signatures.model.SignaturesVO">
+        <![CDATA[
+		WITH rorat_training_participants AS (
+		    SELECT
+		        ai.hr_id,
+		        ai.hr_nm,
+		        ai.jbrp_nm,
+		        ai.orgn_nm,
+		        f.file_id AS profile_image_id,
+		        CASE
+		            WHEN ai.signature IS NOT NULL THEN TRUE
+		            ELSE FALSE
+		        END AS signed,
+		        ai.updated_at AS signed_at
+		    FROM esg.tb_result_of_risk_assessment_training rt
+		    JOIN esg.tb_approval_info ai
+		        ON ai.target_type = rt.doc_type
+		            AND ai.target_id = CONCAT(rt.write_year, rt.doc_no)
+		            AND ai.type = 'ATTENDEES' /* RORAT은 ATTENDEES, TRR은 attendee */
+		    LEFT JOIN esg.tb_sys_file f
+		        ON f.target_id = ai.hr_id
+		            AND f.target_type = 'hrImg'
+		            AND f.del_yn = 'N'
+		    WHERE rt.comp_id = #{compId} -- :comp_id
+		        AND rt.write_year = #{writeYear}  -- :write_year
+		        AND rt.doc_type = #{docType} -- :doc_type
+		        AND rt.doc_no = #{docNo} -- :doc_no
+		        AND rt.use_yn = 'Y'
+		),
+		other_training_participants AS (
+		    SELECT
+		        ai.hr_id,
+		        ai.hr_nm,
+		        ai.jbrp_nm,
+		        ai.orgn_nm,
+		        f.file_id AS profile_image_id,
+		        CASE
+		            WHEN ai.signature IS NOT NULL THEN TRUE
+		            ELSE FALSE
+		        END AS signed,
+		        ai.updated_at AS signed_at
+		    FROM esg.tb_training_result_report t
+		    JOIN esg.tb_approval_info ai
+		        ON ai.target_type = t.doc_type
+		            AND ai.target_id = CONCAT(t.write_year, t.doc_no)
+		            AND ai.type = 'attendee' /* RORAT은 ATTENDEES, TRR은 attendee */
+		    LEFT JOIN esg.tb_sys_file f
+		        ON f.target_id = ai.hr_id
+		            AND f.target_type = 'hrImg'
+		            AND f.del_yn = 'N'
+		    WHERE t.comp_id = #{compId} -- :comp_id
+		        AND t.write_year = #{writeYear}  -- :write_year
+		        AND t.doc_type = #{docType} -- :doc_type
+		        AND t.doc_no = #{docNo} -- :doc_no
+		        AND t.use_yn = 'Y'
+		)
+		SELECT
+		    hr_id AS hrId,
+		    hr_nm AS name,
+		    jbrp_nm AS jobTitle,
+		    orgn_nm AS orgName,
+		    profile_image_id AS profileImageId,
+		    signed,
+		    signed_at AS signedAt
+		FROM rorat_training_participants
+		UNION
+		SELECT
+		    hr_id AS hrId,
+		    hr_nm AS name,
+		    jbrp_nm AS jobTitle,
+		    orgn_nm AS orgName,
+		    profile_image_id AS profileImageId,
+		    signed,
+		    signed_at AS signedAt
+		FROM other_training_participants
+	]]></select>
+    <!-- 교육 참석자 서명 등록 -->
+    <update id="saveTrainingsTRRSignatures" parameterType="kr.co.igns.mobile.signatures.model.SignaturesSearchVO">
+        <![CDATA[
+		WITH training_exists AS (
+	       SELECT 1
+		     FROM esg.tb_training_result_report
+		    WHERE comp_id = #{compId} -- :comp_id
+		      AND write_year = #{writeYear} -- :write_year
+		      AND doc_type = #{docType} -- :doc_type
+		      AND doc_no = #{docNo} -- :doc_no
+		      AND use_yn = 'Y'
+		), my_user_info AS (
+		    SELECT
+		        user_id,
+		        signature
+		    FROM esg.v_hr_info
+		    WHERE hr_id = #{hrId} -- :hr_id
+		      AND signature IS NOT NULL
+		      AND use_yn = 'Y'
+		    LIMIT 1
+		)
+		UPDATE esg.tb_approval_info
+		SET
+		    signature = (SELECT signature FROM my_user_info),
+		    updated_at = NOW(),
+		    updated_by = (SELECT user_id FROM my_user_info)
+		WHERE
+		    target_type = #{docType} -- :doc_type
+		    AND target_id = CONCAT(#{writeYear}, #{docNo}) -- :writer_year, :doc_type
+		    AND hr_id = #{hrId} -- :hr_id
+		    AND param = 'attendee' -- :type 서명 타입 (company, partner, employee, writer, reviewer, approver)
+		    AND EXISTS (SELECT 1 FROM training_exists)
+		    AND EXISTS (SELECT 1 FROM my_user_info)
+	]]></update>
+    <update id="saveTrainingsRORATSignatures" parameterType="kr.co.igns.mobile.signatures.model.SignaturesSearchVO">
+        <![CDATA[
+		WITH training_exists AS (
+	       SELECT 1
+	         FROM esg.tb_result_of_risk_assessment_training
+		    WHERE comp_id = #{compId} -- :comp_id
+		      AND write_year = #{writeYear} -- :write_year
+		      AND doc_type = #{docType} -- :doc_type
+		      AND doc_no = #{docNo} -- :doc_no
+		      AND use_yn = 'Y'
+		), my_user_info AS (
+		    SELECT
+		        user_id,
+		        signature
+		    FROM esg.v_hr_info
+		    WHERE hr_id = #{hrId} -- :hr_id
+		      AND signature IS NOT NULL
+		      AND use_yn = 'Y'
+		    LIMIT 1
+		)
+		UPDATE esg.tb_approval_info
+		SET
+		    signature = (SELECT signature FROM my_user_info),
+		    updated_at = NOW(),
+		    updated_by = (SELECT user_id FROM my_user_info)
+		WHERE
+		    target_type = #{docType} -- :doc_type
+		    AND target_id = CONCAT(#{writeYear}, #{docNo}) -- :writer_year, :doc_type
+		    AND hr_id = #{hrId} -- :hr_id
+		    AND param = 'ATTENDEES' -- :type 서명 타입 (company, partner, employee, writer, reviewer, approver)
+		    AND EXISTS (SELECT 1 FROM training_exists)
+		    AND EXISTS (SELECT 1 FROM my_user_info)
+	]]></update>
+    <!-- 교육 참석자 서명 취소 -->
+    <update id="deleteTrainingsTRRSignatures" parameterType="kr.co.igns.mobile.signatures.model.SignaturesSearchVO">
+        <![CDATA[
+		WITH trainings_exists AS (
+	       SELECT 1
+		     FROM esg.tb_training_result_report
+		    WHERE comp_id = #{compId} -- :comp_id
+		      AND write_year = #{writeYear} -- :write_year
+		      AND doc_type = #{docType} -- :doc_type
+		      AND doc_no = #{docNo} -- :doc_no
+		      AND use_yn = 'Y'
+		)
+		UPDATE esg.tb_approval_info
+		SET
+		    signature = null,
+		    updated_at = null,
+		    updated_by = null
+		WHERE
+		    target_type = #{docType} -- :doc_type
+		    AND target_id = CONCAT(#{writeYear}, #{docNo}) -- :writer_year, :doc_type
+		    AND hr_id = #{hrId} -- :hr_id
+		    AND param = 'attendee' -- :type 서명 타입 (company, partner, employee, writer, reviewer, approver)
+		    AND EXISTS (SELECT 1 FROM trainings_exists)
+	]]></update>
+    <update id="deleteTrainingsRORATSignatures" parameterType="kr.co.igns.mobile.signatures.model.SignaturesSearchVO">
+        <![CDATA[
+		WITH trainings_exists AS (
+	       SELECT 1
+   	         FROM esg.tb_result_of_risk_assessment_training
+		    WHERE comp_id = #{compId} -- :comp_id
+		      AND write_year = #{writeYear} -- :write_year
+		      AND doc_type = #{docType} -- :doc_type
+		      AND doc_no = #{docNo} -- :doc_no
+		      AND use_yn = 'Y'
+		)
+		UPDATE esg.tb_approval_info
+		SET
+		    signature = null,
+		    updated_at = null,
+		    updated_by = null
+		WHERE
+		    target_type = #{docType} -- :doc_type
+		    AND target_id = CONCAT(#{writeYear}, #{docNo}) -- :writer_year, :doc_type
+		    AND hr_id = #{hrId} -- :hr_id
+		    AND param = 'ATTENDEES' -- :type 서명 타입 (company, partner, employee, writer, reviewer, approver)
+		    AND EXISTS (SELECT 1 FROM trainings_exists)
+	]]></update>
+
+    <!-- 결재자 서명 조회 -->
+    <select id="getApprovalCommitteeSignatures" parameterType="kr.co.igns.mobile.signatures.model.SignaturesSearchVO" resultMap="ApprovalSignaturesResultMap">
+        <![CDATA[
+        WITH committee AS (
+		    SELECT
+		        CONCAT(write_year, doc_no) AS target_id,
+		        doc_type AS target_type,
+		        comp_id
+		    FROM esg.tb_committee
+		    WHERE comp_id = #{compId} -- :comp_id
+		        AND write_year = #{writeYear} -- :write_year
+		        AND doc_type = #{docType} -- :doc_type
+		        AND doc_no = #{docNo} -- :doc_no
+		        AND use_yn = 'Y'
+		),
+		signatures AS ( -- 서명 목록 조회 (사측, 협력사측, 근로자측, 작성자, 검토자, 승인자)
+		    SELECT
+		        ai.param,
+		        json_build_object(
+                    'hrId', ai.hr_id,
+		            'name', ai.hr_nm,
+		            'jobTitle', ai.jbrp_nm,
+		            'orgName', ai.orgn_nm,
+		            'profileImageId', f.file_id,
+		            'signed', CASE
+                              WHEN ai.signature IS NOT NULL THEN TRUE
+		                        ELSE FALSE
+		                      END,
+		            'signedAt', ai.updated_at
+		        ) AS signs
+		    FROM esg.tb_approval_info ai
+		    JOIN committee c
+		        ON c.target_id = ai.target_id
+		                AND c.target_type = ai.target_type
+		    LEFT JOIN esg.tb_sys_file f
+		            ON f.target_type = 'hrImg'
+		                    AND f.target_id = ai.hr_id
+		                        AND f.del_yn = 'N'
+		    ORDER BY ai.param, ai.created_at
+		)
+		SELECT -- 서명 목록 조회 쿼리 본문
+		    (SELECT signs FROM signatures WHERE param = 'writer' LIMIT 1) AS writer,
+		    (SELECT signs FROM signatures WHERE param = 'reviewer' LIMIT 1) AS reviewer,
+		    (SELECT signs FROM signatures WHERE param = 'approver' LIMIT 1) AS approver
+		FROM signatures
+		LIMIT 1
+	]]></select>
+
+    <select id="getApprovalRORATSignatures" parameterType="kr.co.igns.mobile.signatures.model.SignaturesSearchVO" resultMap="ApprovalSignaturesResultMap">
+        <![CDATA[
+        WITH training AS (
+		    SELECT
+		        CONCAT(write_year, doc_no) AS target_id,
+		        doc_type AS target_type,
+		        comp_id
+		    FROM esg.tb_result_of_risk_assessment_training
+		    WHERE comp_id = #{compId} -- :comp_id
+		        AND write_year = #{writeYear} -- :write_year
+		        AND doc_type = #{docType} -- :doc_type
+		        AND doc_no = #{docNo} -- :doc_no
+		        AND use_yn = 'Y'
+		),
+		signatures AS ( -- 서명 목록 조회 (사측, 협력사측, 근로자측, 작성자, 검토자, 승인자)
+		    SELECT
+		        ai.param,
+		        json_build_object(
+                    'hrId', ai.hr_id,
+		            'name', ai.hr_nm,
+		            'jobTitle', ai.jbrp_nm,
+		            'orgName', ai.orgn_nm,
+		            'profileImageId', f.file_id,
+		            'signed', CASE
+                              WHEN ai.signature IS NOT NULL THEN TRUE
+		                        ELSE FALSE
+		                      END,
+		            'signedAt', ai.updated_at
+		        ) AS signs
+		    FROM esg.tb_approval_info ai
+		    JOIN training c
+		        ON c.target_id = ai.target_id
+		                AND c.target_type = ai.target_type
+		    LEFT JOIN esg.tb_sys_file f
+		            ON f.target_type = 'hrImg'
+		                    AND f.target_id = ai.hr_id
+		                        AND f.del_yn = 'N'
+		    ORDER BY ai.param, ai.created_at
+		)
+		SELECT -- 서명 목록 조회 쿼리 본문
+		    (SELECT signs FROM signatures WHERE param = 'writer' LIMIT 1) AS writer,
+		    (SELECT signs FROM signatures WHERE param = 'reviewer' LIMIT 1) AS reviewer,
+		    (SELECT signs FROM signatures WHERE param = 'approver' LIMIT 1) AS approver
+		FROM signatures
+		LIMIT 1
+	]]></select>
+
+    <select id="getApprovalTRRSignatures" parameterType="kr.co.igns.mobile.signatures.model.SignaturesSearchVO" resultMap="ApprovalSignaturesResultMap">
+        <![CDATA[
+        WITH training AS ( -- 사업장내 위원회 조회
+		    SELECT
+		        CONCAT(write_year, doc_no) AS target_id,
+		        doc_type AS target_type,
+		        comp_id
+		    FROM esg.tb_training_result_report
+		    WHERE comp_id = #{compId} -- :comp_id
+		        AND write_year = #{writeYear} -- :write_year
+		        AND doc_type = #{docType} -- :doc_type
+		        AND doc_no = #{docNo} -- :doc_no
+		        AND use_yn = 'Y'
+		),
+		signatures AS ( -- 서명 목록 조회 (사측, 협력사측, 근로자측, 작성자, 검토자, 승인자)
+		    SELECT
+		        ai.param,
+		        json_build_object(
+                    'hrId', ai.hr_id,
+		            'name', ai.hr_nm,
+		            'jobTitle', ai.jbrp_nm,
+		            'orgName', ai.orgn_nm,
+		            'profileImageId', f.file_id,
+		            'signed', CASE
+                              WHEN ai.signature IS NOT NULL THEN TRUE
+		                        ELSE FALSE
+		                      END,
+		            'signedAt', ai.updated_at
+		        ) AS signs
+		    FROM esg.tb_approval_info ai
+		    JOIN training c
+		        ON c.target_id = ai.target_id
+		                AND c.target_type = ai.target_type
+		    LEFT JOIN esg.tb_sys_file f
+		            ON f.target_type = 'hrImg'
+		                    AND f.target_id = ai.hr_id
+		                        AND f.del_yn = 'N'
+		    ORDER BY ai.param, ai.created_at
+		)
+		SELECT -- 서명 목록 조회 쿼리 본문
+		    (SELECT signs FROM signatures WHERE param = 'writer' LIMIT 1) AS writer,
+		    (SELECT signs FROM signatures WHERE param = 'reviewer' LIMIT 1) AS reviewer,
+		    (SELECT signs FROM signatures WHERE param = 'approver' LIMIT 1) AS approver
+		FROM signatures
+		LIMIT 1
+	]]></select>
+
+    <!-- 결재자 서명 등록 -->
+    <update id="saveApprovalCommitteeSignatures" parameterType="kr.co.igns.mobile.signatures.model.SignaturesSearchVO">
+        <![CDATA[
+		WITH committee_exists AS (
+		    SELECT 1
+		    FROM esg.tb_committee
+		    WHERE comp_id = #{compId} -- :comp_id
+		      AND write_year = #{writeYear} -- :write_year
+		      AND doc_type = #{docType} -- :doc_type
+		      AND doc_no = #{docNo} -- :doc_no
+		      AND use_yn = 'Y'
+		), my_user_info AS (
+		    SELECT
+		        user_id,
+		        signature
+		    FROM esg.v_hr_info
+		    WHERE hr_id = #{hrId} -- :hr_id
+		      AND signature IS NOT NULL
+		      AND use_yn = 'Y'
+		    LIMIT 1
+		)
+		UPDATE esg.tb_approval_info
+		SET
+		    signature = (SELECT signature FROM my_user_info),
+		    updated_at = NOW(),
+		    updated_by = (SELECT user_id FROM my_user_info)
+		WHERE
+		    target_type = #{docType} -- :doc_type
+		    AND target_id = CONCAT(#{writeYear}, #{docNo}) -- :writer_year, :doc_type
+		    AND hr_id = #{hrId} -- :hr_id
+		    AND param = #{type} -- :type 서명 타입 (company, partner, employee, writer, reviewer, approver)
+		    AND EXISTS (SELECT 1 FROM committee_exists)
+		    AND EXISTS (SELECT 1 FROM my_user_info)
+	]]></update>
+    <update id="saveApprovalTRRSignatures" parameterType="kr.co.igns.mobile.signatures.model.SignaturesSearchVO">
+        <![CDATA[
+		WITH training_exists AS (
+	       SELECT 1
+		     FROM esg.tb_training_result_report
+		    WHERE comp_id = #{compId} -- :comp_id
+		      AND write_year = #{writeYear} -- :write_year
+		      AND doc_type = #{docType} -- :doc_type
+		      AND doc_no = #{docNo} -- :doc_no
+		      AND use_yn = 'Y'
+		), my_user_info AS (
+		    SELECT
+		        user_id,
+		        signature
+		    FROM esg.v_hr_info
+		    WHERE hr_id = #{hrId} -- :hr_id
+		      AND signature IS NOT NULL
+		      AND use_yn = 'Y'
+		    LIMIT 1
+		)
+		UPDATE esg.tb_approval_info
+		SET
+		    signature = (SELECT signature FROM my_user_info),
+		    updated_at = NOW(),
+		    updated_by = (SELECT user_id FROM my_user_info)
+		WHERE
+		    target_type = #{docType} -- :doc_type
+		    AND target_id = CONCAT(#{writeYear}, #{docNo}) -- :writer_year, :doc_type
+		    AND hr_id = #{hrId} -- :hr_id
+		    AND param = #{type} -- :type 서명 타입 (company, partner, employee, writer, reviewer, approver)
+		    AND EXISTS (SELECT 1 FROM training_exists)
+		    AND EXISTS (SELECT 1 FROM my_user_info)
+	]]></update>
+    <update id="saveApprovalRORATSignatures" parameterType="kr.co.igns.mobile.signatures.model.SignaturesSearchVO">
+        <![CDATA[
+		WITH training_exists AS (
+	       SELECT 1
+	         FROM esg.tb_result_of_risk_assessment_training
+		    WHERE comp_id = #{compId} -- :comp_id
+		      AND write_year = #{writeYear} -- :write_year
+		      AND doc_type = #{docType} -- :doc_type
+		      AND doc_no = #{docNo} -- :doc_no
+		      AND use_yn = 'Y'
+		), my_user_info AS (
+		    SELECT
+		        user_id,
+		        signature
+		    FROM esg.v_hr_info
+		    WHERE hr_id = #{hrId} -- :hr_id
+		      AND signature IS NOT NULL
+		      AND use_yn = 'Y'
+		    LIMIT 1
+		)
+		UPDATE esg.tb_approval_info
+		SET
+		    signature = (SELECT signature FROM my_user_info),
+		    updated_at = NOW(),
+		    updated_by = (SELECT user_id FROM my_user_info)
+		WHERE
+		    target_type = #{docType} -- :doc_type
+		    AND target_id = CONCAT(#{writeYear}, #{docNo}) -- :writer_year, :doc_type
+		    AND hr_id = #{hrId} -- :hr_id
+		    AND param = #{type} -- :type 서명 타입 (company, partner, employee, writer, reviewer, approver)
+		    AND EXISTS (SELECT 1 FROM training_exists)
+		    AND EXISTS (SELECT 1 FROM my_user_info)
+	]]></update>
+    <!-- 결재자 서명 취소 -->
+    <update id="deleteApprovalCommitteeSignatures" parameterType="kr.co.igns.mobile.signatures.model.SignaturesSearchVO">
+        <![CDATA[
+		WITH committee_exists AS (
+		    SELECT 1
+		    FROM esg.tb_committee
+		    WHERE comp_id = #{compId} -- :comp_id
+		      AND write_year = #{writeYear} -- :write_year
+		      AND doc_type = #{docType} -- :doc_type
+		      AND doc_no = #{docNo} -- :doc_no
+		      AND use_yn = 'Y'
+		)
+		UPDATE esg.tb_approval_info
+		SET
+		    signature = null,
+		    updated_at = null,
+		    updated_by = null
+		WHERE
+		    target_type = #{docType} -- :doc_type
+		    AND target_id = CONCAT(#{writeYear}, #{docNo}) -- :writer_year, :doc_type
+		    AND hr_id = #{hrId} -- :hr_id
+		    AND param = #{type} -- :type 서명 타입 (company, partner, employee, writer, reviewer, approver)
+		    AND EXISTS (SELECT 1 FROM committee_exists)
+	]]></update>
+    <update id="deleteApprovalRORATSignatures" parameterType="kr.co.igns.mobile.signatures.model.SignaturesSearchVO">
+        <![CDATA[
+		WITH trainings_exists AS (
+	       SELECT 1
+   	         FROM esg.tb_result_of_risk_assessment_training
+		    WHERE comp_id = #{compId} -- :comp_id
+		      AND write_year = #{writeYear} -- :write_year
+		      AND doc_type = #{docType} -- :doc_type
+		      AND doc_no = #{docNo} -- :doc_no
+		      AND use_yn = 'Y'
+		)
+		UPDATE esg.tb_approval_info
+		SET
+		    signature = null,
+		    updated_at = null,
+		    updated_by = null
+		WHERE
+		    target_type = #{docType} -- :doc_type
+		    AND target_id = CONCAT(#{writeYear}, #{docNo}) -- :writer_year, :doc_type
+		    AND hr_id = #{hrId} -- :hr_id
+		    AND param = #{type} -- :type 서명 타입 (company, partner, employee, writer, reviewer, approver)
+		    AND EXISTS (SELECT 1 FROM trainings_exists)
+	]]></update>
+    <update id="deleteApprovalTRRSignatures" parameterType="kr.co.igns.mobile.signatures.model.SignaturesSearchVO">
+        <![CDATA[
+		WITH trainings_exists AS (
+	       SELECT 1
+		     FROM esg.tb_training_result_report
+		    WHERE comp_id = #{compId} -- :comp_id
+		      AND write_year = #{writeYear} -- :write_year
+		      AND doc_type = #{docType} -- :doc_type
+		      AND doc_no = #{docNo} -- :doc_no
+		      AND use_yn = 'Y'
+		)
+		UPDATE esg.tb_approval_info
+		SET
+		    signature = null,
+		    updated_at = null,
+		    updated_by = null
+		WHERE
+		    target_type = #{docType} -- :doc_type
+		    AND target_id = CONCAT(#{writeYear}, #{docNo}) -- :writer_year, :doc_type
+		    AND hr_id = #{hrId} -- :hr_id
+		    AND param = #{type} -- :type 서명 타입 (company, partner, employee, writer, reviewer, approver)
+		    AND EXISTS (SELECT 1 FROM trainings_exists)
+	]]></update>
+
+    <!-- TBM 참석자 서명 조회 -->
+    <select id="getTbmSignatures" parameterType="kr.co.igns.mobile.signatures.model.SignaturesSearchVO" resultType="kr.co.igns.mobile.signatures.model.SignaturesVO">
+        <![CDATA[
+        SELECT
+			ai.hr_id AS hrId,
+			ai.hr_nm AS name,
+			ai.jbrp_nm AS jobTitle,
+			ai.orgn_nm AS orgName,
+			f.file_id AS profileImageId,
+			ai.signature IS NOT NULL AS signed,
+			ai.updated_at AS signedAt
+        FROM esg.tb_toolboxmeeting t
+        JOIN esg.tb_approval_info ai
+        	ON t.write_year = #{writeYear}
+			AND t.doc_type = #{docType}
+			AND t.doc_no = #{docNo}
+			AND t.use_yn = 'Y'
+			AND ai.target_type = #{docType}
+			AND ai.target_id = #{writeYear} || #{docNo}
+			AND ai.type = 'attend'
+        LEFT JOIN esg.tb_sys_file f
+			ON f.target_type = 'hrImg'
+			AND f.target_id = ai.hr_id
+			AND f.del_yn = 'N'
+    	]]>
+    </select>
+    <!-- TBM 참석자 서명 등록 -->
+    <update id="saveTbmSignatures" parameterType="kr.co.igns.mobile.signatures.model.SignaturesSearchVO"><![CDATA[
+        UPDATE esg.tb_approval_info AS tgt
+        SET signature = h.signature,
+            updated_at = NOW(),
+            updated_by = h.user_id
+        FROM esg.tb_toolboxmeeting AS t
+        JOIN esg.v_hr_info AS h
+            ON t.write_year = #{writeYear}
+            AND t.doc_type = #{docType}
+            AND t.doc_no = #{docNo}
+            AND t.use_yn = 'Y'
+            AND h.hr_id = #{hrId}
+            AND h.use_yn = 'Y'
+        WHERE tgt.target_type = t.doc_type
+            AND tgt.target_id = t.write_year || t.doc_no
+            AND tgt.hr_id = h.hr_id
+            AND tgt.type = #{type}
+        ;
+    	]]>
+    </update>
+    <!-- TBM 참석자 서명 취소 -->
+    <update id="deleteTbmSignatures" parameterType="kr.co.igns.mobile.signatures.model.SignaturesSearchVO"><![CDATA[
+        UPDATE esg.tb_approval_info AS tgt
+        SET signature = null,
+            updated_at = null,
+            updated_by = null
+        FROM (
+            SELECT
+                t.doc_type AS target_type,
+                t.write_year || t.doc_no AS target_id
+            FROM esg.tb_toolboxmeeting AS t
+            WHERE t.write_year = #{writeYear}
+            AND t.doc_type = #{docType}
+            AND t.doc_no = #{docNo}
+            AND t.use_yn = 'Y'
+        ) AS src
+        WHERE tgt.target_type = src.target_type
+        AND tgt.target_id = src.target_id
+        AND tgt.hr_id = #{hrId}
+        AND tgt.type = #{type}
+        ;
+    	]]>
+    </update>
+</mapper>

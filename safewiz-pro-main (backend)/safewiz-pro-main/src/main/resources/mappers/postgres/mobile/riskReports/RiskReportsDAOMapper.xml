@@ -1,0 +1,556 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.mobile.riskReports.dao.postgres.V1RiskReportsDAO">
+    <resultMap id="RiskReportsResultMap" type="kr.co.igns.mobile.riskReports.model.RiskReportsVO">
+        <id property="id" column="id"/>
+        <result property="title" column="title"/>
+        <result property="content" column="content"/>
+        <result property="registrationDate" column="registrationdate"/>
+        <result property="createdAt" column="createdat"/>
+        <!-- Use custom JsonTypeHandler -->
+        <result property="workplace" column="workplace"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+        <result property="writer" column="writer"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+        <result property="reviewer" column="reviewer"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>                                
+    </resultMap>
+    
+    <resultMap id="RiskReportsDetailResultMap" type="kr.co.igns.mobile.riskReports.model.RiskReportsDetailVO">
+        <id property="id" column="id"/>
+        <result property="content" column="content"/>
+        <result property="reviewerContent" column="reviewer_content"/>
+        <result property="registrationDate" column="registrationdate"/>
+        <result property="createdAt" column="createdat"/>
+        <!-- Use custom JsonTypeHandler -->
+        <result property="workplace" column="workplace"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+        <result property="writer" column="writer"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+        <result property="reviewer" column="reviewer"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>   
+        <result property="experiences" column="experiences"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>                                                
+    </resultMap>    
+    
+	<!-- 근로자 의견 누적횟수 조회 -->
+	<select id="getRiskReportsCount" parameterType="kr.co.igns.mobile.riskReports.model.RiskReportsSearchVO" resultType="kr.co.igns.mobile.riskReports.model.RiskReportsCountVO">
+		SELECT COUNT(wo.doc_no) AS count
+		FROM esg.tb_workers_opinions_on_hazards_info wo
+		JOIN esg.tb_approval_info ai
+		    ON ai.target_type = wo.doc_type
+		            AND ai.target_id = CONCAT(wo.write_year, wo.doc_no)
+		        AND ai.hr_id = #{hrId}  -- :hr_id
+		        AND ai.param = 'writer'
+		WHERE wo.comp_id = #{compId} -- :comp_id
+		        AND wo.use_yn = 'Y'
+		        /* 특정 기간내 조회시 주석 해제 */
+		        AND wo.reg_dt BETWEEN #{startDate} AND #{endDate} -- :start_date, end_date
+	</select>
+	<!-- 근로자 참여 목록 조회 -->
+	<select id="getRiskReports" parameterType="kr.co.igns.mobile.riskReports.model.RiskReportsSearchVO" resultMap="RiskReportsResultMap">
+		WITH worker_opinions AS ( -- 근로자의견 목록 기준 데이터 조회
+		    SELECT 
+		        wo.write_year, 
+		        wo.doc_type,
+		        wo.doc_no,
+		        wo.reg_dt,
+		        wo.worker_opinion, -- nullable
+		        wo.workplace_id, -- nullable
+		        wp.workplace_nm, -- nullable
+		        wo.created_at
+		    FROM esg.tb_workers_opinions_on_hazards_info wo
+		    LEFT JOIN esg.tb_workplace_info wp 
+		        ON wp.comp_id = wo.comp_id 
+		            AND wp.workplace_id = wo.workplace_id 
+		            AND wp.use_yn = 'Y'
+		    WHERE wo.comp_id = #{compId} -- :comp_id
+            <if test="year != null">
+		        AND wo.write_year = #{year} -- :write_year
+	        </if>
+		        AND wo.use_yn = 'Y'
+		), 
+		participants AS ( -- 서명자 정보 조회
+		        SELECT
+		        wo.write_year,
+		        wo.doc_type,
+		        wo.doc_no, 
+		        MAX(CASE WHEN ai.param = 'writer' THEN ai.hr_id ELSE NULL END) AS writer_hr_id, -- nullable
+		        MAX(CASE WHEN ai.param = 'writer' THEN ai.hr_nm ELSE NULL END) AS writer_name,
+		        MAX(CASE WHEN ai.param = 'writer' THEN ai.jbrp_nm ELSE NULL END) AS writer_job_title,
+		        MAX(CASE WHEN ai.param = 'writer' THEN ai.orgn_nm ELSE NULL END) AS writer_org_name,
+		        CASE 
+		            WHEN MAX(CASE WHEN ai.param = 'writer' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) >= 1 THEN TRUE
+		            ELSE FALSE
+		        END AS writer_signed,
+		        MAX(CASE WHEN ai.param = 'reviewer' THEN ai.hr_id ELSE NULL END) AS reviewer_hr_id, -- nullable
+		        MAX(CASE WHEN ai.param = 'reviewer' THEN ai.hr_nm ELSE NULL END) AS reviewer_name,
+		        MAX(CASE WHEN ai.param = 'reviewer' THEN ai.jbrp_nm ELSE NULL END) AS reviewer_job_title,
+		        MAX(CASE WHEN ai.param = 'reviewer' THEN ai.orgn_nm ELSE NULL END) AS reviewer_org_name,
+		        CASE 
+		                WHEN MAX(CASE WHEN ai.param = 'reviewer' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) >= 1 THEN TRUE
+		            ELSE FALSE
+		        END AS reviewer_signed
+		    FROM esg.tb_approval_info ai 
+		    JOIN worker_opinions wo
+		        ON ai.target_type = wo.doc_type
+		                AND ai.target_id = CONCAT(wo.write_year, wo.doc_no)
+		    GROUP BY wo.write_year, wo.doc_type, wo.doc_no
+		) 
+		SELECT -- 근로자의견 목록 조회 질의 본문
+		        CONCAT(wo.write_year, '-', wo.doc_type, '-', wo.doc_no) AS id,
+		        wo.worker_opinion AS content,
+		        CASE WHEN wo.workplace_id IS NOT NULL THEN json_build_object (
+		                        'id', wo.workplace_id,
+		            'name', wo.workplace_nm
+		        )
+		        ELSE NULL
+		    END AS workplace,
+		    CASE WHEN p.writer_hr_id IS NOT NULL THEN json_build_object(
+		                'hrId', p.writer_hr_id,
+		            'name', p.writer_name,
+		            'jobTitle', p.writer_job_title,
+		            'orgName', p.writer_org_name,
+		            'signed', p.writer_signed
+		        )
+		        ELSE NULL
+		    END AS writer,
+		    CASE WHEN p.reviewer_hr_id IS NOT NULL THEN json_build_object(
+		                    'hrId', p.reviewer_hr_id,
+		            'name', p.reviewer_name,
+		            'jobTitle', p.reviewer_job_title,
+		            'orgName', p.reviewer_org_name,
+		            'signed', p.reviewer_signed
+		        )
+		        ELSE NULL
+		    END AS reviewer,
+		    TO_TIMESTAMP(wo.reg_dt, 'YYYYMMDD')::timestamp AS registrationDate,
+		    wo.created_at AS createdAt
+		FROM worker_opinions wo
+		JOIN participants p 
+		    ON wo.write_year = p.write_year 
+		    AND wo.doc_type = p.doc_type 
+		    AND wo.doc_no = p.doc_no
+		/* only_mine이 TRUE 일때 조건부 쿼리 활성화 필요*/
+        <if test="onlyMine == true">
+		 WHERE p.writer_hr_id = #{hrId} OR p.reviewer_hr_id = #{hrId} -- :hr_id    	
+		</if>
+		ORDER BY wo.reg_dt DESC, wo.created_at DESC
+	</select>	
+	
+	<!-- 근로자 참여 상세 조회 -->
+	<select id="getRiskReportsDetail" parameterType="kr.co.igns.mobile.riskReports.model.RiskReportsSearchVO" resultMap="RiskReportsDetailResultMap">
+		WITH worker_opinion AS ( -- 근로자의견 기준 데이터 조회
+		        SELECT 
+		            wo.write_year, 
+		        wo.doc_type,
+		        wo.doc_no,
+		        wo.reg_dt,
+		        wo.worker_opinion,
+		        wo.reviewer_opinion,    
+		        wo.workplace_id,
+		        wp.workplace_nm,
+		        wo.created_at
+		    FROM esg.tb_workers_opinions_on_hazards_info wo
+		    LEFT JOIN esg.tb_workplace_info wp 
+		        ON wp.comp_id = wo.comp_id 
+		            AND wp.workplace_id = wo.workplace_id 
+		            AND wp.use_yn = 'Y'
+		    WHERE wo.comp_id = #{compId} -- :comp_id
+		            AND wo.write_year = #{writeYear} -- :write_year
+		            AND wo.doc_type = #{docType} -- :doc_type
+		            AND wo.doc_no = #{docNo} -- :doc_no
+		            AND wo.use_yn = 'Y'
+		    LIMIT 1
+		), 
+		participants AS ( -- 서명자 정보 조회
+		    SELECT
+		        MAX(CASE WHEN ai.param = 'writer' THEN ai.hr_id ELSE NULL END) AS writer_hr_id,
+		        MAX(CASE WHEN ai.param = 'writer' THEN ai.hr_nm ELSE NULL END) AS writer_name,
+		        MAX(CASE WHEN ai.param = 'writer' THEN ai.jbrp_nm ELSE NULL END) AS writer_job_title,
+		        MAX(CASE WHEN ai.param = 'writer' THEN ai.orgn_nm ELSE NULL END) AS writer_org_name,
+		        MAX(CASE WHEN ai.param = 'writer' AND ai.signature IS NOT NULL THEN ai.updated_at ELSE NULL END) AS writer_signed_at,
+		        CASE 
+		            WHEN MAX(CASE WHEN ai.param = 'writer' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) >= 1 THEN TRUE
+		            ELSE FALSE
+		        END AS writer_signed,
+		        MAX(CASE WHEN ai.param = 'reviewer' THEN ai.hr_id ELSE NULL END) AS reviewer_hr_id,
+		        MAX(CASE WHEN ai.param = 'reviewer' THEN ai.hr_nm ELSE NULL END) AS reviewer_name,
+		        MAX(CASE WHEN ai.param = 'reviewer' THEN ai.jbrp_nm ELSE NULL END) AS reviewer_job_title,
+		        MAX(CASE WHEN ai.param = 'reviewer' THEN ai.orgn_nm ELSE NULL END) AS reviewer_org_name,
+		        MAX(CASE WHEN ai.param = 'reviewer' AND ai.signature IS NOT NULL THEN ai.updated_at ELSE NULL END) AS reviewer_signed_at,
+		        CASE 
+		            WHEN MAX(CASE WHEN ai.param = 'reviewer' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) >= 1 THEN TRUE
+		            ELSE FALSE
+		        END AS reviewer_signed
+		    FROM esg.tb_approval_info ai 
+		        JOIN worker_opinion wo
+		            ON ai.target_type = wo.doc_type
+		                AND ai.target_id = CONCAT(wo.write_year, wo.doc_no)
+		    GROUP BY wo.write_year, wo.doc_type, wo.doc_no
+		),
+		experiences AS (
+		        SELECT
+		        json_agg(
+		            json_build_object(
+		                'id', CONCAT(we.write_year, '-', we.doc_type, '-', we.doc_no, '-', we.reg_dt, '-', we.experience_no),
+		                'content', we.content
+		                )
+		        ) AS experiences
+		    FROM esg.tb_workers_opinions_on_hazards_experience we
+		    JOIN worker_opinion wo
+		        ON wo.write_year = we.write_year 
+		            AND wo.doc_type = we.doc_type 
+		            AND wo.doc_no = we.doc_no 
+		            AND we.use_yn = 'Y'
+		        GROUP BY wo.write_year, wo.doc_type, wo.doc_no
+		) 
+		SELECT -- 근로자의견 목록 조회 질의 본문
+		        CONCAT(wo.write_year, '-', wo.doc_type, '-', wo.doc_no) AS id,
+		    wo.worker_opinion AS content,
+		    wo.reviewer_opinion AS reviewer_content,
+		    CASE WHEN wo.workplace_id IS NOT NULL THEN json_build_object(
+		                    'id', wo.workplace_id,
+		                    'name', wo.workplace_nm
+		        )
+		        ELSE NULL
+		    END AS workplace,
+		    CASE WHEN p.writer_hr_id IS NOT NULL THEN json_build_object(
+		                    'hrId', p.writer_hr_id,
+		            'name', p.writer_name,
+		            'jobTitle', p.writer_job_title,
+		            'orgName', p.writer_org_name,
+		            'profileImageId', (SELECT file_id FROM esg.tb_sys_file WHERE target_type = 'hrImg' AND target_id = p.writer_hr_id AND del_yn = 'N' LIMIT 1),
+		            'signed', p.writer_signed,
+		            'signedAt', p.writer_signed_at
+		            )
+		        ELSE NULL
+		    END AS writer,
+		    CASE WHEN p.reviewer_hr_id IS NOT NULL THEN json_build_object(
+		                    'hrId', p.reviewer_hr_id,
+		            'name', p.reviewer_name,
+		            'jobTitle', p.reviewer_job_title,
+		            'orgName', p.reviewer_org_name,
+		            'profileImageId', (SELECT file_id FROM esg.tb_sys_file WHERE target_type = 'hrImg' AND target_id = p.reviewer_hr_id AND del_yn = 'N' LIMIT 1),
+		            'signed', p.reviewer_signed,
+		            'signedAt', p.reviewer_signed_at
+		        )
+		        ELSE NULL
+		    END AS reviewer,
+		    TO_TIMESTAMP(wo.reg_dt, 'YYYYMMDD')::timestamp AS registrationDate,
+		    COALESCE(e.experiences, '[]'::json) AS experiences,
+		    wo.created_at AS createdAt
+		FROM worker_opinion wo
+		LEFT JOIN participants p ON TRUE
+		LEFT JOIN experiences e ON TRUE
+	</select>	
+	
+	<!-- 근로자 참여 서명 등록 -->
+	<update id="saveRiskReportsSignatures" parameterType="kr.co.igns.mobile.riskReports.model.RiskReportsSearchVO">
+		WITH workers_exists AS (
+		    SELECT 1
+		    FROM esg.tb_workers_opinions_on_hazards_info
+		    WHERE comp_id = #{compId} -- :comp_id
+		      AND write_year = #{writeYear} -- :write_year
+		      AND doc_type = #{docType} -- :doc_type
+		      AND doc_no = #{docNo} -- :doc_no
+		      AND use_yn = 'Y'
+		), my_user_info AS (
+		    SELECT 
+		        user_id, 
+		        signature 
+		    FROM esg.v_hr_info
+		    WHERE hr_id = #{hrId} -- :hr_id
+		      AND signature IS NOT NULL
+		      AND use_yn = 'Y'
+		    LIMIT 1
+		)
+		UPDATE esg.tb_approval_info 
+		SET 
+		    signature = (SELECT signature FROM my_user_info),
+		    updated_at = NOW(),
+		    updated_by = (SELECT user_id FROM my_user_info)
+		WHERE 
+		    target_type = #{docType} -- :doc_type
+	        AND target_id = CONCAT(#{writeYear}, #{docNo}) -- :writer_year, :doc_no
+		    AND hr_id = #{hrId} -- :hr_id
+		    AND param = #{type} -- :type 서명 타입 (company, partner, employee, writer, reviewer, approver)
+		    AND EXISTS (SELECT 1 FROM workers_exists)
+		    AND EXISTS (SELECT 1 FROM my_user_info)
+	</update>	
+	
+	<!-- 근로자 참여 서명 취소 -->
+	<update id="deleteRiskReportsSignatures" parameterType="kr.co.igns.mobile.riskReports.model.RiskReportsSearchVO">
+		WITH workers_exists AS (
+	       SELECT 1
+		     FROM esg.tb_workers_opinions_on_hazards_info
+		    WHERE comp_id = #{compId} -- :comp_id
+		      AND write_year = #{writeYear} -- :write_year
+		      AND doc_type = #{docType} -- :doc_type
+		      AND doc_no = #{docNo} -- :doc_no
+		      AND use_yn = 'Y'
+		)
+		UPDATE esg.tb_approval_info 
+		SET 
+		    signature = null,
+		    updated_at = null,
+		    updated_by = null
+		WHERE 
+		    target_type = #{docType} -- :doc_type
+		    AND target_id = CONCAT(#{writeYear}, #{docNo}) -- :writer_year, :doc_type
+		    AND hr_id = #{hrId} -- :hr_id
+		    AND param = #{type} -- :type 서명 타입 (company, partner, employee, writer, reviewer, approver)
+		    AND EXISTS (SELECT 1 FROM workers_exists)
+	</update>	
+	
+	<!-- 근로자 참여의 검토자 의견 변경 -->
+	<update id="updateRiskReportsReplies" parameterType="kr.co.igns.mobile.riskReports.model.RiskReportsSearchVO">
+		update esg.tb_workers_opinions_on_hazards_info 
+		set reviewer_opinion = #{content}
+		where write_year = #{writeYear}
+		  and doc_type = #{docType}
+		  and doc_no = #{docNo}
+		  and comp_id = #{compId}
+	</update>
+	
+	<!-- 근로자 참여 검토자 저장 -->
+	<insert id="saveRiskReportsReviewer" parameterType="kr.co.igns.mobile.riskReports.model.RiskReportsSearchVO">
+		WITH workers_exists AS (
+		    SELECT 1
+		    FROM esg.tb_workers_opinions_on_hazards_info
+		    WHERE comp_id = #{compId}  -- :comp_id
+		      AND write_year = #{writeYear}       -- :write_year
+		      AND doc_type = #{docType}        -- :doc_type
+		      AND doc_no = #{docNo}          -- :doc_no
+		      AND use_yn = 'Y'
+		)
+		INSERT INTO esg.tb_approval_info (
+		    target_type,
+		    target_id,
+		    hr_id,
+		    param,
+		    created_at,
+		    created_by,
+		    hr_nm,
+		    orgn_nm,
+		    jbrp_nm
+		)
+		SELECT 
+		    #{docType},
+		    CONCAT(#{writeYear}, #{docNo}),
+		    #{reviewerHrId},
+		    'reviewer',
+		    NOW(),
+		    #{createdBy},
+		    #{hrNm},
+		    #{orgnNm},
+		    #{jbrpNm}
+		WHERE EXISTS (SELECT 1 FROM workers_exists)	
+	</insert>
+	
+	<!-- 근로자 참여 삭제 -->
+	<update id="deleteRiskReports" parameterType="kr.co.igns.mobile.riskReports.model.RiskReportsSearchVO">
+		UPDATE esg.tb_workers_opinions_on_hazards_info 
+		SET use_yn = 'N',
+		    updated_at = NOW(),
+		    updated_by = #{updatedBy}
+		WHERE write_year = #{writeYear}
+		  AND doc_type = #{docType}
+		  AND doc_no = #{docNo}
+		  AND comp_id = #{compId}	
+	</update>
+	
+	<!-- 근로자 참여 저장 -->
+	<insert id="saveRiskReports" parameterType="kr.co.igns.mobile.riskReports.model.RiskReportsSaveVO" useGeneratedKeys="true" keyProperty="docNo">
+		INSERT INTO esg.tb_workers_opinions_on_hazards_info
+		(
+			write_year, 
+			doc_type, 
+			doc_no, 
+			reg_dt,
+			comp_id, 
+			hr_id, 
+			workplace_id,
+			worker_opinion, 
+			use_yn, 
+			created_at, 
+			created_by 
+		)
+		VALUES
+		(
+			#{writeYear},
+			'WOOHA', 
+			(select COALESCE(LPAD(TRIM(TO_CHAR(MAX(doc_no)::INTEGER + 1, '99999')), 5, '0'), '00001') 
+			   from esg.tb_workers_opinions_on_hazards_info 
+			  WHERE write_year = TO_CHAR(now(), 'YYYY')		  
+			    AND doc_type = 'WOOHA'), 
+			REPLACE(#{regDt},'.',''), 
+			#{compId},
+			#{hrId},
+			#{workplaceId},
+			#{content},
+			'Y', 
+			now(), 
+			#{createdBy}
+		)
+		RETURNING doc_no
+	</insert>	
+	
+	<!-- 근로자 참여 업데이트 -->
+	<update id="updateRiskReports" parameterType="kr.co.igns.mobile.riskReports.model.RiskReportsSaveVO">
+		UPDATE esg.tb_workers_opinions_on_hazards_info 
+		SET workplace_id = #{workplaceId},
+		    worker_opinion = #{content},
+ 		    updated_at = NOW(),
+		    updated_by = #{updatedBy}
+		WHERE write_year = #{writeYear}
+		  AND doc_type = #{docType}
+		  AND doc_no = #{docNo}
+		  AND comp_id = #{compId}
+	</update>
+	
+	<!-- 경험담 업데이트 -->
+	<update id="updateExperiences" parameterType="kr.co.igns.mobile.riskReports.model.RiskReportsSaveVO">
+	    <foreach collection="experiences" item="experience" separator=";">
+	        UPDATE esg.tb_workers_opinions_on_hazards_experience
+	        SET content = #{experience.content},
+	            updated_at = now(),
+	            updated_by = #{riskReportsSaveVO.updatedBy}
+	        WHERE write_year = split_part(#{experience.id}, '-', 1) 
+	          AND doc_type = split_part(split_part(#{experience.id}, '-', 2), '-', 1)
+	          AND doc_no = split_part(split_part(#{experience.id}, '-', 3), '-', 1)
+	          AND reg_dt = split_part(split_part(#{experience.id}, '-', 4), '-', 1)
+	          AND experience_no = split_part(#{experience.id}, '-', 5)
+	    </foreach>
+	</update>
+	
+	<!-- 경험담 삭제 -->
+	<delete id="deleteExperiences" parameterType="kr.co.igns.mobile.riskReports.model.RiskReportsSaveVO">
+	   <foreach collection="experiences" item="id" separator=";">
+			DELETE FROM esg.tb_workers_opinions_on_hazards_experience
+	        WHERE write_year = split_part(#{id}, '-', 1) 
+	          AND doc_type = split_part(split_part(#{id}, '-', 2), '-', 1)
+	          AND doc_no = split_part(split_part(#{id}, '-', 3), '-', 1)
+	          AND reg_dt = split_part(split_part(#{id}, '-', 4), '-', 1)
+	          AND experience_no = split_part(#{id}, '-', 5)
+      	</foreach>
+	</delete>
+	
+	<!-- 경험담 저장 -->
+	<insert id="saveExperiences" parameterType="map">
+		<selectKey keyProperty="experienceNo" resultType="map" order="BEFORE">
+			SELECT LPAD((COALESCE(MAX(SUBSTRING(experience_no, 1, 5)::INTEGER), 0) + 1)::TEXT, 5, '0') AS experienceNo
+			FROM esg.tb_workers_opinions_on_hazards_experience
+			WHERE write_year = #{writeYear}
+			and doc_type = #{docType}
+			and doc_no = #{docNo}
+		</selectKey>
+
+		INSERT INTO esg.tb_workers_opinions_on_hazards_experience(
+			write_year,
+			doc_type,
+			doc_no,
+			reg_dt,
+			content,
+			use_yn,
+			created_at,
+			created_by,
+			experience_no
+		) VALUES
+	    <foreach collection="experiences" item="content" separator=",">
+	      (#{riskReportsSaveVO.writeYear}, 
+	       #{riskReportsSaveVO.docType},
+           #{riskReportsSaveVO.docNo}, 
+           #{riskReportsSaveVO.regDt}, 
+           #{content},
+           'Y',
+           NOW(),
+           #{riskReportsSaveVO.createdBy},
+           #{experienceNo}
+          )
+	    </foreach>			
+	</insert>
+	
+	<!-- 검토자 삭제 -->
+	<delete id="deleteReviewer" parameterType="kr.co.igns.mobile.riskReports.model.RiskReportsSaveVO">
+		DELETE FROM esg.tb_approval_info
+	    WHERE target_type = #{docType} 
+	      AND target_id = CONCAT(#{writeYear}, #{docNo})
+	      AND param = 'reviewer'	
+	</delete>
+	
+	<!-- 작성자 저장 -->
+	<insert id="saveWriter" parameterType="kr.co.igns.mobile.riskReports.model.RiskReportsSaveVO">
+	    INSERT INTO esg.tb_approval_info (
+	        target_type,
+	        target_id,
+	        hr_id,
+	        param,
+	        created_at,
+	        created_by,
+	        hr_nm,
+	        orgn_nm,
+	        jbrp_nm
+	    )
+	    SELECT
+	        #{docType},
+	        CONCAT(#{writeYear}, #{docNo}),
+	        #{hrId},
+	        #{type},
+	        NOW(),
+	        #{createdBy},
+	        h.hr_nm,
+	        o.orgn_nm,
+	        jbrp.jbrp_nm
+	    FROM
+	        esg.v_hr_info h
+	    LEFT JOIN esg.tb_orgn_info o
+	        ON h.orgn_id = o.orgn_id
+	        AND o.comp_id = #{compId} -- :comp_id
+	        AND o.use_yn = 'Y'
+	    left join esg.tb_hr_info_jbrp jbrp
+            on jbrp.jbrp_id = h.jbrp
+	        AND jbrp.use_yn = 'Y'
+	    WHERE
+	        h.hr_id = #{hrId} -- :hr_id
+	    LIMIT 1		
+	</insert>
+	
+	<!-- 검토자 저장 -->
+	<insert id="saveReviewer" parameterType="kr.co.igns.mobile.riskReports.model.RiskReportsSaveVO">
+		INSERT INTO esg.tb_approval_info (
+			target_type,
+			target_id,
+			hr_id,
+			param,
+			created_at,
+			created_by,
+			hr_nm,
+			orgn_nm,
+			jbrp_nm
+		) 
+	    SELECT
+	        #{docType},
+	        CONCAT(#{writeYear}, #{docNo}),
+	        #{reviewerHrId},
+	        #{type},
+	        NOW(),
+	        #{createdBy},
+	        h.hr_nm,
+	        o.orgn_nm,
+	        jbrp.jbrp_nm
+	    FROM
+	        esg.v_hr_info h
+	    LEFT JOIN esg.tb_orgn_info o
+	        ON h.orgn_id = o.orgn_id
+	        AND o.comp_id = #{compId} -- :comp_id
+	        AND o.use_yn = 'Y'
+	    left join esg.tb_hr_info_jbrp jbrp
+            on jbrp.jbrp_id = h.jbrp
+	        AND jbrp.use_yn = 'Y'
+	    WHERE
+	        h.hr_id = #{reviewerHrId} -- :hr_id
+	    LIMIT 1			
+	</insert>
+</mapper>

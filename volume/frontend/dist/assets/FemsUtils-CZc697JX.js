@@ -1,0 +1,1 @@
+function o(){const i=(e,r)=>{for(const n in r)r[n]instanceof Object&&!Array.isArray(r[n])?(e[n]||(e[n]={}),i(e[n],r[n])):e[n]=r[n];return e};return{deepMerge:i,transformArray:e=>e.map(r=>({value:r.minorCd,text:r.minorNm}))}}export{o as F};

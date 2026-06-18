@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.system.setting.dao.postgres.ClientCompDAO">
+    <select id='getClientList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.setting.model.ClientVO'>
+        SELECT *
+          FROM esg.tb_client_info tci
+         WHERE 1=1
+      ORDER BY tci.use_yn DESC, tci.clnt_id DESC
+    </select>
+
+    <select id='getCompList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.setting.model.ClientCompVO'>
+        SELECT
+               tccm.clnt_id as comp_clnt_id,
+	           tci.comp_id as clnt_comp_id,
+	           tci.comp_nm,
+	           tci.rpst_nm,
+	           tci.tel_no,
+	           tci.use_yn
+          FROM esg.tb_company_info tci
+     LEFT JOIN esg.tb_comp_client_map tccm
+            ON tci.comp_id = tccm.comp_id
+         WHERE 1=1
+           AND tccm.clnt_id = #{searchText}
+      ORDER BY tci.use_yn DESC, tci.ord_seq DESC
+    </select>
+
+    <insert id="insertCompByClient" parameterType="kr.co.igns.system.setting.model.ClientCompVO">
+
+        INSERT INTO esg.tb_comp_client_map (
+            clnt_id,
+            comp_id,
+            created_at,
+            created_by
+        )
+        VALUES (
+                   #{compClntId},  -- 사업장 ID
+                   #{clntCompId},  -- 고객사 ID
+                   NOW(),          -- 생성 시각
+                   #{createdBy}    -- 생성자
+               )
+        ON CONFLICT (comp_id, clnt_id) DO NOTHING;
+
+    </insert>
+
+    <delete id="deleteCompByClient" parameterType="kr.co.igns.system.setting.model.ClientCompVO">
+
+        DELETE
+          FROM esg.tb_comp_client_map
+         WHERE clnt_id = #{compClntId}
+           AND comp_id = #{clntCompId}
+
+    </delete>
+
+</mapper>

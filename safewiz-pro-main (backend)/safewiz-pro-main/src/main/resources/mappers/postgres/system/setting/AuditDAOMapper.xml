@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.system.setting.dao.postgres.AuditDAO">
+
+    <sql id='selectCol'>
+        sa.seq,
+        sa.browser,
+        sa.ip_address,
+        sa.local_name,
+        sa.os,
+        sa.param,
+        sa.referer,
+        sa.session_id,
+        sa.url,
+        sa.user_agent,
+        sa.user_id,
+        sa.user_locale,
+    </sql>
+
+    <sql id="filter">
+        <if test="searchFrom != null and searchFrom != ''">
+            <![CDATA[ 			AND sa.created_at >= #{searchFromDateTime} ]]>
+        </if>
+        <if test="searchTo != null and searchTo != ''">
+            <![CDATA[ 			AND sa.created_at <= #{searchToDateTime}]]>
+        </if>
+        <if test='searchWords != "" and searchWords != null and searchWords.size > 0'>
+            AND
+            (
+            <foreach collection='searchWords' item='searchWord' index='idx' separator='OR' open='(' close=')'>
+                lower(sa.browser) LIKE CONCAT('%',lower(#{searchWord}),'%')
+            </foreach>
+            OR
+            <foreach collection='searchWords' item='searchWord' index='idx' separator='OR' open='(' close=')'>
+                sa.url LIKE CONCAT('%',#{searchWord},'%')
+            </foreach>
+            OR
+            <foreach collection='searchWords' item='searchWord' index='idx' separator='OR' open='(' close=')'>
+                sa.referer LIKE CONCAT('%',#{searchWord},'%')
+            </foreach>
+            OR
+            <foreach collection='searchWords' item='searchWord' index='idx' separator='OR' open='(' close=')'>
+                sa.user_id LIKE CONCAT('%',#{searchWord},'%')
+            </foreach>
+            )
+        </if>
+    </sql>
+   <insert id="insert" parameterType="kr.co.igns.system.setting.model.AuditVO" useGeneratedKeys="true" keyProperty="seq">
+
+        INSERT INTO
+        esg.tb_sys_audit (
+           browser,
+           ip_address,
+           local_name,
+           os,
+           param,
+           referer,
+           session_id,
+           url,
+           user_agent,
+           user_id,
+           user_locale,
+           created_at,
+           created_by
+        ) VALUES (
+           #{browser},
+           #{ipAddress},
+           #{localName},
+           #{os},
+           #{param},
+           #{referer},
+           #{sessionId},
+           #{url},
+           #{userAgent},
+           #{userId},
+           #{userLocale},
+           now(),
+           #{createdBy}
+        )
+
+    </insert>
+
+    <select id='search' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.setting.model.AuditVO'>
+
+        SELECT
+        <include refid='kr.co.igns.system.setting.dao.postgres.AuditDAO.selectCol' />
+        created_at,
+        updated_at
+        FROM esg.tb_sys_audit sa
+        WHERE 1=1
+        <include refid='kr.co.igns.system.setting.dao.postgres.AuditDAO.filter' />
+        ORDER BY ${sortColumn} ${sortAsc}
+        LIMIT #{listSize, jdbcType=NUMERIC} OFFSET #{listStart, jdbcType=NUMERIC}
+
+    </select>
+
+</mapper>

@@ -1,0 +1,946 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.evaluation.dao.postgres.MonitoringManageDAO">
+
+    <resultMap id="getEvaluationReportDetailResultMap" type="kr.co.igns.business.evaluation.model.EvaluationReportDetailVO">
+        <id property="evaluationItemId" column="evaluation_item_id" />
+        <id property="docSeq" column="doc_seq" />
+        <result property="evaluationId" column="evaluation_id" />
+        <result property="evaluationNm" column="evaluation_nm" />
+        <result property="evaluationItemNm" column="evaluation_item_nm" />
+        <result property="resultYn" column="result_yn" />
+        <result property="achievementRate" column="achievement_rate" />
+        <result property="contents" column="contents" />
+        <result property="remark" column="remark" />
+        <result property="useYn" column="use_yn" />
+        <result property="checked" column="checked" />
+        <!-- 성과평가표 -->
+        <result property="evaluationDt" column="evaluation_dt" />
+        <result property="evaluationTarget" column="evaluation_target" />
+        <result property="evaluationMethod" column="evaluation_method" />
+        <result property="evaluationCriteria" column="evaluation_criteria" />
+        <result property="performanceRemark" column="performance_remark" />
+        <result property="writeYear" column="write_year" />
+        <result property="docType" column="doc_type" />
+        <result property="docNo" column="doc_no" />
+        <!-- HrList를 위한 별도 resultMap -->
+        <collection property="menuList" ofType="kr.co.igns.business.evaluation.model.EvaluationMenuVO" >
+            <id property="menuId" column="menu_id"/>
+            <result property="menuNm" column="menu_nm"/>
+            <result property="funcPath" column="func_path"/>
+            <result property="sendDocType" column="send_doc_type"/>
+            <result property="linkDiv" column="link_div"/>
+        </collection>
+    </resultMap>
+
+	<select id="getEvaluationReportList" parameterType="kr.co.igns.system.common.model.SpSearchVO" resultType="kr.co.igns.business.evaluation.model.EvaluationReportVO">
+	  WITH
+	  -- terd의 갯수와 performance_cnt 계산
+	  terd_counts AS (
+	    SELECT doc_no, write_year, doc_type,
+	           COUNT(*) AS detail_cnt,
+	           SUM(CASE WHEN result_yn IS NOT NULL AND result_yn != '' THEN 1 ELSE 0 END) AS performance_cnt
+	    FROM esg.tb_evaluation_report_detail
+	    GROUP BY doc_no, write_year, doc_type
+	  ),
+	  <!-- ER 서명 필터링 -->
+	  taiw1_filtered AS (
+	    SELECT * FROM (
+	      SELECT *, ROW_NUMBER() OVER (PARTITION BY target_type, target_id, param ORDER BY updated_at DESC NULLS LAST, created_at DESC) rn
+	      FROM esg.tb_approval_info
+	      WHERE target_type = 'ER' AND param = 'writer'
+	    ) sub WHERE rn = 1
+	  ),
+	  tair1_filtered AS (
+	    SELECT * FROM (
+	      SELECT *, ROW_NUMBER() OVER (PARTITION BY target_type, target_id, param ORDER BY updated_at DESC NULLS LAST, created_at DESC) rn
+	      FROM esg.tb_approval_info
+	      WHERE target_type = 'ER' AND param = 'reviewer'
+	    ) sub WHERE rn = 1
+	  ),
+	  taia1_filtered AS (
+	    SELECT * FROM (
+	      SELECT *, ROW_NUMBER() OVER (PARTITION BY target_type, target_id, param ORDER BY updated_at DESC NULLS LAST, created_at DESC) rn
+	      FROM esg.tb_approval_info
+	      WHERE target_type = 'ER' AND param = 'approver'
+	    ) sub WHERE rn = 1
+	  ),
+	  <!-- ERP 서명 필터링 -->
+	  taiw3_filtered AS (
+	    SELECT * FROM (
+	      SELECT *, ROW_NUMBER() OVER (PARTITION BY target_type, target_id, param ORDER BY updated_at DESC NULLS LAST, created_at DESC) rn
+	      FROM esg.tb_approval_info
+	      WHERE target_type = 'ERP' AND param = 'writer'
+	    ) sub WHERE rn = 1
+	  ),
+	  tair3_filtered AS (
+	    SELECT * FROM (
+	      SELECT *, ROW_NUMBER() OVER (PARTITION BY target_type, target_id, param ORDER BY updated_at DESC NULLS LAST, created_at DESC) rn
+	      FROM esg.tb_approval_info
+	      WHERE target_type = 'ERP' AND param = 'reviewer'
+	    ) sub WHERE rn = 1
+	  ),
+	  taia3_filtered AS (
+	    SELECT * FROM (
+	      SELECT *, ROW_NUMBER() OVER (PARTITION BY target_type, target_id, param ORDER BY updated_at DESC NULLS LAST, created_at DESC) rn
+	      FROM esg.tb_approval_info
+	      WHERE target_type = 'ERP' AND param = 'approver'
+	    ) sub WHERE rn = 1
+	  )
+	  -- 본문 쿼리
+	  SELECT
+	    ter.*,
+	    COALESCE(td.detail_cnt, 0) AS detail_cnt,
+	    COALESCE(td.performance_cnt, 0) AS performance_cnt,
+	    -- 승인 상태 계산: ER
+	    CASE
+	      WHEN taia1.signature IS NOT NULL THEN 'Y'
+	      WHEN tair1.signature IS NOT NULL THEN 'I'
+	      WHEN taiw1.signature IS NOT NULL THEN 'W'
+	      ELSE 'C'
+	    END AS approval_status_r,
+	    -- 승인 상태 계산: ERP
+	    CASE
+	      WHEN taia3.signature IS NOT NULL THEN 'Y'
+	      WHEN tair3.signature IS NOT NULL THEN 'I'
+	      WHEN taiw3.signature IS NOT NULL THEN 'W'
+	      ELSE 'C'
+	    END AS approval_status_p
+	  FROM esg.tb_evaluation_report ter
+	  LEFT JOIN terd_counts td
+	    ON td.write_year = ter.write_year AND td.doc_no = ter.doc_no AND td.doc_type = ter.doc_type
+	  -- ER JOIN
+	  LEFT JOIN taiw1_filtered taiw1 ON taiw1.target_id = td.write_year || td.doc_no
+	  LEFT JOIN tair1_filtered tair1 ON tair1.target_id = td.write_year || td.doc_no
+	  LEFT JOIN taia1_filtered taia1 ON taia1.target_id = td.write_year || td.doc_no
+	  -- ERP JOIN
+	  LEFT JOIN taiw3_filtered taiw3 ON taiw3.target_id = td.write_year || td.doc_no
+	  LEFT JOIN tair3_filtered tair3 ON tair3.target_id = td.write_year || td.doc_no
+	  LEFT JOIN taia3_filtered taia3 ON taia3.target_id = td.write_year || td.doc_no
+	  WHERE 1 = 1
+	    AND ter.comp_id = #{compId}
+	    AND ter.write_year = #{writeYear}
+	    <if test="docNo != null and !docNo.equals('')">
+	      AND ter.doc_no = #{docNo}
+	    </if>
+	  ORDER BY evaluation_dt DESC, ter.use_yn DESC, ter.doc_no DESC
+	</select>
+
+    <select id='getEvaluationReportDetail' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultMap='getEvaluationReportDetailResultMap'>
+        SELECT tptwd.*,
+               tdecd.evaluation_id,
+               ter.evaluation_dt,
+               ter.evaluation_target,
+               d.view_path as func_path,
+               c.doc_type as send_doc_type,
+               c.link_div,
+               c.menu_id,
+               d.menu_nm
+          FROM esg.tb_evaluation_report_detail tptwd
+     left JOIN esg.tb_evaluation_report_checklist terc on terc.evaluation_id = tptwd.evaluation_id and terc.comp_id = #{compId}
+     LEFT JOIN esg.tb_evaluation_report_checklist_detail tdecd ON tdecd.evaluation_item_id = tptwd.evaluation_item_id AND tptwd.evaluation_id = tdecd.evaluation_id and terc.comp_id = tdecd.comp_id AND terc.evaluation_id = tdecd.evaluation_id
+     LEFT JOIN esg.tb_evaluation_report ter ON ter.write_year = tptwd.write_year AND ter.doc_type = tptwd.doc_type AND ter.doc_no = tptwd.doc_no
+     LEFT JOIN dataset.tb_dataset_evaluation_checklist_detail b ON tptwd.evaluation_id = b.evaluation_id AND tptwd.evaluation_item_id = b.evaluation_item_id
+     LEFT JOIN esg.tb_sys_menu_doctype c ON b.hse_doc_type = c.doc_type
+     LEFT JOIN esg.tb_sys_menu d on c.menu_id = d.menu_id
+         WHERE 1 = 1
+           AND tptwd.write_year = #{writeYear}
+           AND tptwd.doc_type = #{docType}
+           AND tptwd.doc_no = #{docNo}
+      ORDER BY terc.ord_seq, tptwd.use_yn DESC, tptwd.doc_seq ASC
+    </select>
+
+    <select id='getEvaluationReportDetailByChecked' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultMap='getEvaluationReportDetailResultMap'>
+        SELECT tptwd.*,
+        tdecd.evaluation_id,
+        ter.evaluation_dt,
+        ter.evaluation_target,
+        d.view_path as func_path,
+        c.doc_type as send_doc_type,
+        c.link_div,
+        c.menu_id,
+        d.menu_nm
+        FROM esg.tb_evaluation_report_detail tptwd
+        LEFT JOIN esg.tb_evaluation_report_checklist_detail tdecd ON tdecd.evaluation_item_id = tptwd.evaluation_item_id
+        LEFT JOIN esg.tb_evaluation_report ter ON ter.write_year = tptwd.write_year AND ter.doc_type = tptwd.doc_type AND ter.doc_no = tptwd.doc_no
+        LEFT JOIN dataset.tb_dataset_evaluation_checklist_detail b ON tptwd.evaluation_id = b.evaluation_id AND tptwd.evaluation_item_id = b.evaluation_item_id
+        LEFT JOIN esg.tb_sys_menu_doctype c ON b.hse_doc_type = c.doc_type
+        LEFT JOIN esg.tb_sys_menu d on c.menu_id = d.menu_id
+        WHERE 1 = 1
+        AND tptwd.write_year = #{writeYear}
+        AND tptwd.doc_type = #{docType}
+        AND tptwd.doc_no = #{docNo}
+        AND tptwd.doc_seq =#{docSeq}
+        ORDER BY tptwd.doc_seq
+    </select>
+
+    <insert id="insertEvaluationReport" parameterType="kr.co.igns.business.evaluation.model.EvaluationReportVO">
+
+        <selectKey keyProperty="docNo" resultType="kr.co.igns.business.evaluation.model.EvaluationReportVO" order="BEFORE">
+            <![CDATA[
+            SELECT
+                LPAD((COALESCE(MAX(SUBSTRING(doc_no, 1, 5)::INTEGER), 0) + 1)::TEXT, 5, '0') AS docNo
+             FROM esg.tb_evaluation_report
+            WHERE write_year = #{writeYear}
+              AND doc_type = #{docType}
+         ]]>
+        </selectKey>
+
+        INSERT INTO esg.tb_evaluation_report (
+            write_year,
+            doc_no,
+            doc_type,
+            comp_id,
+            evaluation_dt,
+            evaluation_target,
+            use_yn,
+            created_at,
+            created_by
+        )
+        VALUES (
+                   #{writeYear},
+                   #{docNo},
+                   #{docType},
+                   #{compId},
+                   #{evaluationDt},
+                   #{evaluationTarget},
+                   #{useYn},
+                   now(),
+                   #{createdBy}
+               )
+
+    </insert>
+
+
+    <insert id="insertEvaluationReportDetail" parameterType="kr.co.igns.business.evaluation.model.EvaluationReportDetailVO">
+
+        <selectKey keyProperty="docSeq" resultType="kr.co.igns.business.evaluation.model.EvaluationReportDetailVO" order="BEFORE">
+            <![CDATA[
+            SELECT
+                LPAD((COALESCE(MAX(SUBSTRING(doc_seq, 1, 5)::INTEGER), 0) + 1)::TEXT, 5, '0') AS docSeq
+              FROM esg.tb_evaluation_report_detail
+             WHERE write_year = #{writeYear}
+               AND doc_type = #{docType}
+               AND doc_no = #{docNo}
+         ]]>
+        </selectKey>
+        INSERT INTO esg.tb_evaluation_report_detail (
+            write_year,
+            doc_no,
+            doc_type,
+            doc_seq,
+            evaluation_id,
+            evaluation_item_id,
+            evaluation_nm,
+            evaluation_item_nm,
+            evaluation_criteria,
+            evaluation_method,
+            use_yn,
+            result_yn,
+            achievement_rate,
+            contents,
+            remark,
+            created_at,
+            created_by
+        )
+        VALUES (
+            #{writeYear},
+            #{docNo},
+            #{docType},
+            #{docSeq},
+            #{evaluationId},
+            #{evaluationItemId},
+            #{evaluationNm},
+            #{evaluationItemNm},
+            #{evaluationCriteria},
+            #{evaluationMethod},
+            #{useYn},
+            #{resultYn},
+            #{achievementRate},
+            #{contents},
+            #{remark},
+            now(),
+            #{createdBy}
+        )
+
+    </insert>
+
+    <update id="updateEvaluationReport" parameterType="kr.co.igns.business.evaluation.model.EvaluationReportVO">
+
+        UPDATE esg.tb_evaluation_report
+           SET
+              evaluation_dt = #{evaluationDt},
+              evaluation_target = #{evaluationTarget},
+              use_yn = #{useYn},
+              updated_at = now(),
+              updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+
+    </update>
+
+    <update id="updateEvaluationReportDetail" parameterType="kr.co.igns.business.evaluation.model.EvaluationReportDetailVO">
+
+        UPDATE esg.tb_evaluation_report_detail
+           SET
+              evaluation_nm = #{evaluationNm},
+              evaluation_item_nm = #{evaluationItemNm},
+              result_yn = #{resultYn},
+              achievement_rate = #{achievementRate},
+              contents = #{contents},
+              remark = #{remark},
+              use_yn = #{useYn},
+              updated_at = now(),
+              updated_by = #{updatedBy}
+        WHERE 1 = 1
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND doc_seq = #{docSeq}
+
+    </update>
+
+    <update id="updateEvaluationReportPerformance" parameterType="kr.co.igns.business.evaluation.model.EvaluationReportDetailVO">
+
+        UPDATE esg.tb_evaluation_report_detail
+        SET
+            evaluation_item_nm = #{evaluationItemNm},
+            use_yn = #{useYn},
+            result_yn = #{resultYn},
+            evaluation_criteria = #{evaluationCriteria},
+            evaluation_method = #{evaluationMethod},
+            remark = #{remark},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE 1 = 1
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND doc_seq = #{docSeq}
+
+    </update>
+
+    <delete id="deleteEvaluationReport" parameterType="kr.co.igns.business.evaluation.model.EvaluationReportVO">
+
+        UPDATE esg.tb_evaluation_report
+           SET
+              use_yn = 'N',
+              updated_at = now(),
+              updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+
+    </delete>
+
+    <delete id="deleteEvaluationReportDetail" parameterType="kr.co.igns.business.evaluation.model.EvaluationReportVO">
+       UPDATE esg.tb_evaluation_report_detail
+          SET use_yn = 'N'
+        WHERE write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND doc_seq = #{docSeq}
+    </delete>
+
+    <delete id="deleteEvaluationReportDetail2" parameterType="kr.co.igns.business.evaluation.model.EvaluationReportVO">
+      DELETE FROM esg.tb_evaluation_report_detail
+       WHERE write_year = #{writeYear}
+         AND doc_no = #{docNo}
+         AND doc_type = #{docType}
+         AND doc_seq = #{docSeq}
+    </delete>
+
+    <select id='getEvaluationReportById' parameterType='kr.co.igns.business.evaluation.model.EvaluationReportVO' resultType='kr.co.igns.business.evaluation.model.EvaluationReportVO'>
+        SELECT *
+          FROM esg.tb_evaluation_report
+         WHERE comp_id = #{compId}
+           AND write_year = #{writeYear}
+           AND doc_no = #{docNo}
+           AND doc_type = #{docType}
+
+    </select>
+
+    <select id='getEvaluationReportDetailById' parameterType='kr.co.igns.business.evaluation.model.EvaluationReportDetailVO' resultType='kr.co.igns.business.evaluation.model.EvaluationReportDetailVO'>
+
+        SELECT *
+          FROM esg.tb_evaluation_report_detail
+         WHERE 1 = 1
+           AND write_year = #{writeYear}
+           AND doc_no = #{docNo}
+           AND doc_type = #{docType}
+           AND doc_seq = #{docSeq}
+
+    </select>
+
+
+    <!-- 평가항목 관리 (팝업) -->
+    <select id='getEvaluationChecklist' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.evaluation.model.EvaluationChecklistVO'>
+
+        SELECT *
+          FROM esg.tb_evaluation_report_checklist
+         WHERE 1 = 1
+           AND comp_id = #{compId}
+      ORDER BY ord_seq
+    </select>
+
+    <!-- 평가항목 예시 데이터 관리 (팝업) -->
+    <select id='getEvaluationChecklistDataSet' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.evaluation.model.EvaluationChecklistVO'>
+        SELECT *
+        FROM dataset.tb_dataset_evaluation_checklist
+        WHERE 1 = 1
+          AND use_yn = 'Y'
+        ORDER BY ord_seq
+    </select>
+
+    <select id='getEvaluationChecklistByUseYn' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.evaluation.model.EvaluationChecklistVO'>
+
+        SELECT *
+        FROM esg.tb_evaluation_report_checklist
+        WHERE 1 = 1
+          AND comp_id = #{compId}
+          AND use_yn = 'Y'
+        ORDER BY ord_seq
+
+    </select>
+
+    <select id='getEvaluationChecklistDetail' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.evaluation.model.EvaluationChecklistVO'>
+        SELECT a.evaluation_nm, b.*
+        from esg.tb_evaluation_report_checklist a
+        left join esg.tb_evaluation_report_checklist_detail b ON a.comp_id = b.comp_id AND a.evaluation_id = b.evaluation_id
+        WHERE 1 = 1
+          AND a.comp_id = #{compId}
+          AND a.evaluation_id = #{evaluationId}
+     ORDER BY a.ord_seq
+
+    </select>
+
+    <select id='getEvaluationChecklistDetailDataSet' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.evaluation.model.EvaluationChecklistVO'>
+
+        SELECT a.evaluation_nm, b.*
+        from dataset.tb_dataset_evaluation_checklist a
+        left join dataset.tb_dataset_evaluation_checklist_detail b ON a.evaluation_id = b.evaluation_id
+        WHERE 1 = 1
+          AND b.evaluation_id = #{evaluationId}
+          AND b.use_yn = 'Y'
+        ORDER BY a.ord_seq
+
+    </select>
+
+    <select id='getEvaluationChecklistDetailBySearchText' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.evaluation.model.EvaluationChecklistVO'>
+
+        SELECT a.evaluation_id, a.evaluation_nm, b.*
+        from esg.tb_evaluation_report_checklist a
+        left join esg.tb_evaluation_report_checklist_detail b ON a.comp_id = b.comp_id AND a.evaluation_id = b.evaluation_id
+        WHERE 1 = 1
+        AND a.comp_id = #{compId}
+        AND a.evaluation_id = #{searchText}
+        AND b.evaluation_item_id IS NOT NULL
+        ORDER BY a.ord_seq
+
+    </select>
+
+    <insert id="insertEvaluationChecklist" parameterType="kr.co.igns.business.evaluation.model.EvaluationChecklistVO">
+            <selectKey keyProperty="evaluationId" resultType="kr.co.igns.business.evaluation.model.EvaluationChecklistVO" order="BEFORE">
+                <![CDATA[
+                    SELECT CASE WHEN #{evaluationId, jdbcType=VARCHAR} IS NOT NULL AND #{evaluationId, jdbcType=VARCHAR} != '' then #{evaluationId}
+                                ELSE TO_CHAR(CURRENT_DATE, 'YYYYMMDD') || LPAD((COALESCE(MAX(SUBSTRING(evaluation_id, 9, 4)::INTEGER), 0) + 1)::text, 4, '0')
+                                 END AS evaluation_id
+                      FROM esg.tb_evaluation_report_checklist
+                     WHERE comp_id = #{compId}
+                       AND evaluation_id like to_char(now(), 'yyyymmdd') || '%'
+                ]]>
+            </selectKey>
+
+
+        INSERT INTO esg.tb_evaluation_report_checklist (
+            comp_id,
+            evaluation_id,
+            evaluation_nm,
+            use_yn,
+            created_at,
+            created_by,
+            ord_seq
+        )
+        VALUES (
+           #{compId},
+           #{evaluationId},
+           #{evaluationNm},
+           #{useYn},
+           now(),
+           #{createdBy},
+           #{ordSeq}
+        )
+
+    </insert>
+
+    <insert id="insertEvaluationChecklistDetail" parameterType="kr.co.igns.business.evaluation.model.EvaluationChecklistVO">
+
+        <selectKey keyProperty="evaluationItemId" resultType="kr.co.igns.business.evaluation.model.EvaluationChecklistVO" order="BEFORE">
+            <![CDATA[
+                    SELECT CASE WHEN #{evaluationItemId, jdbcType=VARCHAR} IS NOT NULL AND #{evaluationItemId, jdbcType=VARCHAR} != '' then #{evaluationItemId}
+                                ELSE TO_CHAR(CURRENT_DATE, 'YYYYMMDD') || LPAD((COALESCE(MAX(SUBSTRING(evaluation_item_id, 9, 4)::INTEGER), 0) + 1)::text, 4, '0')
+                                 END AS evaluation_item_id
+                      FROM esg.tb_evaluation_report_checklist_detail
+                     WHERE comp_id = #{compId}
+                       AND evaluation_item_id like to_char(now(), 'yyyymmdd') || '%'
+         ]]>
+        </selectKey>
+
+
+        INSERT INTO esg.tb_evaluation_report_checklist_detail (
+            comp_id,
+            evaluation_id,
+            evaluation_item_id,
+            evaluation_item_nm,
+            use_yn,
+            created_at,
+            created_by,
+            ord_seq
+        )
+        VALUES (
+                   #{compId},
+                   #{evaluationId},
+                   #{evaluationItemId},
+                   #{evaluationItemNm},
+                   #{useYn},
+                   now(),
+                   #{createdBy},
+                   #{ordSeq}
+               )
+
+    </insert>
+
+    <update id="updateEvaluationChecklist" parameterType="kr.co.igns.business.evaluation.model.EvaluationChecklistVO">
+
+        UPDATE esg.tb_evaluation_report_checklist
+        SET
+            evaluation_nm = #{evaluationNm},
+            use_yn = #{useYn},
+            ord_seq = #{ordSeq},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE 1 = 1
+          AND comp_id = #{compId}
+          AND evaluation_id = #{evaluationId}
+
+    </update>
+
+    <update id="updateEvaluationChecklistDetail" parameterType="kr.co.igns.business.evaluation.model.EvaluationChecklistVO">
+
+        UPDATE esg.tb_evaluation_report_checklist_detail
+        SET
+            evaluation_item_nm = #{evaluationItemNm},
+            ord_seq = #{ordSeq},
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE 1 = 1
+          AND comp_id = #{compId}
+          AND evaluation_id = #{evaluationId}
+          AND evaluation_item_id = #{evaluationItemId}
+
+    </update>
+
+    <delete id="deleteEvaluationChecklistDetail" parameterType="kr.co.igns.business.evaluation.model.EvaluationChecklistVO">
+
+        UPDATE esg.tb_evaluation_report_checklist_detail
+           SET
+               use_yn = 'N',
+               updated_at = now(),
+               updated_by = #{updatedBy}
+         WHERE comp_id = #{compId}
+           AND evaluation_id = #{evaluationId}
+           AND evaluation_item_id = #{evaluationItemId}
+
+    </delete>
+
+    <delete id="deleteEvaluationChecklist" parameterType="kr.co.igns.business.evaluation.model.EvaluationChecklistVO">
+
+        DELETE FROM esg.tb_evaluation_report_checklist
+        WHERE comp_id = #{compId}
+        AND evaluation_id = #{evaluationId}
+
+    </delete>
+
+    <delete id="deleteEvaluationChecklistDetailData" parameterType="kr.co.igns.business.evaluation.model.EvaluationChecklistVO">
+
+        DELETE FROM esg.tb_evaluation_report_checklist_detail
+        WHERE comp_id = #{compId}
+        AND evaluation_id = #{evaluationId}
+
+    </delete>
+
+    <select id='getEvaluationChecklistById' parameterType='kr.co.igns.business.evaluation.model.EvaluationChecklistVO' resultType='kr.co.igns.business.evaluation.model.EvaluationChecklistVO'>
+
+        SELECT *
+          FROM esg.tb_evaluation_report_checklist
+         WHERE comp_id = #{compId}
+           AND evaluation_id = #{evaluationId}
+
+    </select>
+
+    <select id='getEvaluationChecklistDetailById' parameterType='kr.co.igns.business.evaluation.model.EvaluationChecklistVO' resultType='kr.co.igns.business.evaluation.model.EvaluationChecklistVO'>
+
+        SELECT *
+          FROM esg.tb_evaluation_report_checklist_detail
+         WHERE comp_id = #{compId}
+           AND evaluation_id = #{evaluationId}
+           AND evaluation_item_id = #{evaluationItemId}
+
+    </select>
+
+    <select id='getBaseEvaluationChecklist' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.evaluation.model.EvaluationChecklistVO'>
+
+        SELECT *
+        FROM dataset.tb_evaluation_report_checklist
+        WHERE 1 = 1
+        ORDER BY ord_seq
+
+    </select>
+
+    <select id='getBaseEvaluationChecklistDetail' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.evaluation.model.EvaluationChecklistVO'>
+
+        SELECT *
+        FROM dataset.tb_dataset_evaluation_checklist_detail
+        WHERE 1 = 1
+          AND evaluation_id = #{evaluationId}
+        ORDER BY ord_seq
+
+    </select>
+
+    <!-- 준수평가표 상세 Map -->
+    <resultMap id="LegalComplianceEvaluationMap" type="kr.co.igns.business.evaluation.model.LegalComplianceEvaluationDetailVO">
+        <!-- 일반 필드 정의 -->
+        <result property="writeYear" column="write_year"/>
+        <result property="docType" column="doc_type"/>
+        <result property="docNo" column="doc_no"/>
+        <result property="docSeq" column="doc_seq"/>
+        <result property="reviewWriteYear" column="review_write_year"/>
+        <result property="reviewDocType" column="review_doc_type"/>
+        <result property="reviewDocNo" column="review_doc_no"/>
+        <result property="reviewDocSeq" column="review_doc_seq"/>
+        <result property="legalNm" column="legal_nm"/>
+        <result property="legalReviewNm" column="legal_review_nm"/>
+        <result property="legalArticleNm" column="legal_article_nm"/>
+        <result property="legalReviewYn" column="legal_review_yn"/>
+        <result property="contents" column="contents"/>
+        <result property="remark" column="remark"/>
+        <result property="useYn" column="use_yn"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="updatedBy" column="updated_by"/>
+
+        <!-- 여러 파일 ID 리스트로 매핑 -->
+        <collection property="files" ofType="kr.co.igns.system.common.model.FileVO">
+            <result property="fileId" column="file_id"/>
+            <result property="fileName" column="file_nm"/>
+            <result property="fileSize" column="file_size"/>
+        </collection>
+    </resultMap>
+
+    <!--법규 준수평가표 리스트 조회-->
+    <select id='getLegalComplianceEvaluationList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.evaluation.model.LegalComplianceEvaluationVO'>
+        SELECT tlce.*,
+               esg.fn_getapprovalstatus(#{docType}, tlce.write_year || tlce.doc_no) as approval_status,
+               COUNT(tlced.doc_seq) as complianceCnt,
+               COUNT(CASE WHEN tlced.legal_review_yn = 'N' AND tlced.use_yn = 'Y' THEN 1 END) as legalReviewNotCompliedCnt,
+               COUNT(CASE WHEN tlced.legal_review_yn IS NULL AND tlced.use_yn = 'Y' THEN 1 END) as legalReviewNotEvaluatedCnt
+          FROM esg.tb_legal_comlpliance_evaluation tlce
+          LEFT JOIN esg.tb_legal_comlpliance_evaluation_detail tlced
+            ON tlce.write_year = tlced.write_year
+           AND tlce.doc_type = tlced.doc_type
+           AND tlce.doc_no = tlced.doc_no
+         WHERE tlce.write_year = #{writeYear}
+           AND tlce.doc_type = #{docType}
+           AND tlce.comp_id = #{compId}
+           <if test="docNo != null and docNo != ''">
+               AND tlce.doc_no = #{docNo}
+           </if>
+        GROUP BY tlce.write_year, tlce.doc_type, tlce.doc_no, tlce.comp_id
+        ORDER BY tlce.doc_no DESC
+    </select>
+
+    <!--법규 준수평가표 상세 리스트 조회-->
+    <select id='getLegalComplianceEvaluationDetailList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultMap='LegalComplianceEvaluationMap'>
+        SELECT tlced.*, tlm.legal_nm,  tlmd.article_title AS legal_article_nm, tlr.legal_review_nm,
+                sf.file_id,
+                sf.file_nm,  -- 파일 이름 가져오기
+                sf.file_size  -- 파일 크기 가져오기
+        FROM esg.tb_legal_comlpliance_evaluation tlce
+        LEFT JOIN esg.tb_legal_comlpliance_evaluation_detail tlced
+          ON tlced.doc_type = tlce.doc_type
+         AND tlced.doc_no = tlce.doc_no
+         AND tlced.write_year = tlce.write_year
+        LEFT JOIN esg.tb_sys_file sf
+          ON sf.target_id = tlced.write_year || tlced.doc_no || tlced.doc_seq
+         AND sf.target_type = 'LCE'
+        LEFT JOIN esg.tb_legal_review_detail tlrd
+          ON tlrd.write_year = tlced.review_write_year
+         AND tlrd.doc_no = tlced.review_doc_no
+         AND tlrd.doc_seq = tlced.review_doc_seq
+        LEFT JOIN esg.tb_legal_review tlr
+          ON tlr.write_year = tlrd.write_year
+         AND tlr.doc_no = tlrd.doc_no
+         AND tlr.comp_id = #{compId}
+        LEFT JOIN esg.tb_legal_manage_detail tlmd
+          ON tlmd.write_year = tlrd.legal_write_year
+         AND tlmd.doc_no = tlrd.legal_doc_no
+         AND tlmd.doc_seq = tlrd.legal_doc_seq
+        LEFT JOIN esg.tb_legal_manage tlm
+          ON tlm.write_year = tlmd.write_year
+         AND tlm.doc_no = tlmd.doc_no
+         AND tlm.comp_id = #{compId}
+        WHERE 1 = 1
+          AND tlce.write_year = #{writeYear}
+          AND tlce.doc_type = #{docType}
+          AND tlce.comp_id = #{compId}
+          AND tlce.doc_no = #{docNo}
+          AND tlced.doc_no IS NOT NULL
+        <if test="docSeq != null and !docSeq.equals('')">
+            AND tlced.doc_seq = #{docSeq}
+        </if>
+        ORDER BY CAST(tlced.doc_seq AS INTEGER) ASC
+    </select>
+
+    <!--법규 준수평가표 상세 조직 리스트 조회-->
+    <select id='getLegalComplianceEvaluationDetailOrgnList' parameterType='kr.co.igns.business.evaluation.model.LegalComplianceEvaluationDetailVO' resultType='kr.co.igns.business.evaluation.model.LegalComplianceEvaluationDetailOrgnVO'>
+        SELECT tlcedo.*
+          FROM esg.tb_legal_comlpliance_evaluation_detail_orgn tlcedo
+          LEFT JOIN esg.tb_legal_comlpliance_evaluation_detail tlced
+            ON tlcedo.doc_type = tlced.doc_type
+           AND tlcedo.doc_no = tlced.doc_no
+           AND tlcedo.write_year = tlced.write_year
+           AND tlced.doc_seq = #{docSeq}
+        WHERE 1 = 1
+          AND tlcedo.write_year = #{writeYear}
+          AND tlcedo.doc_type = #{docType}
+          AND tlcedo.doc_no = #{docNo}
+          AND tlcedo.doc_seq = #{docSeq}
+        ORDER BY tlcedo.doc_seq DESC
+    </select>
+
+    <!--법규 준수평가표 메인 데이터 저장-->
+    <insert id="insertLegalComplianceEvaluation" parameterType="kr.co.igns.business.evaluation.model.LegalComplianceEvaluationVO">
+
+        <selectKey keyProperty="docNo" resultType="kr.co.igns.business.evaluation.model.LegalComplianceEvaluationVO" order="BEFORE">
+            <![CDATA[
+            SELECT
+                LPAD((COALESCE(MAX(SUBSTRING(doc_no, 1, 5)::INTEGER), 0) + 1)::TEXT, 5, '0') AS docNo
+              FROM esg.tb_legal_comlpliance_evaluation
+             WHERE write_year = #{writeYear}
+               AND doc_type = #{docType}
+         ]]>
+        </selectKey>
+
+        INSERT INTO esg.tb_legal_comlpliance_evaluation (
+            write_year,
+            doc_no,
+            doc_type,
+            comp_id,
+            legal_evaluation_dt,
+            legal_evaluation_nm,
+            use_yn,
+            created_by
+        )
+        VALUES (
+            #{writeYear},
+            #{docNo},
+            #{docType},
+            #{compId},
+            #{legalEvaluationDt},
+            #{legalEvaluationNm},
+            #{useYn},
+            #{createdBy}
+        )
+
+    </insert>
+
+    <!--법규 준수평가표 상세 데이터 저장-->
+    <insert id="insertLegalComplianceEvaluationDetail" parameterType="kr.co.igns.business.evaluation.model.LegalComplianceEvaluationDetailVO">
+
+        <selectKey keyProperty="docSeq" resultType="kr.co.igns.business.evaluation.model.LegalComplianceEvaluationDetailVO" order="BEFORE">
+            <![CDATA[
+            SELECT
+                LPAD((COALESCE(MAX(SUBSTRING(doc_seq, 1, 5)::INTEGER), 0) + 1)::TEXT, 5, '0') AS docSeq
+              FROM esg.tb_legal_comlpliance_evaluation_detail
+             WHERE write_year = #{writeYear}
+               AND doc_type = #{docType}
+               AND doc_no = #{docNo}
+         ]]>
+        </selectKey>
+
+        INSERT INTO esg.tb_legal_comlpliance_evaluation_detail (
+            write_year,
+            doc_no,
+            doc_type,
+            doc_seq,
+            review_doc_type,
+            review_doc_no,
+            review_doc_seq,
+            review_write_year,
+            legal_review_yn,
+            contents,
+            remark,
+            use_yn,
+            created_by
+        )
+        VALUES (
+            #{writeYear},
+            #{docNo},
+            #{docType},
+            #{docSeq},
+            #{reviewDocType},
+            #{reviewDocNo},
+            #{reviewDocSeq},
+            #{reviewWriteYear},
+            #{legalReviewYn},
+            #{contents},
+            #{remark},
+            #{useYn},
+            #{createdBy}
+        )
+
+    </insert>
+
+    <!--법규 준수평가표 상세 조직 데이터 저장-->
+    <insert id="insertLegalComplianceEvaluationDetailOrgn" parameterType="kr.co.igns.business.evaluation.model.LegalComplianceEvaluationDetailOrgnVO">
+        INSERT INTO esg.tb_legal_comlpliance_evaluation_detail_orgn (
+            write_year,
+            doc_no,
+            doc_type,
+            doc_seq,
+            orgn_id,
+            orgn_nm,
+            created_by
+        )
+        VALUES (
+            #{writeYear},
+            #{docNo},
+            #{docType},
+            #{docSeq},
+            #{orgnId},
+            #{orgnNm},
+            #{createdBy}
+        )
+
+    </insert>
+
+    <!--법규 준수평가표 데이터 수정-->
+    <update id="updateLegalComplianceEvaluation" parameterType="kr.co.igns.business.evaluation.model.LegalComplianceEvaluationVO">
+
+        UPDATE esg.tb_legal_comlpliance_evaluation
+        SET
+            legal_evaluation_dt = #{legalEvaluationDt},
+            legal_evaluation_nm = #{legalEvaluationNm},
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE 1 = 1
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND comp_id = #{compId}
+
+    </update>
+
+    <!--법규 준수평가표 상세 데이터 수정-->
+    <update id="updateLegalComplianceEvaluationDetail" parameterType="kr.co.igns.business.evaluation.model.LegalComplianceEvaluationDetailVO">
+
+        UPDATE esg.tb_legal_comlpliance_evaluation_detail
+           SET
+                review_doc_no = #{reviewDocNo},
+                review_doc_seq = #{reviewDocSeq},
+                review_write_year = #{reviewWriteYear},
+                legal_review_yn = #{legalReviewYn},
+                use_yn = #{useYn},
+                contents = #{contents},
+                remark = #{remark},
+                updated_at = now(),
+                updated_by = #{updatedBy}
+         WHERE 1 = 1
+           AND write_year = #{writeYear}
+           AND doc_no = #{docNo}
+           AND doc_type = #{docType}
+           AND doc_seq = #{docSeq}
+
+    </update>
+
+    <!--법규 준수평가표 데이터 삭제-->
+    <delete id="deleteLegalComplianceEvaluation" parameterType="kr.co.igns.business.evaluation.model.LegalComplianceEvaluationVO">
+
+        UPDATE esg.tb_legal_comlpliance_evaluation
+           SET
+              use_yn = 'N',
+              updated_at = now(),
+              updated_by = #{updatedBy}
+        WHERE 1 = 1
+          AND write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND comp_id = #{compId}
+
+    </delete>
+
+    <!--법규 준수평가표 상세 데이터 삭제-->
+    <delete id="deleteLegalComplianceEvaluationDetail" parameterType="kr.co.igns.business.evaluation.model.LegalComplianceEvaluationDetailVO">
+
+        UPDATE esg.tb_legal_comlpliance_evaluation_detail
+           SET
+                use_yn = 'N',
+                updated_at = now(),
+                updated_by = #{updatedBy}
+        WHERE write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND doc_seq = #{docSeq}
+
+    </delete>
+
+    <!--법규 준수평가표 상세 조직 데이터 삭제-->
+    <delete id="deleteLegalComplianceEvaluationDetailOrgn" parameterType="kr.co.igns.business.evaluation.model.LegalComplianceEvaluationDetailOrgnVO">
+
+        DELETE
+          FROM esg.tb_legal_comlpliance_evaluation_detail_orgn
+         WHERE write_year = #{writeYear}
+           AND doc_no = #{docNo}
+           AND doc_type = #{docType}
+           AND doc_seq = #{docSeq}
+
+    </delete>
+
+    <!-- 일괄출력용 -->
+    <select id='getAllReport' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='String'>
+        select t1.doc_no
+        from esg.tb_evaluation_report t1
+        where t1.write_year = #{writeYear}
+            and t1.comp_id = #{compId}
+            and substring(t1.evaluation_dt from 5 for 2) = #{searchText}
+    </select>
+
+    <select id='getAllEvaluationComplianceReport' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='String'>
+        select t1.doc_no
+        from esg.tb_legal_comlpliance_evaluation t1
+        where t1.write_year = #{writeYear}
+        and t1.comp_id = #{compId}
+        and substring(t1.legal_evaluation_dt from 5 for 2) = #{searchText}
+    </select>
+
+    <select id='getEvaluationChecklistCriteria' parameterType='kr.co.igns.business.evaluation.model.EvaluationReportDetailVO' resultType='kr.co.igns.business.evaluation.model.EvaluationReportDetailVO'>
+        SELECT evaluation_id
+             , evaluation_item_id
+             , criteria_id
+             , criteria as evaluationCriteria
+             , methods as evaluationMethod
+             , use_yn
+             , ord_seq
+         FROM dataset.tb_dataset_evaluation_checklist_criteria
+        WHERE evaluation_id = #{evaluationId}
+          AND evaluation_item_id = #{evaluationItemId}
+    </select>
+</mapper>
+

@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.planning.dao.postgres.RiskAssessmentOrganChartDAO">
+
+
+	<select id="getRiskOrgList" parameterType="kr.co.igns.system.common.model.SpSearchVO" resultType="kr.co.igns.business.planning.model.RiskOrgnRoleVO">
+		SELECT comp_id,
+			   orgn_role_id,
+			   orgn_role_nm,
+			   ord_seq,
+			   use_yn,
+			   remark,
+			   created_at,
+			   created_by,
+			   updated_at,
+			   updated_by
+		  FROM esg.tb_risk_assessment_organ_chart_orgn_role
+		 WHERE comp_id = #{compId}
+	  ORDER BY use_yn desc, ord_seq
+	</select>
+
+	<select id="getDataSetRiskOrgList" parameterType="kr.co.igns.system.common.model.SpSearchVO" resultType="kr.co.igns.business.planning.model.RiskOrgnRoleVO">
+		SELECT orgn_role_id,
+			   orgn_role_nm,
+			   ord_seq,
+			   use_yn,
+			   remark
+		  FROM dataset.tb_dataset_risk_assessment_organ_chart_orgn_role
+	  ORDER BY ord_seq
+	</select>
+
+	<insert id="insertRiskOrgList" parameterType="kr.co.igns.business.planning.model.RiskOrgnRoleVO">
+		<selectKey keyProperty="orgnRoleId" resultType="String" order="BEFORE">
+			SELECT CASE WHEN #{orgnRoleId} IS NULL or #{orgnRoleId} = ''
+						THEN TO_CHAR(now(), 'yyyymmdd') || lpad((COALESCE(MAX(SUBSTRING(orgn_role_id from 9 for 4))::int, 0) + 1)::text , 4, '0')
+						ELSE #{orgnRoleId}
+						 END
+			  FROM esg.tb_risk_assessment_organ_chart_orgn_role
+			 WHERE orgn_role_id like to_char(now(), 'yyyymmdd') || '%'
+			   AND comp_id = #{compId}
+			 LIMIT 1
+		</selectKey>
+		INSERT INTO esg.tb_risk_assessment_organ_chart_orgn_role(
+			comp_id,
+			orgn_role_id,
+			orgn_role_nm,
+			remark,
+			ord_seq,
+			use_yn,
+			created_at,
+			created_by
+		)VALUES(
+			#{compId},
+			#{orgnRoleId},
+			#{orgnRoleNm},
+			#{remark},
+			#{ordSeq},
+			#{useYn},
+			now(),
+			#{createdBy}
+		)
+	</insert>
+
+	<update id="updateRiskOrgList" parameterType="kr.co.igns.business.planning.model.RiskOrgnRoleVO">
+		UPDATE esg.tb_risk_assessment_organ_chart_orgn_role
+		   SET orgn_role_nm = #{orgnRoleNm},
+		       remark = #{remark},
+			   ord_seq = #{ordSeq},
+			   use_yn = #{useYn},
+			   updated_at = now(),
+			   updated_by = #{updatedBy}
+		 WHERE comp_id = #{compId}
+		   AND orgn_role_id = #{orgnRoleId}
+	</update>
+
+	<select id="getMembers" resultType="kr.co.igns.system.base.model.HrVO">
+		select tab1.hr_id,
+		       tab1.hr_nm,
+		       tab1.jbrp,
+		       tab1.part_comp_id,
+		       tab1.orgn_id,
+		       tab1.ord_seq,
+			   tab1.use_yn
+		from esg.tb_hr_info tab1
+		 inner join esg.tb_hr_info_comp_map tab2
+		    on tab1.hr_id = tab2.hr_id
+		   and tab2.comp_id = #{compId}
+		 where tab1.use_yn = 'Y'
+		 <if test="orgnId != null and orgnId != ''">
+		   and tab1.orgn_id = #{orgnId}
+		 </if>
+		 order by tab1.ord_seq asc
+	</select>
+    
+    <select id="getChartDetail" parameterType="kr.co.igns.system.common.model.SpSearchVO" resultType="kr.co.igns.business.planning.model.RiskAssessmentOrganChartVO">
+        SELECT *
+          FROM esg.tb_risk_assessment_organ_chart
+         WHERE chart_id = #{searchText}
+    </select>
+    
+    <select id="getRiskAssessmentOrganChartList" parameterType="kr.co.igns.system.common.model.SpSearchVO" resultType="kr.co.igns.business.planning.model.RiskAssessmentOrganChartVO">
+    	SELECT a.*,
+    	       b.orgn_nm
+          FROM esg.tb_risk_assessment_organ_chart a
+          LEFT OUTER JOIN esg.tb_orgn_info b
+            ON b.orgn_id = a.orgn_id
+         WHERE a.comp_id = #{compId}
+         ORDER BY a.use_yn DESC, a.created_at DESC
+    </select>
+    
+    <select id="getRiskAssessmentOrganChartDetail" parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType="kr.co.igns.business.planning.model.RiskAssessmentOrganChartVO">
+        SELECT a.chart_id as chartId,
+		       a.chart_nm as chartNm,
+		       a.orgn_id as orgnId,
+		       a.confirm_yn as confirmYn,
+		       a.chart_data as chartData,
+               a.chart_blob_data,
+		       to_char(a.created_at, 'yyyy-mm-dd') as createdAt,
+		       a.created_by as createdBy,
+		       to_char(a.updated_at, 'yyyy-mm-dd')  as updatedAt,
+		       a.updated_by as updatedBy,
+		       substring(a.confirm_dt, 1, 11) as confirmDt,
+		       a.member_count as memberCount,
+		       a.comp_id as compId,
+		       a.use_yn as useYn,
+		       b.orgn_nm  as orgnNm
+		  FROM esg.tb_risk_assessment_organ_chart a
+		  left outer join ESG.tb_orgn_info b
+		    on B.orgn_id = A.orgn_id 
+         WHERE a.chart_id = #{searchText}
+    </select>
+    
+	<insert id="insertRiskAssessmentOrganChart" parameterType="kr.co.igns.business.planning.model.RiskAssessmentOrganChartVO">
+		<selectKey keyProperty="chartId" resultType="kr.co.igns.business.planning.model.RiskAssessmentOrganChartVO" order="BEFORE">
+    	     select to_char(now(), 'yyyymmdd') ||
+				   lpad(
+					   (coalesce(max(substring(chart_id from 9 for 4))::int, 0) + 1)::text,
+					   4,
+					   '0'
+				   ) as chart_id
+			from esg.tb_risk_assessment_organ_chart
+			where chart_id like to_char(now(), 'YYYYMMDD') || '%'
+    	</selectKey>
+        INSERT INTO esg.tb_risk_assessment_organ_chart (
+            comp_id,
+            chart_id,
+            chart_nm,
+            orgn_id,
+            confirm_yn,
+            chart_data,
+            member_count,
+            use_yn,
+            created_at,
+            created_by,
+            chart_blob_data
+        ) VALUES (
+            #{compId},
+            #{chartId},
+            #{chartNm},
+            #{orgnId},
+            #{confirmYn},
+            #{chartData},
+            #{memberCount},
+            #{useYn},
+            now(),
+            #{createdBy},
+            #{chartBlobData}
+        )
+	</insert>
+	
+	<update id="updateRiskAssessmentOrganChart" parameterType="kr.co.igns.business.planning.model.RiskAssessmentOrganChartVO">
+		UPDATE esg.tb_risk_assessment_organ_chart
+           SET comp_id = #{compId},
+               orgn_id = #{orgnId},
+	           chart_nm = #{chartNm},
+	           chart_data = #{chartData},
+	           member_count = #{memberCount},
+	           use_yn = #{useYn},
+	           confirm_yn = #{confirmYn},
+	           chart_blob_data = #{chartBlobData},
+			<if test='confirmYn == "Y"'>
+	           confirm_dt = now(),
+	        </if>
+	        <if test='confirmYn == "N"'>
+	           confirm_dt = '',
+	        </if>
+	           updated_at = now(),
+	           updated_by = #{updatedBy}
+         WHERE chart_id = #{chartId}
+	</update>
+	
+	<update id="confirmRiskAssessmentOrganChart" parameterType="kr.co.igns.business.planning.model.RiskAssessmentOrganChartVO">
+        UPDATE esg.tb_risk_assessment_organ_chart
+           SET confirm_yn = #{confirmYn},
+			<if test='confirmYn == "Y"'>
+               confirm_dt = now(),
+            </if>
+            <if test='confirmYn == "N"'>
+               confirm_dt = '',
+            </if>
+               updated_at = now(),
+               updated_by = #{updatedBy}
+         WHERE chart_id = #{chartId}
+    </update>
+    
+	<update id="deleteRiskAssessmnetOrganChart" parameterType="kr.co.igns.business.planning.model.RiskAssessmentOrganChartVO">
+        UPDATE esg.tb_risk_assessment_organ_chart
+           SET use_yn = 'N',
+               updated_at = now(),
+               updated_by = #{updatedBy}
+         WHERE chart_id = #{chartId}
+    </update>
+    
+</mapper>
+

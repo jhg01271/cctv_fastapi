@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.evaluation.dao.postgres.AuditResultReportDAO">
+    <select id='getAuditResultReport' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.evaluation.model.AuditExecutionPlanVO'>
+        SELECT * FROM esg.tb_audit_execution_plan
+        WHERE comp_id = #{compId}
+        AND write_year = #{writeYear}
+        ORDER BY use_yn DESC, write_dt DESC, doc_no DESC
+    </select>
+
+    <select id='getAuditResultReportOrgn' parameterType='kr.co.igns.business.evaluation.model.AuditExecutionPlanVO' resultType='kr.co.igns.business.evaluation.model.AuditExecutionPlanDetailVO'>
+        SELECT taed.*,
+        toi.orgn_nm FROM esg.tb_audit_execution_plan_detail taed
+        LEFT JOIN esg.tb_orgn_info toi on toi.orgn_id = taed.orgn_id
+        WHERE write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+        ORDER BY taed.use_yn DESC,
+         taed.created_at DESC
+    </select>
+    <select id='getAuditExecutionPlan' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.evaluation.model.AuditExecutionPlanDetailVO'>
+        SELECT tarr.*,toi.orgn_nm
+        
+         FROM esg.tb_audit_execution_plan_detail tarr
+        LEFT JOIN esg.tb_orgn_info toi on toi.orgn_id = tarr.orgn_id
+        WHERE tarr.write_year = #{writeYear}
+          AND tarr.doc_no = #{docNo}
+          AND tarr.doc_type = #{docType}
+          AND tarr.doc_seq = #{docSeq}
+    </select>
+    <select id='getAuditResultReportSingle' parameterType='kr.co.igns.business.evaluation.model.AuditExecutionPlanVO' resultType='kr.co.igns.business.evaluation.model.AuditExecutionPlanDetailVO'>
+        SELECT tarr.*,toi.orgn_nm,thi.hr_id as orgnHeadId, thi.hr_nm as orgnHeadNm,aep.audit_nm as auditNm,
+        case when taia.signature is not null then 'Y'
+            	when taiR.signature is not null then 'I'
+            	when taiw.signature is not null then 'W'
+            	else 'C'
+            	end as approvalStatus
+         FROM esg.tb_audit_result_report tarr
+         LEFT JOIN esg.tb_audit_execution_plan aep
+         on tarr.doc_no = aep.doc_no
+         and tarr.write_year = aep.write_year
+        LEFT JOIN esg.tb_orgn_info toi on toi.orgn_id = tarr.orgn_id
+        left join esg.tb_approval_info taiw
+            on taiw.target_type = 'ARR'
+            and taiw.target_id = tarr.write_year || tarr.doc_no || tarr.doc_seq
+            and taiw.param = 'writer'
+        left join esg.tb_approval_info tair
+            on tair.target_type = 'ARR'
+            and tair.target_id = tarr.write_year || tarr.doc_no || tarr.doc_seq
+            and tair.param = 'reviewer'
+        left join esg.tb_approval_info taia
+            on taia.target_type = 'ARR'
+            and taia.target_id = tarr.write_year || tarr.doc_no || tarr.doc_seq
+            and taia.param = 'approver'
+        left join esg.tb_hr_incharge_map thim
+            on thim.target_type = 'orgn'
+            and thim.target_id = tarr.orgn_id
+            and thim.gubun = 'HEAD'
+        left join esg.tb_hr_info thi
+            on thi.hr_id = thim.hr_id
+        WHERE tarr.write_year = #{writeYear}
+          AND tarr.doc_no = #{docNo}
+          AND tarr.doc_type = #{docType}
+          AND tarr.doc_seq = #{docSeq}
+        ORDER BY tarr.use_yn DESC, tarr.created_at DESC
+    </select>
+
+    <select id='getAuditExecutionPlanHr' parameterType='kr.co.igns.business.evaluation.model.AuditExecutionPlanDetailVO' resultType='kr.co.igns.system.base.model.HrVO'>
+        SELECT taeh.*, thi.hr_nm FROM esg.tb_audit_execution_plan_detail_hr taeh
+        LEFT JOIN esg.tb_hr_info thi on thi.hr_id = taeh.hr_id
+        WHERE taeh.write_year = #{writeYear}
+          AND taeh.doc_no = #{docNo}
+          AND taeh.doc_type = #{docType}
+          AND taeh.doc_seq = #{docSeq}
+    </select>
+
+    <select id='getAuditResultReportDetail' parameterType='kr.co.igns.business.evaluation.model.AuditExecutionPlanVO' resultType='kr.co.igns.business.evaluation.model.AuditResultDetaillVO'>
+        SELECT tarr.* FROM esg.tb_audit_result_report_detail tarr
+        WHERE tarr.write_year = #{writeYear}
+          AND tarr.doc_no = #{docNo}
+          AND tarr.doc_type = #{docType}
+          AND tarr.doc_seq = #{docSeq}
+        ORDER BY tarr.use_yn DESC, tarr.created_at DESC, tarr.doc_seq_detail asc
+    </select>
+
+    <select id='getAuditResultReportHr' parameterType='kr.co.igns.business.evaluation.model.AuditExecutionPlanDetailVO' resultType='kr.co.igns.system.base.model.HrVO'>
+        SELECT taeh.*, thi.hr_nm FROM esg.tb_audit_result_report_hr taeh
+        LEFT JOIN esg.tb_hr_info thi on thi.hr_id = taeh.hr_id
+        WHERE taeh.write_year = #{writeYear}
+          AND taeh.doc_no = #{docNo}
+          AND taeh.doc_type = #{docType}
+          AND taeh.doc_seq = #{docSeq}
+    </select>
+    <update id='deleteAuditReport' parameterType='kr.co.igns.business.evaluation.model.AuditExecutionPlanDetailVO'>
+        DELETE FROM esg.tb_audit_result_report
+        WHERE  write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND doc_seq = #{docSeq}
+    </update>
+    <insert id='insertAuditResult' parameterType='kr.co.igns.business.evaluation.model.AuditExecutionPlanDetailVO'>
+        INSERT INTO esg.tb_audit_result_report(
+         write_year,
+         doc_type,
+         doc_no,
+         doc_seq,
+         audit_dt,
+         audit_st_time,
+         audit_ed_time,
+         orgn_id,
+         remark,
+         use_yn,
+         created_at,
+         created_by
+         )
+        VALUES(
+        #{writeYear},
+         #{docType},
+         #{docNo},
+         #{docSeq},
+         #{auditDt},
+         #{auditStTime},
+         #{auditEdTime},
+         #{orgnId},
+         #{remark},
+         #{useYn},
+         now(),
+         #{createdBy}
+         );
+    </insert>
+    <insert id='insertAuditResultDetail' parameterType='kr.co.igns.business.evaluation.model.AuditResultDetaillVO'>
+      <selectKey keyProperty="docSeqDetail" resultType="kr.co.igns.business.evaluation.model.AuditResultDetaillVO" order="BEFORE">
+        <![CDATA[
+            select lpad((coalesce(max(substring(doc_seq_detail, 1, 5)::integer), 0) + 1)::text, 5, '0') as docSeqDetail
+            from esg.tb_audit_result_report_detail
+            WHERE write_year = #{writeYear}
+            AND doc_type = #{docType}
+            AND doc_seq = #{docSeq}
+        ]]>
+    </selectKey>
+        INSERT INTO esg.tb_audit_result_report_detail(
+         write_year,
+         doc_type,
+         doc_no,
+         doc_seq,
+         doc_seq_detail,
+         target_job,
+         result,
+         remark,
+         use_yn,
+         created_at,
+         created_by
+         )
+        VALUES(
+         #{writeYear},
+         #{docType},
+         #{docNo},
+         #{docSeq},
+         #{docSeqDetail},
+         #{targetJob},
+         #{result},
+         #{remark},
+         #{useYn},
+         now(),
+         #{createdBy}
+         );
+    </insert>
+    <insert id='insertAuditHr' parameterType='kr.co.igns.system.base.model.HrVO'>
+        INSERT INTO esg.tb_audit_result_report_hr(
+         write_year,
+         doc_type,
+         doc_no,
+         doc_seq,
+         hr_id,
+         created_at,
+         created_by
+         )
+        VALUES(
+         #{writeYear},
+         #{docType},
+         #{docNo},
+         #{docSeq},
+         #{hrId},
+         now(),
+         #{createdBy}
+         );
+    </insert>
+    <update id='updateAuditResult' parameterType='kr.co.igns.business.evaluation.model.AuditExecutionPlanDetailVO'>
+        UPDATE esg.tb_audit_result_report
+        SET audit_dt=#{auditDt},
+        audit_st_time=#{auditStTime},
+        audit_ed_time=#{auditEdTime},
+        orgn_id=#{orgnId},
+        remark=#{remark},
+        use_yn=#{useYn},
+        updated_at=now(),
+        updated_by=#{updatedBy}
+        WHERE  write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND doc_seq = #{docSeq}
+    </update>
+    <update id='updateAuditResultDetail' parameterType='kr.co.igns.business.evaluation.model.AuditResultDetaillVO'>
+        UPDATE esg.tb_audit_result_report_detail SET
+        target_job=#{targetJob},
+        result=#{result},
+        remark=#{remark},
+        use_yn=#{useYn},
+        updated_at=now(),
+        updated_by=#{updatedBy}
+        WHERE write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND doc_seq = #{docSeq}
+          AND doc_seq_detail = #{docSeqDetail}
+    </update>
+    <delete id='deleteAuditHr' parameterType='kr.co.igns.system.base.model.HrVO'>
+    DELETE FROM esg.tb_audit_result_report_hr
+        WHERE write_year = #{writeYear}
+          AND doc_no = #{docNo}
+          AND doc_type = #{docType}
+          AND doc_seq = #{docSeq}
+    </delete>
+</mapper>

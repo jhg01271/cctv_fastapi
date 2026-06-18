@@ -1,0 +1,408 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.planning.dao.postgres.ClassificationOfHazardsDAO">
+	
+	<resultMap id="hazardMap" type="kr.co.igns.business.planning.model.ClassificationOfHazardsVO">
+		<id column="write_year" property="writeYear" />
+		<id column="doc_type" property="docType" />
+		<id column="doc_no" property="docNo" />
+		<result column="process_nm" property="processNm" />
+		<result column="process_id" property="processId" />
+		<result column="rev_no" property="revNo" />
+		<result column="rev_nm" property="revNm" />
+		<result column="use_yn" property="useYn" />
+		<result column="order_seq" property="orderSeq" />
+		<result column="created_at" property="createdAt" />
+		<result column="resisted_at" property="resistedAt" />
+		<result column="write_dt" property="writeDt" />
+		<collection property="itemList" ofType="kr.co.igns.business.planning.model.ClassificationOfHazardsVO">
+			<id column="work_detail_id" property="workDetailId" />
+			<result column="work_type" property="workType" />	
+			<result column="content" property="content" />	
+		</collection>
+		<collection property="factorList" ofType="kr.co.igns.business.planning.model.ClassificationOfHazardsVO">
+			<id column="detail_doc_seq" property="detailDocSeq" />
+			<result column="hazards_classification" property="hazardsClassification" />
+			<result column="hazards_type" property="hazardsType" />
+			<result column="factor_id" property="factorId" />
+			<result column="class_nm" property="classNm" />
+		</collection>
+	</resultMap>
+	
+	<select id="getHazardsList" resultType="kr.co.igns.business.planning.model.ClassificationOfHazardsVO">
+		SELECT A.CREATED_AT
+			   , A.WRITE_YEAR 
+			   , A.DOC_TYPE
+			   , A.DOC_NO
+			   , A.USE_YN
+			   , (SELECT process_nm FROM ESG.TB_PROCESS_INFO WHERE PROCESS_ID = A.PROCESS_ID) AS PROCESS_NM
+			   , COUNT(B.HAZARDS_CLASSIFICATION) AS HAZARDS_CLASSIFICATION_CNT
+			   , A.PROCESS_ID
+			   , A.process_work_rev_no
+			   , A.write_dt
+			   , C.rev_nm as process_work_rev_nm
+		  FROM ESG.tb_classification_hazards A
+		 INNER JOIN ESG.TB_CLASSIFICATION_HAZARDS_DETAIL B
+			ON A.WRITE_YEAR = B.WRITE_YEAR 
+		   AND A.DOC_TYPE = B.DOC_TYPE 
+		   AND A.DOC_NO = B.DOC_NO
+		 INNER JOIN ESG.TB_PROCESS_WORK_CNFM C
+			ON A.PROCESS_ID = C.PROCESS_ID
+			AND A.process_work_rev_no = C.REV_NO
+		 WHERE A.COMP_ID = #{compId}
+		   AND A.WRITE_YEAR = #{writeYear}
+		 GROUP BY A.WRITE_YEAR,A.DOC_TYPE,A.DOC_NO,TO_CHAR(A.CREATED_AT,'YYYYMMDD'), C.REV_NM
+		 ORDER BY a.use_yn DESC, CAST(a.order_seq as int) ASC, a.created_at DESC
+	</select>
+
+	<select id="selectHazardsList" parameterType="kr.co.igns.business.planning.model.ClassificationOfHazardsVO" resultType="kr.co.igns.business.planning.model.ClassificationOfHazardsVO">
+		SELECT
+			d.hazards_classification,
+			e.class_nm,
+			e.factor_id
+		  FROM esg.tb_classification_hazards c
+		  LEFT JOIN esg.tb_classification_hazards_detail d
+		    ON d.write_year = c.write_year
+		   AND d.doc_type = c.doc_type
+		   AND d.doc_no = c.doc_no
+		   AND d.write_year = #{writeYear}
+		  LEFT JOIN esg.tb_classification_hazards_factor_mgmt e
+		    ON e.factor_id = d.hazards_type
+		   AND e.class_id = d.hazards_classification
+		 WHERE c.use_yn = 'Y'
+		   AND c.process_id = #{processId}
+		   AND c.process_work_rev_no = #{revNo}
+		   AND c.comp_id = #{compId}
+		   AND c.write_year = #{writeYear}
+		 GROUP by e.factor_id, d.hazards_classification, e.class_nm
+		 ORDER BY e.factor_id, d.hazards_classification, e.class_nm
+	</select>
+	
+	<select id="selectHazardDetail" resultMap="hazardMap">
+		SELECT A.process_id
+		     , A.process_nm 
+			 , A.COMP_ID
+			 , b.rev_no
+			 , b.rev_nm
+			 , c.order_seq
+			 , c.USE_YN
+			 , c.write_year
+			 , c.doc_type
+			 , c.doc_no
+			 , c.write_dt
+			 , c.created_at
+			 , d.work_detail_id
+			 , d.content
+			 , d.work_type
+			 , e.doc_seq as detail_doc_seq
+		     , e.hazards_type
+			 , e.hazards_classification
+		     , e.hazards_type as factor_id
+		     , e.hazards_classification as class_nm
+			 , a.created_at AS resisted_at
+		  FROM esg.tb_process_info A
+		 INNER JOIN esg.tb_process_work_cnfm B
+			ON A.PROCESS_ID = B.PROCESS_ID
+		   AND b.cnfm_yn = 'Y' 
+		   and b.use_yn = 'Y'
+		  LEFT JOIN ESG.tb_classification_hazards c
+		    ON C.process_id = A.process_id
+		   AND C.process_work_rev_no = B.rev_no
+		  LEFT JOIN esg.tb_safety_and_health_info_survey_detail d
+ 		    ON d.process_id = b.process_id
+ 		  LEFT JOIN esg.tb_classification_hazards_detail e
+ 		    ON e.write_year = c.write_year
+ 		   AND e.doc_type = c.doc_type
+ 		   AND e.doc_no = c.doc_no
+		 WHERE B.USE_YN = 'Y' --사용하는것만
+		   AND A.COMP_ID = #{compId}
+		   AND C.write_year = #{writeYear}
+		   AND C.doc_type = 'CHD'
+		   AND C.doc_no = #{docNo}
+	</select>
+	
+	<!-- 공정,차수 중복되는 게 있는 지 확인 -->	
+	<select id='getHazardDupe' parameterType="kr.co.igns.business.planning.model.ClassificationOfHazardsVO" resultType='kr.co.igns.business.planning.model.ClassificationOfHazardsVO'>
+		SELECT write_year, doc_no, use_yn
+		  FROM esg.tb_classification_hazards
+		 WHERE process_id = #{processId}
+		   AND PROCESS_WORK_REV_NO = #{processWorkRevNo}
+		   AND WRITE_YEAR = #{writeYear}
+		   AND use_yn = 'Y'
+	</select>
+	
+	<select id="getProcessList" resultType="kr.co.igns.business.planning.model.ClassificationOfHazardsVO">
+		SELECT 		  
+			   A.PROCESS_ID
+			 , CONCAT(A.PROCESS_NM , ' (', C.rev_nm, '-', B.rev_no, ')') AS PROCESS_NM
+			 , A.COMP_ID
+			 , B.REV_NO --공정차수
+			 , C.REV_NM --공정차수명
+			 , B.WRITE_YEAR
+			 , B.DOC_TYPE
+			 , B.DOC_NO
+			 , B.USE_YN
+			 , B.CREATED_AT
+		  FROM esg.tb_process_info A
+		 INNER JOIN esg.tb_safety_and_health_info_survey B
+			ON A.PROCESS_ID = B.PROCESS_ID
+		   AND A.COMP_ID = B.COMP_ID
+		 INNER JOIN esg.tb_process_work_cnfm C
+			ON B.PROCESS_ID = C.PROCESS_ID
+		   AND B.REV_NO = C.REV_NO
+		   WHERE B.USE_YN = 'Y' --사용하는것만
+		   AND B.COMP_ID = #{compId}
+		   AND B.CONFIRM_YN = 'Y'
+		   ORDER BY A.PROCESS_ID DESC;
+	</select>
+	
+	<select id="getProcessEquipmentAndMsds" resultType="kr.co.igns.business.planning.model.ClassificationOfHazardsVO">
+		SELECT CONTENT
+		  	  ,WORK_TYPE 
+		FROM esg.tb_safety_and_health_info_survey_detail
+		WHERE PROCESS_ID = #{processId}
+		AND WORK_TYPE IN('equipment','msds')
+		ORDER BY WORK_TYPE 
+	</select>
+	
+	<select id="getSavedFactorList" resultType="kr.co.igns.business.planning.model.ClassificationOfHazardsVO">
+		SELECT B.HAZARDS_CLASSIFICATION
+		  	  ,B.HAZARDS_TYPE 
+		FROM ESG.tb_classification_hazards A
+		INNER JOIN ESG.TB_CLASSIFICATION_HAZARDS_DETAIL B
+		ON A.WRITE_YEAR = B.WRITE_YEAR 
+		AND A.DOC_TYPE = B.DOC_TYPE 
+		AND A.DOC_NO = B.DOC_NO 
+		WHERE A.PROCESS_ID =#{processId}
+		AND A.DOC_NO = #{docNo}
+		AND A.DOC_TYPE = #{docType}
+		AND A.WRITE_YEAR = #{writeYear}`
+	</select>
+	
+	 <select id="getPrintFactorList" resultType="kr.co.igns.business.planning.model.ClassificationOfHazardsVO">
+		 WITH tb_define AS (
+			SELECT A.factor_id
+			  	 , A.class_id
+			  	 , A.class_nm
+			  	 , A.ord_seq
+		   	  FROM esg.tb_classification_hazards_factor_mgmt A
+		  	 WHERE A.factor_id LIKE '%' || 'factor' || '%'
+		  	   AND A.use_yn = 'Y'
+		  	   AND A.comp_id = #{compId}
+			UNION ALL
+			SELECT B.hazards_type
+			  	 , B.hazards_classification
+			  	 , A.class_nm
+			  	 , A.ord_seq
+			  FROM esg.tb_classification_hazards_factor_mgmt A
+			LEFT JOIN esg.tb_classification_hazards_detail B ON A.factor_id = B.hazards_type AND A.class_id = B.hazards_classification
+			 WHERE B.doc_type =	#{docType}
+			   AND B.doc_no = #{docNo}
+			   AND B.write_year = #{writeYear}
+			   AND A.use_yn = 'Y'
+		)
+		SELECT CASE WHEN COUNT(TD.factor_id) >= 2 THEN '■ ' || REPLACE(TD.factor_id, 'factor_', '') || '.' || ROW_NUMBER() OVER (PARTITION by TD.factor_id ORDER BY TD.factor_id) || ' ' || TD.class_nm
+				    ELSE '□ ' || REPLACE(TD.factor_id, 'factor_', '') || '.' || ROW_NUMBER() OVER (PARTITION by TD.factor_id ORDER BY TD.factor_id) || ' ' || TD.class_nm
+		   	   END || E'\n' AS class_nm
+		 	 , TD.factor_id
+		  FROM tb_define TD
+		 GROUP BY TD.factor_id, TD.ord_seq, TD.class_id, TD.class_nm
+		 ORDER BY TD.factor_id, TD.ord_seq, TD.class_id;
+	</select>
+
+
+
+
+	<insert id="saveHazards" parameterType="kr.co.igns.business.planning.model.ClassificationOfHazardsVO">
+		<selectKey keyProperty="docNo" resultType="kr.co.igns.business.planning.model.ClassificationOfHazardsVO" order="BEFORE">
+            SELECT LPAD((COALESCE(MAX(DOC_NO::INTEGER), 0) + 1)::TEXT, 5, '0') AS DOC_NO
+              FROM esg.tb_classification_hazards
+             WHERE WRITE_YEAR = #{writeYear}
+			   AND DOC_TYPE = #{docType}
+        </selectKey>
+		INSERT INTO esg.tb_classification_hazards (
+			 WRITE_YEAR
+			,DOC_TYPE
+			,DOC_NO
+			,COMP_ID
+			,PROCESS_ID
+			,PROCESS_WORK_REV_NO
+			,USE_YN
+			,ORDER_SEQ
+			,CREATED_AT
+			,CREATED_BY
+			,WRITE_DT
+		) VALUES (
+			 #{writeYear}
+			,#{docType}
+			,#{docNo}
+			,#{compId}
+			,#{processId}
+			,#{processWorkRevNo}
+			,#{useYn}
+			,#{orderSeq}
+			,now()
+			,#{createdBy}
+			,#{writeDt}
+		)
+	</insert>
+	
+	<insert id="saveHazardsList" parameterType="kr.co.igns.business.planning.model.ClassificationOfHazardsVO">
+		<foreach collection="factorList" item="list" separator=";">
+	        INSERT INTO esg.tb_classification_hazards_detail
+	        (
+				 WRITE_YEAR
+				,DOC_TYPE
+				,DOC_NO
+				,DOC_SEQ
+				,HAZARDS_TYPE
+				,HAZARDS_CLASSIFICATION
+				,CREATED_AT
+				,CREATED_BY
+			) 
+			VALUES 
+			( 
+				 #{writeYear}
+				,#{docType}
+				,#{docNo}
+				,(SELECT LPAD((COALESCE(MAX(DOC_SEQ::INTEGER), 0) + 1)::TEXT, 5, '0') AS DOC_SEQ
+	              FROM esg.tb_classification_hazards_detail
+	             WHERE WRITE_YEAR = #{writeYear})
+				,#{list.hazardsType}
+				,#{list.hazardsClassification}
+				,NOW()
+				,#{createdBy}
+			);
+		</foreach>
+	</insert>
+	
+	 <delete id="deleteHazards" parameterType="kr.co.igns.business.planning.model.ClassificationOfHazardsVO">
+    	
+		DELETE FROM ESG.tb_classification_hazards
+		WHERE WRITE_YEAR = #{writeYear}
+		  AND DOC_TYPE = #{docType}
+		  AND DOC_NO = #{docNo};
+		
+		
+		DELETE FROM ESG.TB_CLASSIFICATION_HAZARDS_DETAIL
+	    WHERE WRITE_YEAR = #{writeYear}
+		  AND DOC_TYPE = #{docType}
+		  AND DOC_NO = #{docNo};
+    </delete>
+
+	<update id="updateHazards" parameterType="kr.co.igns.business.planning.model.ClassificationOfHazardsVO">
+		UPDATE ESG.tb_classification_hazards 
+		   SET PROCESS_ID = #{processId},
+		       process_work_rev_no = #{processWorkRevNo},
+		       use_yn = #{useYn},
+		       order_seq = #{orderSeq},
+		       updated_at = now(),
+	           updated_by = #{updatedBy},
+			   write_dt = #{writeDt}
+		 WHERE write_year = #{writeYear}
+		   AND doc_type = 'CHD'
+		   AND doc_no = #{docNo}
+		   AND comp_id = #{compId}
+	</update>
+	
+	<update id="deleteHazardsMaster" parameterType="kr.co.igns.business.planning.model.ClassificationOfHazardsVO">
+		UPDATE ESG.tb_classification_hazards 
+		   SET use_yn = 'N',
+	           updated_at = now(),
+	           updated_by = #{updatedBy}
+         WHERE WRITE_YEAR = #{writeYear}
+           AND DOC_TYPE = 'CHD'
+           AND DOC_NO = #{docNo}
+           AND COMP_ID = #{compId}
+	</update>
+    
+    <update id="deleteHazardsDetail" parameterType="kr.co.igns.business.planning.model.ClassificationOfHazardsVO">
+    	DELETE FROM ESG.TB_CLASSIFICATION_HAZARDS_DETAIL
+	     WHERE WRITE_YEAR = #{writeYear}
+		   AND DOC_TYPE = #{docType}
+		   AND DOC_NO = #{docNo}
+    </update>
+
+	<!-- 일괄 출력용 -->
+	<select id='getAllReport' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.common.model.SpSearchVO'>
+		select t1.write_year
+		 	, t1.doc_type
+			, t1.doc_no
+		    , t1.comp_id
+		from esg.tb_classification_hazards t1
+		where t1.write_year = #{writeYear}
+			and t1.comp_id  = #{compId}
+			and t1.use_yn = 'Y'
+    </select>
+
+
+	<select id='getClassData' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.planning.model.ClassificationOfHazardsVO'>
+		select t1.*
+		  from esg.tb_classification_hazards_factor_mgmt t1
+		 where t1.factor_id = #{searchText}
+		   and t1.comp_id  = #{compId}
+		 order by t1.use_yn desc, t1.ord_seq asc, t1.created_at asc
+    </select>
+	<select id='getSampleClassData' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.planning.model.ClassificationOfHazardsVO'>
+		select t1.*
+		from dataset.tb_dataset_classification_hazards_factor_mgmt t1
+		where t1.factor_id = #{searchText}
+			and t1.use_yn = 'Y'
+    </select>
+
+	<insert id="insertClassData" parameterType="kr.co.igns.business.planning.model.ClassificationOfHazardsVO">
+		<selectKey keyProperty="classId" resultType="kr.co.igns.business.planning.model.ClassificationOfHazardsVO" order="BEFORE">
+            select
+                case when #{classId} is null or #{classId} = ''
+				    then to_char(now(), 'yyyymmdd') || lpad((coalesce(max(substring(class_id from 9 for 4))::int, 0) + 1)::text, 4, '0')
+                else #{classId}::varchar
+                end as classId
+			from esg.tb_classification_hazards_factor_mgmt
+			where class_id like to_char(now(), 'YYYYMMDD') || '%'
+                and comp_id = #{compId}
+        </selectKey>
+		insert into esg.tb_classification_hazards_factor_mgmt (
+			comp_id
+			, factor_id
+			, class_id
+			, class_nm
+			, use_yn
+			, ord_seq
+			, created_at
+			, created_by
+		) values (
+			#{compId}
+			, #{factorId}
+			, #{classId}
+			, #{classNm}
+			, #{useYn}
+			, #{ordSeq}
+			, now()
+			, #{createdBy}
+		)
+	</insert>
+
+	<update id="updateClassData" parameterType="kr.co.igns.business.planning.model.ClassificationOfHazardsVO">
+		update esg.tb_classification_hazards_factor_mgmt set
+			class_nm = #{classNm}
+			, use_yn = #{useYn}
+			, ord_seq = #{ordSeq}
+			, updated_at = now()
+			, updated_by = #{updatedBy}
+		where comp_id = #{compId}
+			and factor_id = #{factorId}
+			and class_id = #{classId}
+    </update>
+
+	<update id="deleteClassData" parameterType="kr.co.igns.business.planning.model.ClassificationOfHazardsVO">
+		update esg.tb_classification_hazards_factor_mgmt set
+			use_yn = 'N'
+			, updated_at = now()
+			, updated_by = #{updatedBy}
+		where comp_id = #{compId}
+			and factor_id = #{factorId}
+			and class_id = #{classId}
+    </update>
+</mapper>
+

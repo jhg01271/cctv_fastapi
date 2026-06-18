@@ -1,0 +1,18 @@
+${AnsiColor.YELLOW}                                                                       _     _
+${AnsiColor.YELLOW}                                                                      ( \---/ )                              
+${AnsiColor.YELLOW}                                                                       ) . . (
+${AnsiColor.YELLOW}_________________________________________________________________,--._(___Y___)_,--._______________________________________________________________${AnsiColor.DEFAULT}
+${AnsiColor.YELLOW}▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒${AnsiColor.DEFAULT}
+    _    ______   _   __   _____         ${AnsiColor.BRIGHT_RED}    ______   ____     ___       __  ___   ______   _       __   ____     ____     __ __${AnsiColor.DEFAULT}       ________
+   (_)  / ____/  / | / /  / ___/         ${AnsiColor.BRIGHT_RED}   / ____/  / __ \   /   |     /  |/  /  / ____/  | |     / /  / __ \   / __ \   / //_/${AnsiColor.DEFAULT}      /       // 
+  / /  / / __   /  |/ /   \__ \   ______ ${AnsiColor.BRIGHT_RED}  / /_     / /_/ /  / /| |    / /|_/ /  / __/     | | /| / /  / / / /  / /_/ /  / ,<   ${AnsiColor.DEFAULT}     / ${spring.application.version} //  
+ / /  / /_/ /  / /|  /   ___/ /  /_____/ ${AnsiColor.BRIGHT_RED} / __/    / _, _/  / ___ |   / /  / /  / /___     | |/ |/ /  / /_/ /  / _, _/  / /| |  ${AnsiColor.DEFAULT}    /_______//
+/_/   \____/  /_/ |_/   /____/           ${AnsiColor.BRIGHT_RED}/_/      /_/ |_|  /_/  |_|  /_/  /_/  /_____/     |__/|__/   \____/  /_/ |_|  /_/ |_|  ${AnsiColor.DEFAULT}   (_______(/
+
+${AnsiColor.YELLOW}▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒${AnsiColor.DEFAULT}
+
+${AnsiColor.DEFAULT}[${AnsiColor.DEFAULT} ${AnsiColor.GREEN}Application Name${AnsiColor.GREEN}    :: ${AnsiColor.BRIGHT_BLUE}${spring.application.name}${AnsiColor.DEFAULT} ]${AnsiColor.DEFAULT}
+${AnsiColor.DEFAULT}[${AnsiColor.DEFAULT} ${AnsiColor.GREEN}Application Version${AnsiColor.GREEN} :: ${AnsiColor.BRIGHT_BLUE}${spring.application.version}${AnsiColor.DEFAULT}       ]${AnsiColor.DEFAULT}
+${AnsiColor.DEFAULT}[${AnsiColor.DEFAULT} ${AnsiColor.GREEN}Spring Boot Version${AnsiColor.GREEN} :: ${AnsiColor.BRIGHT_RED}${spring-boot.version}${AnsiColor.BRIGHT_RED} ${AnsiColor.DEFAULT}      ]${AnsiColor.DEFAULT}
+
+${AnsiColor.YELLOW}▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒${AnsiColor.DEFAULT}

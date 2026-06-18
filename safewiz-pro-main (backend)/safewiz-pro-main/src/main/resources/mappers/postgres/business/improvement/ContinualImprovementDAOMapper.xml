@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.improvement.dao.postgres.ContinualImprovementDAO">
+
+	<!-- 지속 개선, 타이틀 메뉴 -->
+    <select id='getContinualImprovementTitleMenu' parameterType='kr.co.igns.system.common.model.SpSearchVO'  resultType='kr.co.igns.business.improvement.model.ContinualImprovementVO'>
+        SELECT
+            'provisionAndMgmtPPE' AS title
+            ,'/ProvisionAndMgmtPPE' AS route
+            ,'provisionAndMgmtPPEDesc' AS description
+            , case when ppeManage.exist then 'Y'
+            	else 'N'
+            	end as activeYn
+        FROM
+        (
+            SELECT EXISTS (
+                SELECT 1
+                FROM esg.tb_ppe_manage tpm
+                WHERE tpm.comp_id  = #{compId}
+                    AND tpm.write_year = #{searchText}
+            ) as exist
+        ) AS ppeManage
+        union all
+        SELECT
+            'safetyMgmtOfHazardousMachinery' AS title
+            ,'/SafetyMgmtOfHazardousMachinery' AS route
+            ,'safetyMgmtOfHazardousMachineryDesc' AS description
+            , case when smhm.exist then 'Y'
+            	else 'N'
+            	end as activeYn
+        FROM
+        (
+            SELECT EXISTS (
+                SELECT 1
+                FROM esg.tb_safety_mgmt_of_hazardous_machinery tsmohm
+                WHERE tsmohm.comp_id  = #{compId}
+                    AND tsmohm.write_year = #{searchText}
+            ) as exist
+        ) AS smhm 
+    </select>
+
+</mapper>
+

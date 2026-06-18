@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.impl.dao.postgres.EmergencyResponseTrainingResultDAO">
+    <select id='getResultList' parameterType='kr.co.igns.business.impl.model.EmergencyResponseTrainingVO' resultType='kr.co.igns.business.impl.model.EmergencyResponseTrainingResultVO'>
+         select t1.*
+         from esg.tb_emergency_response_training_result t1
+         where t1.write_year = #{writeYear}
+            and t1.doc_type = #{docType}
+            and t1.doc_no = #{docNo}
+            and t1.comp_id = #{compId}
+         order by t1.action_dt desc
+    </select>
+
+    <select id='getResultDetail' parameterType='kr.co.igns.business.impl.model.EmergencyResponseTrainingVO' resultType='kr.co.igns.business.impl.model.EmergencyResponseTrainingResultVO'>
+         select t1.training_nm
+         	, t1.orgn_id
+         	, t3.orgn_nm
+         	, t2.*
+            , t2.action_dt ||
+			   CASE
+				   when t2.use_yn = 'N'
+					   then
+					   ' - (미사용)'
+				   else
+					   ''
+				   END AS titleActionDt
+         from esg.tb_emergency_response_training t1
+         left join esg.tb_emergency_response_training_result t2
+         	on t1.write_year = t2.write_year
+         	and t1.doc_type = t2.doc_type
+         	and t1.doc_no = t2.doc_no
+         	and t1.comp_id = t2.comp_id
+         left join esg.tb_orgn_info t3
+         	on t1.orgn_id = t3.orgn_id
+         	and t1.comp_id = t3.comp_id
+         where t2.write_year = #{writeYear}
+            and t2.doc_type = #{docType}
+            and t2.doc_no = #{docNo}
+            and t2.comp_id = #{compId}
+        order by t2.use_yn desc, t2.action_dt desc
+    </select>
+
+    <select id='getValidSenarioList' parameterType='kr.co.igns.business.impl.model.EmergencyResponseTrainingVO' resultType='kr.co.igns.business.impl.model.EmergencyResponseTrainingVO'>
+         select
+            t1.write_year
+            , t1.doc_type
+            , t1.doc_no
+            , t1.training_nm
+            , t1.orgn_id
+            , t2.orgn_nm
+            , sum(
+                t3.target_time
+            ) as target_time
+        from esg.tb_emergency_response_training t1
+        left join esg.tb_orgn_info t2
+            on t1.orgn_id = t2.orgn_id
+            and t1.comp_id = t2.comp_id
+        left join esg.tb_emergency_response_training_scenario t3
+            on t1.write_year = t3.write_year
+            and t1.doc_type = t3.doc_type
+            and t1.doc_no = t3.doc_no
+            and t1.comp_id = t3.comp_id
+        left join esg.tb_approval_info a
+            on a.target_type = t1.doc_type
+            and a.target_id = t1.write_year||t1.doc_no
+            and a.param = 'writer'
+        left join esg.tb_approval_info b
+            on b.target_type = t1.doc_type
+            and b.target_id = t1.write_year||t1.doc_no
+            and b.param = 'reviewer'
+        left join esg.tb_approval_info c
+            on c.target_type = t1.doc_type
+            and c.target_id = t1.write_year||t1.doc_no
+            and c.param = 'approver'
+        where t1.comp_id = #{compId}
+            and a.signature is not null
+            and b.signature is not null
+            and t1.use_yn = 'Y'
+            and t1.write_year = #{writeYear}
+        group by t1.write_year, t1.doc_type, t1.doc_no, t1.training_nm, t1.orgn_id, t2.orgn_nm
+    </select>
+
+    <insert id="insertResult" parameterType="kr.co.igns.business.impl.model.EmergencyResponseTrainingResultVO">
+    <selectKey keyProperty="docSeq" resultType="kr.co.igns.business.impl.model.EmergencyResponseTrainingResultVO" order="BEFORE">
+				select LPAD((coalesce(MAX(SUBSTRING(doc_seq, 1, 5)::INTEGER), 0) + 1)::text, 5, '0') as docSeq
+                from esg.tb_emergency_response_training_result
+                where write_year = #{writeYear}
+                    and doc_type = #{docType}
+                    and doc_no = #{docNo}
+	</selectKey>
+        insert into	esg.tb_emergency_response_training_result (
+            write_year,
+            doc_type,
+            doc_no,
+            doc_seq,
+            action_dt,
+            comp_id,
+            action_nm,
+            action_location,
+            action_content,
+            action_result,
+            target_time,
+            measurement_time,
+            observation_actual_behavior,
+            remark,
+            use_yn,
+            created_at,
+            created_by
+        ) values(
+            #{writeYear},
+            #{docType},
+            #{docNo},
+            #{docSeq},
+            #{actionDt},
+            #{compId},
+            #{actionNm},
+            #{actionLocation},
+            #{actionContent},
+            #{actionResult},
+            #{targetTime},
+            #{measurementTime},
+            #{observationActualBehavior},
+            #{remark},
+            #{useYn},
+            now(),
+            #{createdBy}
+        )
+    </insert>
+    <update id="updateResult" parameterType="kr.co.igns.business.impl.model.EmergencyResponseTrainingResultVO">
+        update esg.tb_emergency_response_training_result set
+            action_nm = #{actionNm},
+            action_location = #{actionLocation},
+            action_content = #{actionContent},
+            action_result = #{actionResult},
+            target_time = #{targetTime},
+            measurement_time = #{measurementTime},
+            observation_actual_behavior = #{observationActualBehavior},
+            remark = #{remark},
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        where write_year = #{writeYear}
+            and doc_type = #{docType}
+            and doc_no = #{docNo}
+            and doc_seq = #{docSeq}
+            and comp_id = #{compId}
+    </update>
+
+    <update id="deleteResult" parameterType="kr.co.igns.business.impl.model.EmergencyResponseTrainingResultVO">
+        update esg.tb_emergency_response_training_result set
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        where write_year = #{writeYear}
+            and doc_type = #{docType}
+            and doc_no = #{docNo}
+            and doc_seq = #{docSeq}
+            and comp_id = #{compId}
+    </update>
+
+
+    <select id='getAllReport' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.common.model.SpSearchVO'>
+		select t2.write_year
+			, t2.doc_type
+			, t2.doc_no
+            , t2.doc_seq
+		from esg.tb_emergency_response_training t1
+		left join esg.tb_emergency_response_training_result t2
+			on t1.write_year = t2.write_year
+			and t1.doc_type = t2.doc_type
+			and t1.doc_no = t2.doc_no
+		where t1.write_year = #{writeYear}
+			and t1.comp_id  = #{compId}
+			and t1.use_yn = 'Y'
+        <if test="searchText.equals('first')">
+				and cast(substring(t2.action_dt from 5 for 2) AS integer) between 1 and 6; -- 상반기
+		</if>
+		<if test="searchText.equals('second')">
+				and cast(substring(t2.action_dt from 5 for 2) AS integer) between 7 and 12; -- 하반기
+		</if>
+    </select>
+</mapper>

@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.planning.dao.postgres.ImprovementAndImplementationDAO">
+	<resultMap type="kr.co.igns.business.planning.model.ImprovementAndImplementationVO" id="listMap">
+		<id column="write_year" property="writeYear" />
+		<id column="doc_type" property="docType" />
+		<id column="doc_no" property="docNo" />
+		<result column="plan_nm" property="planNm" />
+		<collection property="planDetail" ofType="kr.co.igns.business.planning.model.ImprovementAndImplementationVO" >
+			<id column="doc_seq" property="docSeq" />
+			<result column="hazards_factor" property="hazardsFactor" />
+			<result column="process_nm" property="processNm" />
+			<result column="work_content" property="workContent" />
+			<result column="hazards_classification_nm" property="hazardsClassificationNm" />
+			<result column="improvement_cnt" property="improvementCnt" />
+		</collection>
+	</resultMap>
+	
+	<resultMap type="kr.co.igns.business.planning.model.ImprovementAndImplementationVO" id="detailMap">
+		<id column="write_year" property="writeYear" />
+		<id column="doc_type" property="docType" />
+		<id column="doc_no" property="docNo" />
+		<id column="doc_seq" property="docSeq" />
+		<result column="plan_nm" property="planNm" />
+		<result column="risk_assessment_standards" property="riskAssessmentStandards" />
+		<result column="risk_allowance_standards" property="riskAllowanceStandards" />
+		<result column="process_nm" property="processNm" />
+		<result column="work_content" property="workContent" />
+		<result column="hazards_classification_nm" property="hazardsClassificationNm" />
+		<result column="hazards_cause" property="hazardsCause" />
+		<result column="hazards_factor" property="hazardsFactor" />
+		<result column="related_evidence" property="relatedEvidence" />
+		<result column="frequency_score" property="frequencyScore" />
+		<result column="impact_score" property="impactScore" />
+		<result column="risk_score" property="riskScore" />
+		<result column="after_frequency_score" property="afterFrequencyScore" />
+		<result column="after_impact_score" property="afterImpactScore" />
+		<result column="after_risk_score" property="afterRiskScore" />
+		<result column="current_safety_measures" property="currentSafetyMeasures" />
+		<result column="legal_nm" property="legalNm" />
+		<collection property="workDetail" ofType="kr.co.igns.business.planning.model.ImprovementAndImplementationVO" >
+			<result column="reduction_measures" property="reductionMeasures" />
+			<result column="expected_date" property="expectedDate" />
+			<result column="completed_date" property="completedDate" />
+			<result column="impl_content" property="implContent" />
+			<result column="prev_file_id" property="prevFileId" />
+			<result column="after_file_id" property="afterFileId" />
+			<collection property="workDetailHr" ofType="kr.co.igns.business.planning.model.ImprovementAndImplementationVO" >
+				<result column="hr_id" property="hrId" />
+				<result column="hr_nm" property="hrNm" />
+			</collection>
+		</collection>
+	</resultMap>
+	
+    <select
+    	id="searchData"
+    	parameterType="kr.co.igns.business.planning.model.ImprovementAndImplementationVO"
+    	resultMap="listMap"
+    >
+        select a.*
+		  from (select a.write_year
+				     , a.doc_type
+				     , a.doc_no
+				     , a.plan_nm
+				     , b.doc_seq
+				     , b.hazards_factor
+				     , c.process_nm
+				     , d.work_content
+				     , e.class_nm as hazards_classification_nm
+				     , (select count(*)
+				          from esg.tb_risk_assessment_implementation_reduction z
+				         where z.write_year = b.write_year
+				           and z.doc_type = b.doc_type
+				           and z.doc_no = b.doc_no
+				           and z.doc_seq = b.doc_seq
+				           and z.use_yn = 'Y'
+				           and nullif(z.completed_date, '') is not null) as improvement_cnt
+				  from esg.tb_risk_assessment_plan a
+				       inner join esg.tb_risk_assessment_implementation b
+				               on b.write_year = a.write_year
+				               and b.doc_type = a.doc_type
+				               and b.doc_no = a.doc_no
+				               and b.use_yn = 'Y'
+				       left join esg.tb_process_info c
+				              on c.process_id = b.process_id
+				       left join esg.tb_process_work d
+				              on d.prcs_work_id = b.prcs_work_id
+				       left join esg.tb_classification_hazards_factor_mgmt  e
+				              on e.factor_id = b.hazards_type
+				              and e.class_id = b.hazards_classification
+				 where 1 = 1
+				   and a.comp_id  = #{compId}
+				   and a.write_year = #{writeYear}
+				   and a.use_yn = 'Y') a
+		 where a.improvement_cnt > 0
+		order by a.doc_no, a.doc_seq
+    </select>
+    
+    <select
+    	id="searchDataDetail"
+    	parameterType="kr.co.igns.business.planning.model.ImprovementAndImplementationVO"
+    	resultMap="detailMap"
+    >
+        select a.write_year
+		     , a.doc_type
+		     , a.doc_no
+		     , a.plan_nm
+		     , a.risk_assessment_standards
+			 , a.risk_allowance_standards
+		     , b.doc_seq
+		     , b.hazards_cause
+		     , b.hazards_factor
+		     , b.related_evidence
+		     , b.current_safety_measures
+		     , tlm.legal_nm
+		     , i.minor_nm as frequency_score
+		     , j.minor_nm as impact_score
+		     , b.risk_score
+		     , c.process_nm
+		     , d.work_content
+		     , e.class_nm as hazards_classification_nm
+		     , f.reduction_measures
+		     , f.expected_date
+		     , f.completed_date
+		     , k.minor_nm as after_frequency_score
+		     , l.minor_nm as after_impact_score
+		     , tcd5.minor_nm as after_risk_score
+		     , f.impl_content
+		     , g.hr_id
+		     , h.hr_nm
+		     , za.file_id as prev_file_id
+		     , zb.file_id as after_file_id
+		  from esg.tb_risk_assessment_plan a
+		       inner join esg.tb_risk_assessment_implementation b
+		               on b.write_year = a.write_year
+		               and b.doc_type = a.doc_type
+		               and b.doc_no = a.doc_no
+			   left join esg.tb_legal_manage tlm
+					   on tlm.legal_id = b.legal_id
+					   and tlm.comp_id = #{compId}
+		       left join esg.tb_process_info c
+		              on c.process_id = b.process_id
+		       left join esg.tb_process_work d
+		              on d.prcs_work_id = b.prcs_work_id
+		       left join esg.tb_classification_hazards_factor_mgmt  e
+		              on e.factor_id = b.hazards_type
+		              and e.class_id = b.hazards_classification
+		       inner join esg.tb_risk_assessment_implementation_reduction f
+		               on f.write_year = b.write_year
+		               and f.doc_type = b.doc_type
+		               and f.doc_no = b.doc_no
+		               and f.doc_seq = b.doc_seq
+		       left join esg.tb_risk_assessment_implementation_reduction_hr g
+		              on g.write_year = f.write_year
+		              and g.doc_type = f.doc_type
+		              and g.doc_no = f.doc_no
+		              and g.doc_seq = f.doc_seq
+		              and g.doc_seq_detail = f.doc_seq_detail
+		       left join esg.tb_hr_info h
+		              on h.hr_id = g.hr_id
+		       left join esg.tb_common_d i
+		              on i.major_cd = 'C0038'
+		              and i.minor_cd = b.frequency_score
+		       left join esg.tb_common_d j
+		              on j.major_cd = 'C0039'
+		              and j.minor_cd = b.impact_score
+		       left join esg.tb_common_d k
+		              on k.major_cd = 'C0038'
+		              and k.minor_cd = b.after_frequency_score
+		       left join esg.tb_common_d l
+		              on l.major_cd = 'C0039'
+		              and l.minor_cd = b.after_impact_score
+		       left join esg.tb_common_d tcd5
+		              on tcd5.major_cd = 'C0040'
+		              and tcd5.minor_cd = b.after_risk_score
+		       left join esg.tb_sys_file za
+                      on za.target_type = 'RAP'
+                      and za.target_id = f.write_year||f.doc_no||f.doc_seq||f.doc_seq_detail||'A'
+               left join esg.tb_sys_file zb
+                      on zb.target_type = 'RAP'
+                      and zb.target_id = f.write_year||f.doc_no||f.doc_seq||f.doc_seq_detail||'B'
+		 where 1 = 1
+		   and a.write_year = #{writeYear}
+		   and a.doc_type = #{docType}
+		   and a.doc_no = #{docNo}
+		   and a.comp_id = #{compId}
+		   and b.doc_seq = #{docSeq}
+		   and nullif(f.completed_date, '') is not null
+		order by f.doc_seq_detail
+    </select>
+    
+    <select
+    	id="searchReport"
+    	parameterType="kr.co.igns.system.common.model.SpSearchVO"
+    	resultType="kr.co.igns.business.planning.model.ImprovementAndImplementationVO"
+    >
+        select a.risk_assessment_standards
+		     , c.process_nm
+		     , b.hazards_factor
+		     , e.minor_nm as frequency_score
+		     , f.minor_nm as impact_score
+		     , tcd1.minor_nm as risk_score
+		     , g.minor_nm as after_frequency_score
+		     , h.minor_nm as after_impact_score
+		     , tcd2.minor_nm as after_risk_score
+		     , d.impl_content
+		     , d.reduction_measures
+		     , (select string_agg(zz.hr_nm||'('||zzz.orgn_nm||')', ', ') 
+		          from esg.tb_risk_assessment_implementation_reduction_hr z
+		               left join esg.tb_hr_info zz
+		                      on zz.hr_id = z.hr_id
+		               left join esg.tb_orgn_info zzz
+		                      on zzz.orgn_id = zz.orgn_id
+		         where z.write_year = d.write_year
+		           and z.doc_type = d.doc_type
+		           and z.doc_no = d.doc_no
+		           and z.doc_seq = d.doc_seq
+		           and z.doc_seq_detail = d.doc_seq_detail) as work_detail_hrs
+		     , d.completed_date
+		     , za.file_id as prev_file_id
+		     , zb.file_id as after_file_id
+		  from esg.tb_risk_assessment_plan a
+		       inner join esg.tb_risk_assessment_implementation b
+		               on b.write_year = a.write_year
+		               and b.doc_type = a.doc_type
+		               and b.doc_no = a.doc_no
+		       left join esg.tb_process_info c
+		              on c.process_id = b.process_id
+		       inner join esg.tb_risk_assessment_implementation_reduction d
+		               on d.write_year = b.write_year
+		               and d.doc_type = b.doc_type
+		               and d.doc_no = b.doc_no
+		               and d.doc_seq = b.doc_seq
+		       left join esg.tb_common_d e
+		              on e.major_cd = 'C0038'
+		          and e.minor_cd = b.frequency_score
+			   left join esg.tb_common_d f
+			          on f.major_cd = 'C0039'
+			          and f.minor_cd = b.impact_score
+			   left join esg.tb_common_d g
+			          on g.major_cd = 'C0038'
+			          and g.minor_cd = b.after_frequency_score
+			   left join esg.tb_common_d h
+			          on h.major_cd = 'C0039'
+			          and h.minor_cd = b.after_impact_score
+			   left join esg.tb_common_d tcd1
+			          on tcd1.major_cd = 'C0040'
+			          and tcd1.minor_cd = b.risk_score
+			   left join esg.tb_common_d tcd2
+			          on tcd2.major_cd = 'C0040'
+			          and tcd2.minor_cd = b.after_risk_score
+			   left join esg.tb_sys_file za
+                      on za.target_type = 'RAP'
+                      and za.target_id = d.write_year||d.doc_no||d.doc_seq||d.doc_seq_detail||'A'
+               left join esg.tb_sys_file zb
+                      on zb.target_type = 'RAP'
+                      and zb.target_id = d.write_year||d.doc_no||d.doc_seq||d.doc_seq_detail||'B'
+		 where 1 = 1
+		   and d.write_year = #{writeYear}
+		   and d.doc_type = #{docType}
+		   and d.doc_no = #{docNo}
+		   and d.doc_seq = #{docSeq}
+		   and nullif(d.completed_date, '') is not null
+		order by d.doc_seq_detail
+    </select>
+    
+</mapper>
+
+
+
+
+

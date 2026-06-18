@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.impl.dao.postgres.ContractorRegisterDAO">
+    <select id='getConstractorRegisterList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.impl.model.ContractorRegisterVO'>
+        SELECT a.comp_id
+             , a.part_comp_id 	                    --협력업체 ID
+             , a.part_comp_nm		                --협력업체 명
+             , a.rpst_nm as hr_nm                   --대표자
+             , a.reg_dt			                    --등록일자(작성일자)
+             , a.tel_no 			                --전화번호
+             , a.zip_cd			                    --우편번호
+             , a.addrs1 			                --주소
+             , a.addrs2 			                --상세주소
+             , a.part_comp_item                     --품목 ID
+             , b.part_comp_item_nm      --품목 명
+             , part_comp_nm ||                      --타이틀
+               CASE
+                   WHEN a.use_yn = 'N'
+                       THEN ' - (미사용)'
+                   ELSE ''
+                   END AS title
+        FROM esg.tb_partner_comp_info a
+        left join esg.tb_partner_comp_item b
+            on a.comp_id = b.comp_id
+            and a.part_comp_item = b.part_comp_item_id
+        WHERE a.comp_id = #{compId}
+          <![CDATA[ AND a.reg_dt <= #{writeYear} || '1231' ]]>
+          AND (('N' = #{useYn}) OR ( 'Y' = #{useYn} AND a.use_yn = #{useYn}))
+     ORDER BY a.reg_dt desc
+    </select>
+
+    <select id='getSelectedConstractorRegisterList' parameterType='java.lang.String' resultType='kr.co.igns.business.impl.model.ContractorRegisterVO'>
+        SELECT a.part_comp_id 	                    --협력업체 ID
+             , a.part_comp_nm		                --협력업체 명
+             , a.rpst_nm as hr_nm                   --대표자
+             , a.reg_dt			                    --등록일자(작성일자)
+             , a.tel_no 			                --전화번호
+             , a.zip_cd			                    --우편번호
+             , a.addrs1 			                --주소
+             , a.addrs2 			                --상세주소
+             , a.part_comp_item                     --품목 ID
+             , b.part_comp_item_nm      --품목 명
+             , part_comp_nm ||                      --타이틀
+               CASE
+                   WHEN a.use_yn = 'N'
+                       THEN ' - (미사용)'
+                   ELSE ''
+                   END AS title
+        FROM esg.tb_partner_comp_info a
+        left join esg.tb_partner_comp_item b
+            on a.comp_id = b.comp_id
+            and a.part_comp_item = b.part_comp_item_id
+        WHERE  (#{searchText} IS NULL OR (#{searchText} IS NOT NULL AND a.part_comp_id IN (select unnest(string_to_array(#{searchText}, ',')))));
+    </select>
+
+    <select id='getConstractorRegisterHrList' parameterType='kr.co.igns.business.impl.model.ContractorRegisterVO' resultType='kr.co.igns.system.base.model.HrVO'>
+        select t1.*, t1.hr_id as id, t1.hr_nm as nm
+        from esg.tb_contractor_register_hr t1
+        where t1.write_year = #{writeYear}
+            and t1.doc_type = #{docType}
+            and t1.doc_no = #{docNo}
+    </select>
+
+</mapper>

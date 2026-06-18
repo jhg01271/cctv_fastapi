@@ -1,0 +1,219 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.alarm.dao.postgres.AlarmDAO">
+
+    <!--알림 팝업창 오픈 시, 사용자의 모든 알람 조회-->
+    <select id="getAlarmList" parameterType="kr.co.igns.business.alarm.model.AlarmVO" resultType="kr.co.igns.business.alarm.model.AlarmVO">
+    <![CDATA[
+     	SELECT user_id
+             , alarm_dt
+             , alarm_seq
+             , fcm_title
+             , fcm_body
+             , fcm_data
+             , menu_id
+             , clnt_id
+             , null as write_year
+             , write_dt
+             , doc_no
+             , null as doc_type
+             , read_yn
+             , read_at
+             , created_at
+             , created_by
+             , updated_at
+             , updated_by
+          FROM esg.tb_notice_alarm_his
+         WHERE user_id = #{userId}
+         UNION ALL
+        SELECT user_id
+             , alarm_dt
+             , alarm_seq
+             , fcm_title
+             , fcm_body
+             , fcm_data
+             , null as menu_id
+             , null as clnt_id
+             , null as write_year
+             , null as write_dt
+             , null as doc_no
+             , null as doc_type
+             , read_yn
+             , read_at
+             , created_at
+             , created_by
+             , updated_at
+             , updated_by
+          FROM esg.tb_emergency_alarm_his
+         WHERE user_id = #{userId}
+         UNION ALL
+        SELECT user_id
+             , alarm_dt
+             , alarm_seq
+             , fcm_title
+             , fcm_body
+             , fcm_data
+             , menu_id
+             , null as clnt_id
+             , write_year
+             , null as write_dt
+             , doc_no
+             , doc_type
+             , read_yn
+             , read_at
+             , created_at
+             , created_by
+             , updated_at
+             , updated_by
+          FROM esg.tb_training_plan_implementation_alarm_his
+         WHERE user_id = #{userId}
+      ORDER BY read_yn asc, alarm_seq asc
+    ]]>
+    </select>
+
+    <!--알림 팝업창에서 해당 데이터의 열람하기 버튼 클릭 시, 해당 알림 읽음 처리-->
+    <update id="updateReadNoticeAlarm" parameterType="kr.co.igns.business.alarm.model.AlarmVO">
+        UPDATE esg.tb_notice_alarm_his
+        SET read_yn = #{readYn}
+          , read_at = NOW()
+          , updated_at = NOW()
+          , updated_by = #{userId}
+      WHERE user_id = #{userId}
+        AND alarm_dt = #{alarmDt}
+        AND alarm_seq = #{alarmSeq}
+    </update>
+
+    <!--알림 팝업창에서 해당 데이터의 열람하기 버튼 클릭 시, 해당 알림 읽음 처리-->
+    <update id="updateReadEmergencyAlarm" parameterType="kr.co.igns.business.alarm.model.AlarmVO">
+        UPDATE esg.tb_emergency_alarm_his
+        SET read_yn = #{readYn}
+        , read_at = NOW()
+        , updated_at = NOW()
+        , updated_by = #{userId}
+        WHERE user_id = #{userId}
+        AND alarm_dt = #{alarmDt}
+        AND alarm_seq = #{alarmSeq}
+    </update>
+
+    <!--비상 상황 발생 알림 이력 저장-->
+    <insert id="insertEmergencyAlarmHistory" parameterType="kr.co.igns.business.alarm.model.AlarmVO">
+        <selectKey keyProperty="alarmSeq" resultType="kr.co.igns.business.alarm.model.AlarmVO" order="BEFORE">
+            <![CDATA[
+            SELECT
+                   COALESCE(MAX(alarm_seq), 0) + 1 AS alarmSeq
+              FROM esg.tb_emergency_alarm_his
+             WHERE user_id = #{userId}
+		       AND alarm_dt = #{alarmDt} --날짜지날때마다 seq초기화 되야함
+         ]]>
+        </selectKey>
+
+        <![CDATA[
+        INSERT INTO esg.tb_emergency_alarm_his (
+            user_id,
+            alarm_dt,
+            alarm_seq,
+            fcm_title,
+            fcm_body,
+            read_yn,
+            created_at,
+            created_by
+        ) VALUES (
+             #{userId},
+             #{alarmDt},
+             #{alarmSeq},
+             #{fcmTitle},
+             #{fcmBody},
+             'N',
+             NOW(),          -- created_at
+             #{createdBy}
+         );
+		]]>
+    </insert>
+
+    <select id='getSelectedTokenUser' parameterType="kr.co.igns.business.alarm.model.AlarmVO" resultType='String'>
+        select b.user_id
+        from esg.tb_hr_info a
+        left join esg.tb_user_info b on a.user_id = b.user_id
+        left join esg.tb_hr_info_comp_map c on a.hr_id = c.hr_id
+        where b.fcm_token is not null
+        and c.comp_id = #{compId}
+        and b.user_id = #{userId}
+        and c.orgn_comp_yn = 'Y'
+    </select>
+
+    <select id='getSelectedTokenUserInfo' parameterType="kr.co.igns.business.alarm.model.AlarmVO" resultType='kr.co.igns.system.base.model.HrVO'>
+        select b.user_id,
+               b.user_nm,
+               d.orgn_nm,
+               e.jbrp_nm
+          FROM esg.tb_hr_info a
+     LEFT JOIN esg.tb_user_info b ON a.user_id = b.user_id
+     LEFT JOIN esg.tb_hr_info_comp_map c ON a.hr_id = c.hr_id
+     LEFT JOIN esg.tb_orgn_info d ON c.comp_id = d.comp_id AND a.orgn_id = d.orgn_id
+     LEFT JOIN esg.tb_hr_info_jbrp e ON c.comp_id = e.comp_id AND a.jbrp = e.jbrp_id
+         WHERE b.fcm_token is not null
+           AND c.comp_id = #{compId}
+           AND b.user_id in (
+                                select unnest(string_to_array(#{userId}, ','))
+                            )
+           AND c.orgn_comp_yn = 'Y'
+    </select>
+
+    <!--안전보건 알림 이력 저장-->
+    <insert id="insertTrainingPlanImplAlarmHistory" parameterType="kr.co.igns.business.alarm.model.TrainingPlanImplAlarmVO">
+        <selectKey keyProperty="alarmSeq" resultType="kr.co.igns.business.alarm.model.TrainingPlanImplAlarmVO" order="BEFORE">
+            <![CDATA[
+            SELECT
+                   COALESCE(MAX(alarm_seq), 0) + 1 AS alarmSeq
+              FROM esg.tb_training_plan_implementation_alarm_his
+             WHERE user_id = #{userId}
+		       AND alarm_dt = #{alarmDt} --날짜지날때마다 seq초기화 되야함
+         ]]>
+        </selectKey>
+
+        <![CDATA[
+        INSERT INTO esg.tb_training_plan_implementation_alarm_his (
+            user_id,
+            alarm_dt,
+            alarm_seq,
+            fcm_title,
+            fcm_body,
+            menu_id,
+            write_year,
+            doc_type,
+            doc_no,
+            read_yn,
+            created_at,
+            created_by
+        ) VALUES (
+             #{userId},
+             #{alarmDt},
+             #{alarmSeq},
+             #{fcmTitle},
+             #{fcmBody},
+             #{menuId},
+             #{writeYear},
+             #{docType},
+             #{docNo},
+             'N',
+             NOW(),          -- created_at
+             #{createdBy}
+         );
+		]]>
+    </insert>
+
+    <!--알림 팝업창에서 해당 데이터의 열람하기 버튼 클릭 시, 해당 알림 읽음 처리-->
+    <update id="updateReadTrainingPlanImplAlarm" parameterType="kr.co.igns.business.alarm.model.AlarmVO">
+        UPDATE esg.tb_training_plan_implementation_alarm_his
+        SET read_yn = #{readYn}
+        , read_at = NOW()
+        , updated_at = NOW()
+        , updated_by = #{userId}
+        WHERE user_id = #{userId}
+        AND alarm_dt = #{alarmDt}
+        AND alarm_seq = #{alarmSeq}
+    </update>
+
+
+</mapper>

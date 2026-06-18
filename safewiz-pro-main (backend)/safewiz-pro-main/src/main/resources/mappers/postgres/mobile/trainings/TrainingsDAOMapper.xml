@@ -1,0 +1,698 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.mobile.trainings.dao.postgres.TrainingsDAO">
+    <resultMap id="TrainingsCalendarResultMap" type="kr.co.igns.mobile.trainings.model.TrainingsVO">
+	    <result property="calendarCount" column="result" 
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+	</resultMap>
+	
+    <resultMap id="TrainingsResultMap" type="kr.co.igns.mobile.trainings.model.TrainingsVO">
+        <id property="id" column="id"/>
+        <id property="category" column="category"/>
+        <result property="title" column="title"/>
+        <result property="content" column="content"/>
+        <result property="location" column="location"/>
+        <result property="type" column="type"/>
+        
+        <!-- Use custom JsonTypeHandler -->
+        <result property="participantCount" column="participantCount"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+                
+        <result property="startedAt" column="startedAt"/>
+        <result property="endedAt" column="endedAt"/>
+        <result property="myParticipation" column="my_participation"/>
+        <result property="signed" column="signed"/>
+        <result property="createdAt" column="createdAt"/>
+    </resultMap>
+    
+    <resultMap id="TrainingsDetailResultMap" type="kr.co.igns.mobile.trainings.model.TrainingsDetailVO">
+        <id property="id" column="id"/>
+        <result property="category" column="category"/>
+        <result property="content" column="content"/>
+        <result property="location" column="location"/>
+        <result property="signed" column="signed"/>
+        <result property="startedAt" column="startedat"/>
+        <result property="endedAt" column="endedat"/>
+        <result property="createdAt" column="createdat"/>
+        <result property="title" column="title"/>
+        <result property="remark" column="remark"/>
+        <result property="goal" column="goal"/>
+        <result property="expectedEffect" column="expectedEffect"/>
+        
+        <!-- Use custom JsonTypeHandler -->
+        <result property="participantCount" column="participantCount"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+        <result property="trainer" column="trainer"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+        <result property="material" column="material"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+        <result property="writer" column="writer"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>
+        <result property="reviewer" column="reviewer"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>    
+        <result property="approver" column="approver"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>   
+        <result property="files" column="files"
+                typeHandler="kr.co.igns.mobile.common.handler.JsonTypeHandler"/>                                                                              
+    </resultMap>
+    
+	<!-- 교육관리(RORAT) 달력 count 조회 -->
+	<select id="getTrainingsRORATCalendarCount" parameterType="kr.co.igns.mobile.trainings.model.TrainingsSearchVO" resultMap="TrainingsCalendarResultMap">
+		WITH training_list AS ( -- 교육관리 결과 목록 조회
+		    SELECT -- 위험성평가 교육결과 목록 조회 (RORAT)
+		        rt.write_year,
+		        rt.doc_type,
+		        rt.doc_no,
+		        CONCAT(rt.write_year, rt.doc_no) AS target_id,
+		        rt.comp_id,
+		        NULL AS title,
+		        rt.asmnt_content AS content,
+		        rt.asmnt_place AS location,
+		        COALESCE(COUNT(ai.hr_id), 0) AS attendee_count,
+		        CASE 
+		            WHEN my_ai.hr_id IS NOT NULL THEN TRUE
+		            ELSE FALSE
+		        END AS my_participation,
+		        CASE 
+		            WHEN COALESCE(rt.asmnt_date, '') != '' AND COALESCE(rt.asmnt_start_time, '') != '' IS NOT NULL THEN                
+		                TO_TIMESTAMP(rt.asmnt_date || ' ' || SUBSTRING(rt.asmnt_start_time FROM '^\d{2}:\d{2}$'), 'YYYYMMDD HH24:MI')::timestamp
+		            ELSE NULL
+		        END AS started_at,
+		        CASE 
+		            WHEN COALESCE(rt.asmnt_date, '') != '' AND COALESCE(rt.asmnt_end_time, '') != '' IS NOT NULL THEN                                                
+		                TO_TIMESTAMP(rt.asmnt_date || ' ' || SUBSTRING(rt.asmnt_end_time FROM '\d{2}:\d{2}$'), 'YYYYMMDD HH24:MI')::timestamp
+		            ELSE NULL
+		        END AS ended_at,
+		        rt.created_at
+		    FROM esg.tb_result_of_risk_assessment_training rt
+		    LEFT JOIN esg.tb_approval_info ai 
+		        ON ai.target_type = rt.doc_type 
+		            AND ai.target_id = CONCAT(rt.write_year, rt.doc_no) 
+		            AND ai.type = 'ATTENDEES'
+		    LEFT JOIN esg.tb_approval_info my_ai
+		        ON my_ai.target_type = rt.doc_type 
+		            AND my_ai.target_id = CONCAT(rt.write_year, rt.doc_no)
+		            AND my_ai.hr_id = #{hrId} -- :hr_id
+		    WHERE rt.comp_id = #{compId} -- :comp_id
+		        AND rt.use_yn = 'Y'
+		    GROUP BY rt.write_year, rt.doc_type, rt.doc_no, my_ai.hr_id
+		),
+		signatures AS ( -- 작성자, 검토자, 승인자, 참석자 서명 정보
+		    SELECT 
+		        t.write_year,
+		        t.doc_type,
+		        t.doc_no,
+		        SUM(CASE WHEN ai.param = 'writer' THEN 1 ELSE 0 END) AS writer_count,
+		        SUM(CASE WHEN ai.param = 'reviewer' THEN 1 ELSE 0 END) AS reviewer_count,
+		        SUM(CASE WHEN ai.param = 'approver' THEN 1 ELSE 0 END) AS approver_count,
+		        SUM(CASE WHEN ai.param = 'writer' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) AS signed_writer_count,
+		        SUM(CASE WHEN ai.param = 'reviewer' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) AS signed_reviewer_count,
+		        SUM(CASE WHEN ai.param = 'approver' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) AS signed_approver_count,
+		        CASE 
+		            WHEN t.doc_type = 'RORAT' THEN
+		                SUM(CASE WHEN ai.type = 'ATTENDEES' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END)
+		            ELSE
+		                SUM(CASE WHEN ai.type = 'attendee' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END)
+		        END AS signed_attendee_count,
+		        SUM(CASE WHEN ai.hr_id = #{hrId} -- :hr_id
+		                THEN 1 ELSE 0 END) AS my_sign_count,
+		        SUM(CASE WHEN ai.hr_id = #{hrId} -- :hr_id 
+		            AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) AS signed_my_sign_count
+		        FROM training_list t
+		    LEFT JOIN esg.tb_approval_info ai
+		        ON ai.target_type = t.doc_type
+		            AND ai.target_id = t.target_id
+		    GROUP BY t.write_year, t.doc_type, t.doc_no, t.attendee_count
+		),
+		date_counts AS (
+		    -- 날짜별 카운트 계산
+		    SELECT
+		        TO_CHAR(t.started_at, 'YYYY-MM-DD') AS started_at_date,  -- Keep date as is for grouping
+		        TO_CHAR(t.started_at, 'YYYY-MM') AS started_at_month,    -- Extract month (YYYY-MM) for grouping
+		        COUNT(*) AS cnt
+		    FROM training_list t
+		    LEFT JOIN signatures s
+		        ON s.write_year = t.write_year
+		        AND s.doc_type = t.doc_type
+		        AND s.doc_no = t.doc_no
+		    WHERE true
+		        AND t.doc_type = 'RORAT'
+		        AND t.started_at IS NOT NULL
+	        <if test="startDate != null and endDate != null">
+         	    AND t.started_at BETWEEN TO_DATE(#{startDate}, 'YYYYMMDD') AND TO_DATE(#{endDate}, 'YYYYMMDD')
+	        </if>
+		    GROUP BY TO_CHAR(t.started_at, 'YYYY-MM-DD'), TO_CHAR(t.started_at, 'YYYY-MM') -- Group by date and month
+		),
+		final_result AS (
+		    -- Group by month and aggregate dates within the same month
+		    SELECT
+		        started_at_month,  -- The month part (YYYY-MM)
+		        jsonb_object_agg(started_at_date, cnt) AS dates_and_counts  -- Aggregate dates within the month
+		    FROM date_counts
+		    GROUP BY started_at_month
+		)
+		SELECT
+		    jsonb_agg(dates_and_counts) AS result  -- Aggregate all months with their dates and counts
+		FROM final_result
+	</select>
+	<!-- 교육관리(TRR) 달력 count 조회 -->
+	<select id="getTrainingsTRRCalendarCount" parameterType="kr.co.igns.mobile.trainings.model.TrainingsSearchVO" resultMap="TrainingsCalendarResultMap">
+		WITH training_list AS (   -- 교육관리 결과 목록 조회
+		    SELECT
+		        t.write_year,
+		        t.doc_type,
+		        t.doc_no,
+		        t.training_date,  -- Keep training_date as it is
+		        CONCAT(t.write_year, t.doc_no) AS target_id,
+		        t.comp_id,
+		        t.title,
+		        t.training_content AS content,
+		        cd.minor_nm AS location,
+		        COALESCE(COUNT(ai.hr_id), 0) AS attendee_count,
+		        CASE
+		            WHEN my_ai.hr_id IS NOT NULL THEN TRUE
+		            ELSE FALSE
+		        END AS my_participation,
+		        CASE
+		            WHEN COALESCE(t.training_date, '') != '' AND COALESCE(t.training_start, '') != '' IS NOT NULL THEN
+		                TO_TIMESTAMP(t.training_date || ' ' || SUBSTRING(t.training_start FROM '^\d{2}:\d{2}$'), 'YYYYMMDD HH24:MI')::timestamp
+		            ELSE NULL
+		        END AS started_at,
+		        CASE
+		            WHEN COALESCE(t.training_date, '') != '' AND COALESCE(t.training_end, '') != '' IS NOT NULL THEN
+		                TO_TIMESTAMP(t.training_date || ' ' || SUBSTRING(t.training_end FROM '\d{2}:\d{2}$'), 'YYYYMMDD HH24:MI')::timestamp
+		            ELSE NULL
+		        END AS ended_at,
+		        t.created_at
+		    FROM esg.tb_training_result_report t
+		    LEFT JOIN esg.tb_common_d cd
+		        ON t.training_location = cd.minor_cd
+		        AND cd.major_cd = 'C0023'
+		        AND cd.comp_id = t.comp_id
+		        AND cd.use_yn = 'Y'
+		    LEFT JOIN esg.tb_approval_info ai
+		        ON ai.target_type = t.doc_type
+		        AND ai.target_id = CONCAT(t.write_year, t.doc_no)
+		        AND ai.type = 'attendee'
+		    LEFT JOIN esg.tb_approval_info my_ai
+		        ON my_ai.target_type = t.doc_type
+		        AND my_ai.target_id = CONCAT(t.write_year, t.doc_no)
+		        AND my_ai.hr_id = #{hrId}
+		    WHERE t.comp_id = #{compId}
+		        AND t.use_yn = 'Y'
+		    GROUP BY t.write_year, t.doc_type, t.doc_no, cd.minor_nm, my_ai.hr_id
+		), signatures AS (   -- 작성자, 검토자, 승인자, 참석자 서명 정보
+		    SELECT
+		        t.write_year,
+		        t.doc_type,
+		        t.doc_no,
+		        SUM(CASE WHEN ai.param = 'writer' THEN 1 ELSE 0 END) AS writer_count,
+		        SUM(CASE WHEN ai.param = 'reviewer' THEN 1 ELSE 0 END) AS reviewer_count,
+		        SUM(CASE WHEN ai.param = 'approver' THEN 1 ELSE 0 END) AS approver_count,
+		        SUM(CASE WHEN ai.param = 'writer' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) AS signed_writer_count,
+		        SUM(CASE WHEN ai.param = 'reviewer' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) AS signed_reviewer_count,
+		        SUM(CASE WHEN ai.param = 'approver' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) AS signed_approver_count,
+		        CASE
+		            WHEN t.doc_type = 'TRR' THEN
+		                SUM(CASE WHEN ai.type = 'ATTENDEES' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END)
+		            ELSE
+		                SUM(CASE WHEN ai.type = 'attendee' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END)
+		        END AS signed_attendee_count,
+		        SUM(CASE WHEN ai.hr_id = '202410080052' THEN 1 ELSE 0 END) AS my_sign_count,
+		        SUM(CASE WHEN ai.hr_id = '202410080052' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) AS signed_my_sign_count
+		    FROM training_list t
+		    LEFT JOIN esg.tb_approval_info ai
+		        ON ai.target_type = t.doc_type
+		        AND ai.target_id = t.target_id
+		    GROUP BY t.write_year, t.doc_type, t.doc_no, t.attendee_count
+		),
+		date_counts AS (   -- 날짜별 카운트 계산
+		    SELECT
+		        TO_CHAR(TO_DATE(t.training_date, 'YYYYMMDD'), 'YYYY-MM-DD') AS training_date,  -- Convert training_date to date
+		        TO_CHAR(TO_DATE(t.training_date, 'YYYYMMDD'), 'YYYY-MM') AS training_month,    -- Extract month (YYYY-MM)
+		        COUNT(*) AS cnt
+		    FROM training_list t
+		    LEFT JOIN signatures s
+		        ON s.write_year = t.write_year
+		        AND s.doc_type = t.doc_type
+		        AND s.doc_no = t.doc_no
+		    WHERE true
+		        AND t.doc_type = 'TRR'
+		        AND t.training_date IS NOT NULL  -- Use training_date for filtering
+    	    <if test="startDate != null and endDate != null">
+	            AND TO_DATE(t.training_date, 'YYYYMMDD') BETWEEN TO_DATE(#{startDate}, 'YYYYMMDD') AND TO_DATE(#{endDate}, 'YYYYMMDD')
+	        </if>
+		    GROUP BY TO_CHAR(TO_DATE(t.training_date, 'YYYYMMDD'), 'YYYY-MM-DD'), TO_CHAR(TO_DATE(t.training_date, 'YYYYMMDD'), 'YYYY-MM')
+		),
+		final_result AS (   -- Group by month and aggregate dates within the same month
+		    SELECT
+		        training_month,  -- The month part (YYYY-MM)
+		        jsonb_object_agg(training_date, cnt) AS dates_and_counts  -- Aggregate dates within the month
+		    FROM date_counts
+		    GROUP BY training_month
+		)
+		SELECT
+		    jsonb_agg(dates_and_counts) AS result  -- Aggregate all months with their dates and counts
+		FROM final_result	
+	</select>
+	<!-- 교육 결과 목록 조회 -->
+	<select id="getTrainings" parameterType="kr.co.igns.mobile.trainings.model.TrainingsSearchVO" resultMap="TrainingsResultMap">
+		WITH training_list AS ( -- 교육관리 결과 목록 조회
+		    SELECT -- 안전보건교육 결과 목록 조회 (TRR)
+		        t.write_year,
+		        t.doc_type,
+		        t.doc_no,
+		            CONCAT(t.write_year, t.doc_no) AS target_id,
+		            t.comp_id,
+		        t.title,
+		        t.training_content AS content,
+		        cd.minor_nm AS location,
+		        COALESCE(COUNT(ai.hr_id), 0) AS attendee_count,
+		        CASE 
+		            WHEN my_ai.hr_id IS NOT NULL THEN TRUE
+		        ELSE FALSE
+		        END AS my_participation,
+		        CASE 
+		                WHEN COALESCE(t.training_date, '') != '' AND COALESCE(t.training_start, '') != '' IS NOT NULL THEN                
+		                    TO_TIMESTAMP(t.training_date || ' ' || SUBSTRING(t.training_start FROM '^\d{2}:\d{2}$'), 'YYYYMMDD HH24:MI')::timestamp
+		            ELSE NULL
+		        END AS started_at,
+		        CASE 
+		            WHEN COALESCE(t.training_date, '') != '' AND COALESCE(t.training_end, '') != '' IS NOT NULL THEN                                                
+		                TO_TIMESTAMP(t.training_date || ' ' || SUBSTRING(t.training_end FROM '\d{2}:\d{2}$'), 'YYYYMMDD HH24:MI')::timestamp
+		            ELSE NULL
+		        END AS ended_at,
+		        t.created_at
+		    FROM esg.tb_training_result_report t 
+		    LEFT JOIN esg.tb_common_d cd 
+		        ON t.training_location = cd.minor_cd 
+		            AND cd.major_cd = 'C0023' 
+		            AND cd.comp_id = t.comp_id
+		            /* AND cd.use_yn = 'Y' */
+		    LEFT JOIN esg.tb_approval_info ai
+		        ON ai.target_type = t.doc_type 
+		            AND ai.target_id = CONCAT(t.write_year, t.doc_no)
+		            AND ai.type = 'attendee'
+		    LEFT JOIN esg.tb_approval_info my_ai
+		        ON my_ai.target_type = t.doc_type 
+		            AND my_ai.target_id = CONCAT(t.write_year, t.doc_no)
+		            AND my_ai.hr_id = #{hrId} -- :hr_id
+		    WHERE t.comp_id = #{compId} -- :comp_id
+		        AND t.training_date BETWEEN #{startDate} AND #{endDate} -- :start_date, end_date
+		        AND t.use_yn = 'Y'
+		    GROUP BY t.write_year, t.doc_type, t.doc_no, cd.minor_nm, my_ai.hr_id
+		    UNION
+		    SELECT -- 위험성평가 교육결과 목록 조회 (RORAT)
+		        rt.write_year,
+		        rt.doc_type,
+		        rt.doc_no,
+		        CONCAT(rt.write_year, rt.doc_no) AS target_id,
+		        rt.comp_id,
+		        NULL AS title,
+		        rt.asmnt_content AS content,
+		        rt.asmnt_place AS location,
+		        COALESCE(COUNT(ai.hr_id), 0) AS attendee_count,
+		        CASE 
+		            WHEN my_ai.hr_id IS NOT NULL THEN TRUE
+		            ELSE FALSE
+		        END AS my_participation,
+		        CASE 
+		            WHEN COALESCE(rt.asmnt_date, '') != '' AND COALESCE(rt.asmnt_start_time, '') != '' IS NOT NULL THEN                
+		                TO_TIMESTAMP(rt.asmnt_date || ' ' || SUBSTRING(rt.asmnt_start_time FROM '^\d{2}:\d{2}$'), 'YYYYMMDD HH24:MI')::timestamp
+		            ELSE NULL
+		        END AS started_at,
+		        CASE 
+		            WHEN COALESCE(rt.asmnt_date, '') != '' AND COALESCE(rt.asmnt_end_time, '') != '' IS NOT NULL THEN                                                
+		                TO_TIMESTAMP(rt.asmnt_date || ' ' || SUBSTRING(rt.asmnt_end_time FROM '\d{2}:\d{2}$'), 'YYYYMMDD HH24:MI')::timestamp
+		            ELSE NULL
+		        END AS ended_at,
+		        rt.created_at
+		    FROM esg.tb_result_of_risk_assessment_training rt
+		    LEFT JOIN esg.tb_approval_info ai 
+		        ON ai.target_type = rt.doc_type 
+		            AND ai.target_id = CONCAT(rt.write_year, rt.doc_no) 
+		            AND ai.type = 'ATTENDEES'
+		    LEFT JOIN esg.tb_approval_info my_ai
+		        ON my_ai.target_type = rt.doc_type 
+		            AND my_ai.target_id = CONCAT(rt.write_year, rt.doc_no)
+		            AND my_ai.hr_id = #{hrId} -- :hr_id
+		    WHERE rt.comp_id = #{compId} -- :comp_id
+		        AND rt.asmnt_date BETWEEN #{startDate} AND #{endDate} -- :start_date, :end_date
+		        AND rt.use_yn = 'Y'
+		    GROUP BY rt.write_year, rt.doc_type, rt.doc_no, my_ai.hr_id
+		),
+		signatures AS ( -- 작성자, 검토자, 승인자, 참석자 서명 정보
+		    SELECT 
+		        t.write_year,
+		        t.doc_type,
+		        t.doc_no,
+		        SUM(CASE WHEN ai.param = 'writer' THEN 1 ELSE 0 END) AS writer_count,
+		        SUM(CASE WHEN ai.param = 'reviewer' THEN 1 ELSE 0 END) AS reviewer_count,
+		        SUM(CASE WHEN ai.param = 'approver' THEN 1 ELSE 0 END) AS approver_count,
+		        SUM(CASE WHEN ai.param = 'writer' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) AS signed_writer_count,
+		        SUM(CASE WHEN ai.param = 'reviewer' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) AS signed_reviewer_count,
+		        SUM(CASE WHEN ai.param = 'approver' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) AS signed_approver_count,
+		        CASE 
+		            WHEN t.doc_type = #{docType} THEN
+		                SUM(CASE WHEN ai.type = 'ATTENDEES' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END)
+		            ELSE
+		                SUM(CASE WHEN ai.type = 'attendee' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END)
+		        END AS signed_attendee_count,
+		        SUM(CASE WHEN ai.hr_id = #{hrId} -- :hr_id
+		                THEN 1 ELSE 0 END) AS my_sign_count,
+		        SUM(CASE WHEN ai.hr_id = #{hrId} -- :hr_id 
+		            AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) AS signed_my_sign_count
+		        FROM training_list t
+		    LEFT JOIN esg.tb_approval_info ai
+		        ON ai.target_type = t.doc_type
+		            AND ai.target_id = t.target_id
+		    GROUP BY t.write_year, t.doc_type, t.doc_no, t.attendee_count
+		) 
+		SELECT -- 교육 결과 질의 본문
+		    CONCAT(t.write_year, '-', t.doc_type, '-', t.doc_no) AS id,
+		    t.doc_type AS category,
+		    t.title,
+		    t.content,
+		    t.location,
+		    json_build_object(
+		        'writer', s.writer_count,
+		        'signedWriter', s.signed_writer_count,
+		        'reviewer', s.reviewer_count,
+		        'signedReviewer', s.signed_reviewer_count,
+		        'approver', s.approver_count,
+		        'signedApprover', s.signed_approver_count,
+		        'attendee', t.attendee_count,
+		        'signedAttendee', s.signed_attendee_count
+		    ) AS participantCount,
+		    t.started_at AS startedAt,
+		    t.ended_at AS endedAt,
+		    t.my_participation,
+		    CASE 
+		        WHEN s.my_sign_count > 0 THEN
+		            CASE
+		                WHEN s.my_sign_count > s.signed_my_sign_count THEN FALSE
+		                ELSE TRUE
+		            END
+		        ELSE NULL
+		    END AS signed,
+		    t.created_at AS createdAt
+		FROM training_list t 
+		LEFT JOIN signatures s
+		    ON s.write_year = t.write_year 
+		        AND s.doc_type = t.doc_type 
+		        AND s.doc_no = t.doc_no
+		WHERE TRUE
+	    <if test="onlyMine == true">
+		    AND t.my_participation = TRUE AND s.my_sign_count > 0 -- :only_mine이 true일때 -- 내가 관여된 교육 일정만 필터링
+		</if>
+		<if test="category != null">
+		    AND t.doc_type = #{category} -- :category -- 교육 타입 코드로 필터링 
+	    </if>
+		ORDER BY t.created_at DESC	
+	</select>
+    <!-- 교육 결과 상세 조회 -->
+	<select id="getTrainingsRORATDetail" parameterType="kr.co.igns.mobile.trainings.model.TrainingsSearchVO" resultMap="TrainingsDetailResultMap">
+		WITH training AS ( -- RORAT 교육결과 상세 기준 데이터 조회
+		    SELECT 
+		        rt.write_year,
+		        rt.doc_type,
+		        rt.doc_no,
+		        rt.comp_id,
+		        rt.asmnt_content AS content,
+		        rt.asmnt_place AS location,
+		        CASE 
+		            WHEN COALESCE(rt.asmnt_date, '') != '' AND COALESCE(rt.asmnt_start_time, '') != '' IS NOT NULL THEN                
+		                TO_TIMESTAMP(rt.asmnt_date || ' ' || SUBSTRING(rt.asmnt_start_time FROM '^\d{2}:\d{2}$'), 'YYYYMMDD HH24:MI')::timestamp
+		            ELSE NULL
+		        END AS started_at,
+		        CASE 
+		            WHEN COALESCE(rt.asmnt_date, '') != '' AND COALESCE(rt.asmnt_end_time, '') != '' IS NOT NULL THEN                
+		                TO_TIMESTAMP(rt.asmnt_date || ' ' || SUBSTRING(rt.asmnt_end_time FROM '^\d{2}:\d{2}$'), 'YYYYMMDD HH24:MI')::timestamp
+		            ELSE NULL
+		        END AS ended_at,
+		        rt.created_at
+		    FROM esg.tb_result_of_risk_assessment_training rt
+		    WHERE rt.comp_id = #{compId} -- :comp_id
+		        AND rt.write_year = #{writeYear} -- :write_year
+		        AND rt.doc_type = 'RORAT' -- :doc_type
+		        AND rt.doc_no = #{docNo} -- :doc_no
+		        AND rt.use_yn = 'Y'
+		    LIMIT 1
+		),
+		attendees AS ( -- 작성자, 검토자, 승인자, 참석자 서명 정보 조회
+		    SELECT 
+		        MAX(CASE WHEN ai.param = 'writer' THEN ai.hr_id ELSE NULL END) AS writer_hr_id,
+		        MAX(CASE WHEN ai.param = 'writer' THEN ai.hr_nm ELSE NULL END) AS writer_name,
+		        MAX(CASE WHEN ai.param = 'writer' THEN ai.jbrp_nm ELSE NULL END) AS writer_job_title,
+		        MAX(CASE WHEN ai.param = 'writer' THEN ai.orgn_nm ELSE NULL END) AS writer_org_name,
+		        CASE 
+		            WHEN MAX(CASE WHEN ai.param = 'writer' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) >= 1 THEN TRUE
+		                ELSE FALSE
+		        END AS writer_signed,
+		        MAX(CASE WHEN ai.param = 'reviewer' THEN ai.hr_id ELSE NULL END) AS reviewer_hr_id,
+		        MAX(CASE WHEN ai.param = 'reviewer' THEN ai.hr_nm ELSE NULL END) AS reviewer_name,
+		        MAX(CASE WHEN ai.param = 'reviewer' THEN ai.jbrp_nm ELSE NULL END) AS reviewer_job_title,
+		        MAX(CASE WHEN ai.param = 'reviewer' THEN ai.orgn_nm ELSE NULL END) AS reviewer_org_name,
+		        CASE 
+		            WHEN MAX(CASE WHEN ai.param = 'reviewer' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) >= 1 THEN TRUE
+		            ELSE FALSE
+		        END AS reviewer_signed,
+		        MAX(CASE WHEN ai.param = 'approver' THEN ai.hr_id ELSE NULL END) AS approver_hr_id,
+		        MAX(CASE WHEN ai.param = 'approver' THEN ai.hr_nm ELSE NULL END) AS approver_name,
+		        MAX(CASE WHEN ai.param = 'approver' THEN ai.jbrp_nm ELSE NULL END) AS approver_job_title,
+		        MAX(CASE WHEN ai.param = 'approver' THEN ai.orgn_nm ELSE NULL END) AS approver_org_name,
+		        CASE 
+		            WHEN MAX(CASE WHEN ai.param = 'approver' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) >= 1 THEN TRUE
+		            ELSE TRUE
+		        END AS approver_signed,
+		        SUM(CASE WHEN ai.type = 'ATTENDEES' THEN 1 ELSE 0 END) AS attendee_count,
+		        SUM(CASE WHEN ai.type = 'ATTENDEES' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) AS signed_attendee_count,
+		        CASE 
+		            WHEN MAX(CASE WHEN ai.hr_id = #{hrId} -- :hr_id 조회자 ID
+		                    AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) >= 1 THEN TRUE
+		            WHEN MAX(CASE WHEN ai.hr_id = #{hrId} -- :hr_id 조회자 ID
+		                AND ai.signature IS NULL THEN 1 ELSE 0 END) >= 1 THEN FALSE
+		            ELSE NULL
+		        END AS signed
+		    FROM training t
+		        LEFT JOIN esg.tb_approval_info ai
+		                ON ai.target_type = t.doc_type AND ai.target_id = CONCAT(t.write_year, t.doc_no)
+		    GROUP BY t.write_year, t.doc_type, t.doc_no
+		), 		
+		result_files AS ( -- 교육 결과 첨부파일 조회
+		    SELECT
+		        json_agg(
+		            json_build_object(
+		                'fileId', f.file_id,
+		                'fileName', f.file_nm,
+		                'fileExt', f.extension,
+		                'fileType', f.file_type,
+		                'fileSize', f.file_size
+		            )
+		    ) AS files
+		    FROM training t 
+		       JOIN esg.tb_sys_file f 
+		        ON f.target_type = t.doc_type 
+		                AND f.target_id = CONCAT(t.write_year, t.doc_no) 
+		                AND f.comp_id = t.comp_id
+		                AND f.del_yn = 'N'
+		)
+		SELECT -- RORAT 교육 상세 조회 질의 본문
+		    CONCAT(t.write_year, '-', t.doc_type, '-', t.doc_no) AS id,
+		    t.doc_type AS category,
+		    t.location, -- 교육 장소 (nullable)
+		    t.content, -- 교육 내용 (nullable)
+		    t.started_at AS startedAt, -- 교육 시작일시
+		    t.ended_at AS endedAt, -- 교육 종료일시
+		    json_build_object(
+		            'attendee', attendee_count,
+		        'signedAttendee', signed_attendee_count
+		    ) AS participantCount, -- 참석자 서명 정보
+		    a.signed, -- 내 서명 여부 (nullable)
+	        COALESCE(rf.files, '[]'::json) AS files, -- 교육 결과 파일 (nullable)
+		    CASE WHEN a.writer_hr_id IS NOT NULL THEN json_build_object(
+		            'hrId', a.writer_hr_id,
+		            'name', a.writer_name,
+		            'jobTitle', a.writer_job_title,
+		            'orgName', a.writer_org_name,
+		            'signed', a.writer_signed
+		        ) 
+		        ELSE NULL
+		    END AS writer, -- 작성자 (nullable)
+		    CASE WHEN a.reviewer_hr_id IS NOT NULL THEN json_build_object(
+		            'hrId', a.reviewer_hr_id,
+		            'name', a.reviewer_name,
+		            'jobTitle', a.reviewer_job_title,
+		            'orgName', a.reviewer_org_name,
+		            'signed', a.reviewer_signed
+		        ) 
+		        ELSE NULL
+		    END AS reviewer, -- 검토자 (nullable)
+		    CASE WHEN a.approver_hr_id IS NOT NULL THEN json_build_object(
+		            'hrId', a.approver_hr_id,
+		            'name', a.approver_name,
+		            'jobTitle', a.approver_job_title,
+		            'orgName', a.approver_org_name,
+		            'signed', a.approver_signed
+		        ) 
+		        ELSE NULL
+		    END AS approver, -- 승인자 (nullable)		    
+		    t.created_at AS createdAt
+		FROM training t
+		LEFT JOIN attendees a ON TRUE
+		LEFT JOIN result_files rf ON TRUE	
+	</select>
+	
+	<select id="getTrainingsTRRDetail" parameterType="kr.co.igns.mobile.trainings.model.TrainingsSearchVO" resultMap="TrainingsDetailResultMap">
+		WITH training AS ( -- 안전보건 교육(TRR) 상세 기준 데이터 조회
+		    SELECT
+		        t.write_year,
+		        t.doc_type,
+		        t.doc_no,
+		        t.comp_id,
+		        t.title,
+		        cd1.minor_nm AS institute,
+		        cd2.minor_nm AS instructor,
+		        cd3.minor_nm AS location,
+		        t.training_goal,
+		        t.expected_effect,
+		        t.training_content AS content,
+		        t.materials,
+		        t.projector,
+		        t.vtr,
+		        t.materials_etc,
+		        t.remark,
+		        CASE 
+		            WHEN COALESCE(t.training_date, '') != '' AND COALESCE(t.training_start, '') != '' IS NOT NULL THEN                
+		                TO_TIMESTAMP(t.training_date || ' ' || SUBSTRING(t.training_start FROM '^\d{2}:\d{2}'), 'YYYYMMDD HH24:MI')::timestamp
+		            ELSE NULL
+		        END AS started_at,
+		        CASE 
+		            WHEN COALESCE(t.training_date, '') != '' AND COALESCE(t.training_end, '') != '' IS NOT NULL THEN                                                
+		                TO_TIMESTAMP(t.training_date || ' ' || SUBSTRING(t.training_end FROM '\d{2}:\d{2}$'), 'YYYYMMDD HH24:MI')::timestamp
+		            ELSE NULL
+		        END AS ended_at,
+		        t.created_at
+		    FROM esg.tb_training_result_report t
+		    LEFT JOIN esg.tb_common_d cd1 
+		        ON t.training_institute = cd1.minor_cd AND cd1.major_cd = 'C0019' AND cd1.comp_id = t.comp_id /* AND cd1.use_yn = 'Y' */
+		    LEFT JOIN esg.tb_common_d cd2 
+		        ON t.training_instructor = cd2.minor_cd AND cd2.major_cd = 'C0020' AND cd2.comp_id = t.comp_id /* AND cd2.use_yn = 'Y' */
+		        LEFT JOIN esg.tb_common_d cd3 
+		        ON t.training_location = cd3.minor_cd AND cd3.major_cd = 'C0023' AND cd3.comp_id = t.comp_id /* AND cd3.use_yn = 'Y' */
+		    WHERE t.comp_id = #{compId} -- :comp_id
+		        AND t.write_year = #{writeYear} -- :write_year
+		        AND t.doc_type = #{docType} -- :doc_type
+		        AND t.doc_no = #{docNo} -- :doc_no
+		        AND t.use_yn = 'Y'
+		        LIMIT 1
+		), 
+		signatures AS ( -- 작성자, 검토자, 승인자, 참석자 서명 정보 조회
+		    SELECT 
+		        MAX(CASE WHEN ai.param = 'writer' THEN ai.hr_id ELSE NULL END) AS writer_hr_id,
+		        MAX(CASE WHEN ai.param = 'writer' THEN ai.hr_nm ELSE NULL END) AS writer_name,
+		        MAX(CASE WHEN ai.param = 'writer' THEN ai.jbrp_nm ELSE NULL END) AS writer_job_title,
+		        MAX(CASE WHEN ai.param = 'writer' THEN ai.orgn_nm ELSE NULL END) AS writer_org_name,
+		        CASE 
+		            WHEN MAX(CASE WHEN ai.param = 'writer' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) >= 1 THEN TRUE
+		                ELSE FALSE
+		        END AS writer_signed,
+		        MAX(CASE WHEN ai.param = 'reviewer' THEN ai.hr_id ELSE NULL END) AS reviewer_hr_id,
+		        MAX(CASE WHEN ai.param = 'reviewer' THEN ai.hr_nm ELSE NULL END) AS reviewer_name,
+		        MAX(CASE WHEN ai.param = 'reviewer' THEN ai.jbrp_nm ELSE NULL END) AS reviewer_job_title,
+		        MAX(CASE WHEN ai.param = 'reviewer' THEN ai.orgn_nm ELSE NULL END) AS reviewer_org_name,
+		        CASE 
+		            WHEN MAX(CASE WHEN ai.param = 'reviewer' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) >= 1 THEN TRUE
+		            ELSE FALSE
+		        END AS reviewer_signed,
+		        MAX(CASE WHEN ai.param = 'approver' THEN ai.hr_id ELSE NULL END) AS approver_hr_id,
+		        MAX(CASE WHEN ai.param = 'approver' THEN ai.hr_nm ELSE NULL END) AS approver_name,
+		        MAX(CASE WHEN ai.param = 'approver' THEN ai.jbrp_nm ELSE NULL END) AS approver_job_title,
+		        MAX(CASE WHEN ai.param = 'approver' THEN ai.orgn_nm ELSE NULL END) AS approver_org_name,
+		        CASE 
+		            WHEN MAX(CASE WHEN ai.param = 'approver' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) >= 1 THEN TRUE
+		            ELSE TRUE
+		        END AS approver_signed,
+		        SUM(CASE WHEN ai.type = 'attendee' THEN 1 ELSE 0 END) AS attendee_count,
+		        SUM(CASE WHEN ai.type = 'attendee' AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) AS signed_attendee_count,
+		        CASE 
+		            WHEN MAX(CASE WHEN ai.hr_id = #{hrId} -- :hr_id 조회자 ID
+		                    AND ai.signature IS NOT NULL THEN 1 ELSE 0 END) >= 1 THEN TRUE
+		            WHEN MAX(CASE WHEN ai.hr_id = #{hrId} -- :hr_id 조회자 ID
+		                AND ai.signature IS NULL THEN 1 ELSE 0 END) >= 1 THEN FALSE
+		            ELSE NULL
+		        END AS signed
+		    FROM training t
+		        LEFT JOIN esg.tb_approval_info ai
+		                ON ai.target_type = t.doc_type AND ai.target_id = CONCAT(t.write_year, t.doc_no)
+		    GROUP BY t.write_year, t.doc_type, t.doc_no
+		) 
+		/* attendees AS ( -- 참석자 정보 조회
+		        SELECT
+		            COUNT(hi.hr_id) AS attendee_count,
+		        COUNT(hi.hr_id) AS signed_attendee_count
+		    FROM training t 
+		    LEFT JOIN esg.tb_hr_incharge_map hi 
+		            ON hi.target_type = t.doc_type AND hi.target_id = CONCAT(t.write_year, t.doc_no) AND hi.use_yn = 'Y'
+		)*/
+		SELECT -- TRR 교육 상세 조회 질의 본문
+		    CONCAT(t.write_year, '-', t.doc_type , '-', t.doc_no) AS id,
+		    t.doc_type AS category,
+		    t.title, -- 제목 (nullable)
+		    t.location, -- 교육 장소 (nullable)
+		    t.training_goal AS goal, -- 교육 목표 (nullable)
+		    t.expected_effect AS expectedEffect, -- 기대효과 (nullable)
+		    json_build_object (
+		        'book', t.materials, -- 교안 (nullable)
+		        'projector', t.projector, -- 프로젝터 (nullable)
+		        'vtr', t.vtr, -- VTR (nullable)
+		        'misc', t.materials_etc -- 교육자료 기타 (nullable)
+		    ) AS material,
+		    CASE WHEN t.instructor IS NOT NULL THEN json_build_object(
+		        'name', t.instructor,
+		        'institute', t.institute
+		        ) 
+		    ELSE NULL
+		    END AS trainer, -- 강사 정보 (nullable)
+		    t.content, -- 교육 내용 (nullable)
+		    t.remark, -- 특기사항 (nullable)
+		    t.started_at AS startedAt, -- 교육 시작일시 (nullable)
+		    t.ended_at AS endedAt, -- 교육 종료일시 (nullable)
+		    json_build_object(
+		        'attendee', attendee_count,
+		        'signedAttendee', signed_attendee_count
+		    ) AS participantCount, -- 참석자 서명 정보
+		    s.signed, -- 내 서명 여부 (nullable)
+		    CASE WHEN s.writer_hr_id IS NOT NULL THEN json_build_object(
+		            'hrId', s.writer_hr_id,
+		            'name', s.writer_name,
+		            'jobTitle', s.writer_job_title,
+		            'orgName', s.writer_org_name,
+		            'signed', s.writer_signed
+		        ) 
+		        ELSE NULL
+		    END AS writer, -- 작성자 (nullable)
+		    CASE WHEN s.reviewer_hr_id IS NOT NULL THEN json_build_object(
+		            'hrId', s.reviewer_hr_id,
+		            'name', s.reviewer_name,
+		            'jobTitle', s.reviewer_job_title,
+		            'orgName', s.reviewer_org_name,
+		            'signed', s.reviewer_signed
+		        ) 
+		        ELSE NULL
+		    END AS reviewer, -- 검토자 (nullable)
+		    CASE WHEN s.approver_hr_id IS NOT NULL THEN json_build_object(
+		            'hrId', s.approver_hr_id,
+		            'name', s.approver_name,
+		            'jobTitle', s.approver_job_title,
+		            'orgName', s.approver_org_name,
+		            'signed', s.approver_signed
+		        ) 
+		        ELSE NULL
+		    END AS approver, -- 승인자 (nullable)
+		    t.created_at AS createdAt -- 생성일시 (nullable)
+		FROM training t
+		LEFT JOIN signatures s ON TRUE		
+	</select>
+</mapper>

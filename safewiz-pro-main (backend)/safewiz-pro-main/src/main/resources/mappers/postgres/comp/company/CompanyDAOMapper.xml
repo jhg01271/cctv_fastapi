@@ -1,0 +1,251 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.comp.company.dao.postgres.CompanyDAO">
+	<!--
+		2024-07-10 필터 수정 - 신택훈 
+	-->
+	<!-- 검색항목에 사업장 ID, 사업장, 대표자, 담당자 -->
+	<sql id="filter">
+		<if test="delYn != null and delYn != ''">
+	    	<![CDATA[			AND ci.del_yn = #{delYn}		]]>
+		</if>				
+		<if test="compId != null and compId != ''">
+	    	<![CDATA[			AND ci.up_comp_id = #{compId}		]]>
+		</if>				
+		<if test='searchWords != "" and searchWords != null and searchWords.size > 0'>
+			AND
+			(
+			<foreach collection='searchWords' item='searchWord' index='idx' separator='OR' open='(' close=')'>
+				ci.comp_id LIKE CONCAT('%',#{searchWord},'%')
+			</foreach>
+			OR
+			<foreach collection='searchWords' item='searchWord' index='idx' separator='OR' open='(' close=')'>
+				ci.comp_nm LIKE CONCAT('%',#{searchWord},'%')
+			</foreach>
+			OR
+			<foreach collection='searchWords' item='searchWord' index='idx' separator='OR' open='(' close=')'>
+				ci.rpst_nm LIKE CONCAT('%',#{searchWord},'%')
+			</foreach>
+			OR
+			<foreach collection='searchWords' item='searchWord' index='idx' separator='OR' open='(' close=')'>
+				ci.chrg_prsn LIKE CONCAT('%',#{searchWord},'%')
+			</foreach>
+
+			)
+
+		</if>
+	</sql>
+
+	<sql id='selectCol'>
+		ci.comp_id,
+		ci.comp_nm,
+		ci.comp_rmk,
+		ci.rgst_no,
+		ci.corp_no,
+		ci.rpst_nm,
+		ci.zip_cd,
+		ci.addrs1,
+		ci.addrs2,
+		ci.chrg_prsn,
+		ci.tel_no,
+		ci.biz_nm,
+		ci.biz_cd,
+		ci.main_prdt,
+		ci.prd_amt,
+		ci.photo_file_id,
+		ci.cmplt_de,
+		ci.fl_area,
+		ci.sales_amt,
+		ci.full_empl_cnt,
+		ci.avrg_work_hr,
+		ci.up_comp_id,
+		ci.del_yn,
+		ci.attach_id,
+		ci.invite_key,
+	</sql>
+	
+	<!-- useGeneratedKeys eqpId 에서 compId 로 변경-->
+	<insert id="insert" parameterType="kr.co.igns.business.comp.company.model.CompanyVO" useGeneratedKeys="true" keyProperty="compId">
+
+		INSERT INTO
+		tb_comp_info (
+		comp_id,
+		comp_nm,
+		comp_rmk,
+		rgst_no,
+		corp_no,
+		rpst_nm,
+		zip_cd,
+		addrs1,
+		addrs2,
+		chrg_prsn,
+		tel_no,
+		biz_nm,
+		biz_cd,
+		main_prdt,
+		prd_amt,
+		photo_file_id,
+		cmplt_de,
+		fl_area,
+		sales_amt,
+		full_empl_cnt,
+		avrg_work_hr,
+		up_comp_id,
+		created_at,
+		created_by,
+		attach_id,
+		invite_key
+		) VALUES (
+		#{compId},
+		#{compNm},
+		#{compRmk},
+		#{rgstNo},
+		#{corpNo},
+		#{rpstNm},
+		#{zipCd},
+		#{addrs1},
+		#{addrs2},
+		#{chrgPrsn},
+		#{telNo},
+		#{bizNm},
+		#{bizCd},
+		#{mainPrdt},
+		#{prdAmt},
+		#{photoFileId},
+		<!-- String 에서 Date로  Type 변환하여 등록 / 공백일경우 NULL 로 등록 -->
+		<!-- DATEPicker로 변경예정 -->
+		<choose>
+            <when test="cmpltDe != null and cmpltDe != ''">
+                TO_DATE(#{cmpltDe}, 'YYYY-MM-DD')
+            </when>
+            <otherwise>
+                NULL
+            </otherwise>
+        </choose>,
+		#{flArea},
+		#{salesAmt},		
+		#{fullEmplCnt},		
+		#{avrgWorkHr},	
+		#{upCompId},		
+		now(),
+		#{createdBy},
+		#{attachId},
+		#{inviteKey}
+		)
+
+	</insert>
+	
+	<update id="update" parameterType="kr.co.igns.business.comp.company.model.CompanyVO">
+
+		UPDATE tb_comp_info
+		SET
+		comp_nm = #{compNm},
+		comp_rmk = #{compRmk},
+		rgst_no = #{rgstNo},
+		corp_no = #{corpNo},
+		rpst_nm = #{rpstNm},
+		zip_cd = #{zipCd},
+		addrs1 = #{addrs1},
+		addrs2 = #{addrs2},
+		chrg_prsn = #{chrgPrsn},
+		tel_no = #{telNo},
+		biz_nm = #{bizNm},
+		biz_cd = #{bizCd},
+		main_prdt = #{mainPrdt},
+		prd_amt = #{prdAmt},
+		photo_file_id = #{photoFileId},
+		<!-- 캐스팅 추가 -->
+		cmplt_de = CAST(#{cmpltDe} AS DATE),
+		fl_area = #{flArea},
+		sales_amt = #{salesAmt},
+		full_empl_cnt = #{fullEmplCnt},
+		avrg_work_hr = #{avrgWorkHr},
+		up_comp_id = #{upCompId},
+		updated_at = now(),
+		updated_by = #{updatedBy},
+		attach_id = #{attachId},
+		invite_key = #{inviteKey}
+		WHERE comp_id = #{compId}
+	</update>
+	
+	  
+	<update id="updateDelYn" parameterType="String">
+
+		UPDATE tb_comp_info
+		SET
+		del_yn = 'Y',
+		updated_at = now(),
+		updated_by = #{updatedBy}
+		WHERE comp_id = #{compId}
+		 
+	</update>
+	
+	<delete id="delete" parameterType="String">
+
+		DELETE FROM tb_comp_info
+		WHERE comp_id = #{compId}
+
+	</delete>
+
+	
+	<select id='searchCount' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='int'>
+
+		SELECT
+		count(1)
+		FROM tb_comp_info ci
+		
+		<!--  where 1=1 추가 -->
+		where 1=1
+		<include refid='kr.co.igns.business.comp.company.dao.postgres.CompanyDAO.filter' />
+
+	</select>
+
+	<select id='search' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.comp.company.model.CompanyVO'>
+
+		SELECT
+		<include refid='kr.co.igns.business.comp.company.dao.postgres.CompanyDAO.selectCol' />
+		created_at,
+		updated_at,
+		'U' cmd
+		FROM tb_comp_info ci
+		WHERE 1=1
+		<include refid='kr.co.igns.business.comp.company.dao.postgres.CompanyDAO.filter' />
+		<!--  정렬순서 -->
+		order by comp_id				
+	
+	</select>
+
+	<select id='findOne' parameterType='String' resultType='kr.co.igns.business.comp.company.model.CompanyVO'>
+
+		SELECT
+		<include refid='kr.co.igns.business.comp.company.dao.postgres.CompanyDAO.selectCol' />
+		created_at,
+		created_by,
+		updated_at,
+		updated_by,
+		'U' cmd
+		<!--  tb_company_info 에서 tb_comp_info로 변경 -->
+		FROM tb_comp_info ci
+		<!-- WHERE clnt_id = #{clntId} 에서 변경 -->
+		WHERE comp_id = #{compId}
+
+	</select>
+
+	<select id='findByInviteKey' parameterType='String' resultType='kr.co.igns.business.comp.company.model.CompanyVO'>
+
+		SELECT
+		<include refid='kr.co.igns.business.comp.company.dao.postgres.CompanyDAO.selectCol' />
+		created_at,
+		created_by,
+		updated_at,
+		updated_by,
+		'U' cmd
+		<!--  tb_company_info 에서 tb_comp_info로 변경 -->
+		FROM tb_comp_info ci
+		<!-- WHERE clnt_id = #{clntId} 에서 변경 -->
+		WHERE invite_key = #{inviteKey}
+
+	</select>
+	
+</mapper>

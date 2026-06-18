@@ -1,0 +1,507 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.support.dao.postgres.TrainingPlanImplDAO">
+
+    <resultMap id="trainingPlanImplDetailResultMap" type="kr.co.igns.business.support.model.TrainingPlanImplVO">
+        <!-- doc_no가 중복데이터 그룹핑 key 역할 -->
+        <id property="docNo" column="doc_no"/>
+
+        <!-- 단일값 컬럼들 매핑 -->
+        <result property="writeYear" column="write_year"/>
+        <result property="docType" column="doc_type"/>
+        <result property="compId" column="comp_id"/>
+        <result property="title" column="title"/>
+        <result property="trainingDate" column="training_date"/>
+        <result property="trainingStart" column="training_start"/>
+        <result property="trainingEnd" column="training_end"/>
+        <result property="trainingType" column="training_type"/>
+        <result property="budget" column="budget"/>
+        <result property="requiredDetails" column="required_details"/>
+        <result property="trainingGoal" column="training_goal"/>
+        <result property="expectedEffect" column="expected_effect"/>
+
+        <result property="materialsEtc" column="materials_etc"/>
+        <result property="materials" column="materials"/>
+        <result property="projector" column="projector"/>
+        <result property="vtr" column="vtr"/>
+        <result property="trainingContent" column="training_content"/>
+        <result property="trainingInstitute" column="training_institute"/>
+        <result property="trainingInstructor" column="training_instructor"/>
+        <result property="trainingLocation" column="training_location"/>
+        <result property="qnaYn" column="qna_yn"/>
+        <result property="reportYn" column="report_yn"/>
+        <result property="deliveryTrainingYn" column="delivery_training_yn"/>
+        <result property="testYn" column="test_yn"/>
+        <result property="effectivenessEtc" column="effectiveness_etc"/>
+        <result property="remark" column="remark"/>
+        <result property="useYn" column="use_yn"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="updatedBy" column="updated_by"/>
+
+
+        <result property="trainingPeriod" column="training_period"/>
+        <result property="trainingTypeNm" column="trainingtypenm"/>
+        <result property="trainingInstituteNm" column="traininginstitutenm"/>
+        <result property="trainingInstructorNm" column="traininginstructornm"/>
+        <result property="trainingLocationNm" column="traininglocationnm"/>
+        <result property="approvalStatus" column="approval_status"/>
+
+        <!-- HrList를 위한 별도 resultMap -->
+        <collection property="hrList" ofType="kr.co.igns.system.base.model.HrVO" >
+            <id property="hrId" column="hr_id"/>
+            <result property="hrNm" column="hr_nm"/>
+            <result property="orgnId" column="orgn_id"/>
+            <result property="orgnNm" column="orgn_nm"/>
+            <result property="jbrpNm" column="jbrp_nm"/>
+            <result property="userId" column="user_id"/>
+            <result property="logoId" column="logo_id"/>
+        </collection>
+        <collection property="chargeList" ofType="kr.co.igns.business.support.model.TrainingPlanImplHrVO" >
+            <id property="docSeq" column="doc_seq"/>
+            <result property="id" column="id"/>
+            <result property="nm" column="nm"/>
+        </collection>
+
+    </resultMap>
+
+
+    <select id='getLocMngList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.support.model.TrainingLocationVO'>
+        SELECT *
+        FROM esg.tb_training_plan_training_location
+        WHERE comp_id = #{compId}
+        ORDER BY ord_seq
+    </select>
+
+    <select id='getDataSetLocMngList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.support.model.TrainingLocationVO'>
+        SELECT *
+        FROM dataset.tb_dataset_training_plan_training_location
+        ORDER BY ord_seq
+    </select>
+
+    <insert id="insertLocMngList" parameterType="kr.co.igns.business.support.model.TrainingLocationVO">
+        <selectKey keyProperty="locationId" resultType="String" order="BEFORE">
+            SELECT CASE WHEN #{locationId} IS NULL or #{locationId} = ''
+            THEN TO_CHAR(now(), 'yyyymmdd') || lpad((COALESCE(MAX(SUBSTRING(location_id from 9 for 4))::int, 0) + 1)::text , 4, '0')
+            ELSE #{locationId}
+            END as location_id
+            FROM esg.tb_training_plan_training_location
+            WHERE location_id like to_char(now(), 'yyyymmdd') || '%'
+            AND comp_id = #{compId}
+            LIMIT 1
+        </selectKey>
+        INSERT INTO esg.tb_training_plan_training_location (
+        comp_id,
+        location_id,
+        location_nm,
+        remark,
+        ord_seq,
+        use_yn,
+        created_at,
+        created_by
+        )
+        VALUES (
+        #{compId},
+        #{locationId},
+        #{locationNm},
+        #{remark},
+        #{ordSeq},
+        #{useYn},
+        NOW(),
+        #{createdBy}
+        )
+    </insert>
+    <update id="updateLocMngList" parameterType="kr.co.igns.business.support.model.TrainingLocationVO">
+        UPDATE esg.tb_training_plan_training_location
+        SET location_nm = #{locationNm},
+        remark = #{remark},
+        ord_seq = #{ordSeq},
+        use_yn = #{useYn}
+        WHERE comp_id = #{compId}
+        AND location_id = #{locationId}
+    </update>
+
+    <update id="deleteLocMngList" parameterType="kr.co.igns.business.support.model.TrainingLocationVO">
+        UPDATE esg.tb_training_plan_training_location
+        SET location_nm = #{locationNm},
+        remark = #{remark},
+        ord_seq = #{ordSeq},
+        use_yn = 'N'
+        WHERE comp_id = #{compId}
+        AND location_id = #{locationId}
+    </update>
+
+    <select id='getTrainingPlanImpl' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultMap='trainingPlanImplDetailResultMap'>
+        WITH base_tpi AS (
+            SELECT *
+            FROM esg.tb_training_plan_implementation
+            WHERE comp_id = #{compId}
+            AND write_year = #{writeYear}
+        )
+        SELECT base_tpi.*,
+            ttpil.hr_id,
+            thi.hr_nm,
+            file.file_id as logo_id,
+            toi.orgn_id,
+            toi.orgn_nm,
+            thij.jbrp_nm,
+            base_tpi.training_start || ' ~ ' || base_tpi.training_end AS training_period,
+            ttpsc.courses_nm as trainingTypeNm,
+            ttptc.center_nm as trainingInstituteNm,
+            ttpinst.instructor_nm as trainingInstructorNm,
+            ttptl.location_nm as trainingLocationNm,
+            esg.fn_getapprovalstatus('TPI', base_tpi.write_year || base_tpi.doc_no) as approval_status,
+            ttpih.doc_seq,
+            ttpih.hr_id as id,
+            ttpih.hr_nm as nm
+        FROM base_tpi
+        LEFT JOIN esg.tb_training_plan_subject_courses ttpsc
+            ON ttpsc.comp_id = base_tpi.comp_id
+            AND ttpsc.courses_id = base_tpi.training_type
+        LEFT JOIN esg.tb_training_plan_training_center ttptc
+            ON ttptc.comp_id = base_tpi.comp_id
+            AND ttptc.center_id = base_tpi.training_institute
+        LEFT JOIN esg.tb_training_plan_instructor ttpinst
+            ON ttpinst.comp_id = base_tpi.comp_id
+            AND ttpinst.instructor_id = base_tpi.training_instructor
+        LEFT JOIN esg.tb_training_plan_training_location ttptl
+            ON ttptl.comp_id = base_tpi.comp_id
+            AND ttptl.location_id = base_tpi.training_location
+        LEFT JOIN esg.tb_training_plan_implementation_learner ttpil
+            ON base_tpi.write_year = ttpil.write_year
+            AND base_tpi.doc_no = ttpil.doc_no
+        LEFT JOIN esg.tb_hr_info thi
+            ON ttpil.hr_id = thi.hr_id
+        LEFT JOIN esg.tb_sys_file file
+            ON file.target_type = 'hrImg'
+            AND file.target_id = thi.hr_id
+            AND file.del_yn = 'N'
+        LEFT JOIN esg.tb_orgn_info toi
+            ON thi.orgn_id = toi.orgn_id
+        LEFT JOIN esg.tb_hr_info_jbrp thij
+            ON toi.comp_id = thij.comp_id
+            AND thi.jbrp = thij.jbrp_id
+        LEFT JOIN esg.tb_training_plan_implementation_hr ttpih
+            ON base_tpi.doc_no = ttpih.doc_no
+            AND base_tpi.doc_type = ttpih.doc_type
+        LEFT JOIN esg.tb_training_result_report ttrr
+            ON base_tpi.write_year = ttrr.plan_write_year
+            AND base_tpi.doc_type = ttrr.plan_doc_type
+            AND base_tpi.doc_no = ttrr.plan_doc_no
+                <if test="validOnly">
+                   -- 교육결과서가 없는 항목만 조회하도록
+                    WHERE 1=1
+                    AND(
+                    (ttrr.plan_write_year = #{writeYear} AND ttrr.use_yn = 'N') -- 데이터는 있지만 삭제되었을 경우
+                    OR
+                    (ttrr.plan_write_year IS null AND base_tpi.training_date is not null) -- 불러오기 후 저장한 데이터이면서 교육결과서에 등록되지 않은 경우
+                    )
+                </if>
+        ORDER BY base_tpi.use_yn DESC, base_tpi.doc_no DESC
+    </select>
+    <select id='getCurrentAndPreviousYear' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultMap='trainingPlanImplDetailResultMap'>
+        SELECT ttpi.*,
+        ttpil.hr_id,
+        thi.hr_nm,
+        file.file_id as logo_id,
+        toi.orgn_id,
+        toi.orgn_nm,
+        thij.jbrp_nm,
+        ttpi.training_start || ' ~ ' || ttpi.training_end AS training_period,
+        ttpsc.courses_nm as trainingTypeNm,
+        ttptc.center_nm as trainingInstituteNm,
+        ttpinst.instructor_nm as trainingInstructorNm,
+        ttptl.location_nm as trainingLocationNm,
+        esg.fn_getapprovalstatus('TPI', ttpi.write_year || ttpi.doc_no) as approval_status,
+        ttpih.doc_seq,
+        ttpih.hr_id as id,
+        ttpih.hr_nm as nm
+        FROM esg.tb_training_plan_implementation ttpi
+        LEFT JOIN esg.tb_training_plan_subject_courses ttpsc ON ttpsc.comp_id = ttpi.comp_id AND ttpsc.courses_id = ttpi.training_type
+        LEFT JOIN esg.tb_training_plan_training_center ttptc ON ttptc.comp_id = ttpi.comp_id AND ttptc.center_id = ttpi.training_institute
+        LEFT JOIN esg.tb_training_plan_instructor ttpinst ON ttpinst.comp_id = ttpi.comp_id AND ttpinst.instructor_id = ttpi.training_instructor
+        LEFT JOIN esg.tb_training_plan_training_location ttptl ON ttptl.comp_id = ttpi.comp_id AND ttptl.location_id = ttpi.training_location
+        LEFT JOIN esg.tb_training_plan_implementation_learner ttpil on ttpi.write_year = ttpil.write_year and ttpi.doc_no = ttpil.doc_no
+        LEFT JOIN esg.tb_hr_info thi ON ttpil.hr_id = thi.hr_id
+        LEFT JOIN esg.tb_sys_file file ON file.target_type = 'hrImg' AND file.target_id = thi.hr_id AND file.del_yn = 'N'
+        LEFT JOIN esg.tb_orgn_info toi ON thi.orgn_id = toi.orgn_id
+        LEFT JOIN esg.tb_hr_info_jbrp thij ON toi.comp_id = thij.comp_id AND thi.jbrp = thij.jbrp_id
+        LEFT JOIN esg.tb_training_plan_implementation_hr ttpih ON ttpi.doc_no = ttpih.doc_no AND ttpi.doc_type = ttpih.doc_type
+        LEFT JOIN esg.tb_training_result_report ttrr ON ttpi.write_year = ttrr.plan_write_year AND ttpi.doc_type = ttrr.plan_doc_type AND ttpi.doc_no = ttrr.plan_doc_no
+        WHERE ttpi.comp_id = #{compId}
+          AND ttpi.write_year = #{writeYear}
+          AND ttpi.use_yn = 'Y'
+        ORDER BY ttpi.use_yn DESC, ttpi.doc_no DESC
+    </select>
+    <select id='getTrainingPlanImplDetail' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultMap='trainingPlanImplDetailResultMap'>
+        SELECT ttpi.*,
+        ttpil.hr_id,
+        thi.hr_nm,
+        toi.orgn_nm,
+        thij.jbrp_nm,
+        ttpi.training_start || ' ~ ' || ttpi.training_end AS training_period,
+        ttpsc.courses_nm as trainingTypeNm,
+        ttptc.center_nm as trainingInstituteNm,
+        ttpinst.instructor_nm as trainingInstructorNm,
+        ttptl.location_nm as trainingLocationNm,
+        ttpih.doc_seq,
+        ttpih.hr_id as id,
+        ttpih.hr_nm as nm,
+        thi.user_id,
+        toi.orgn_nm,
+        thij.jbrp_nm
+        FROM esg.tb_training_plan_implementation ttpi
+        LEFT JOIN esg.tb_training_plan_subject_courses ttpsc ON ttpsc.comp_id = ttpi.comp_id AND ttpsc.courses_id = ttpi.training_type
+        LEFT JOIN esg.tb_training_plan_training_center ttptc ON ttptc.comp_id = ttpi.comp_id AND ttptc.center_id = ttpi.training_institute
+        LEFT JOIN esg.tb_training_plan_instructor ttpinst ON ttpinst.comp_id = ttpi.comp_id AND ttpinst.instructor_id = ttpi.training_instructor
+        LEFT JOIN esg.tb_training_plan_training_location ttptl ON ttptl.comp_id = ttpi.comp_id AND ttptl.location_id = ttpi.training_location
+        LEFT JOIN esg.tb_training_plan_implementation_learner ttpil on ttpi.write_year = ttpil.write_year and ttpi.doc_no = ttpil.doc_no
+        LEFT JOIN esg.tb_hr_info thi ON ttpil.hr_id = thi.hr_id
+        LEFT JOIN esg.tb_orgn_info toi ON thi.orgn_id = toi.orgn_id
+        LEFT JOIN esg.tb_hr_info_jbrp thij ON toi.comp_id = thij.comp_id AND thi.jbrp = thij.jbrp_id
+        LEFT JOIN esg.tb_training_plan_implementation_hr ttpih ON ttpi.doc_no = ttpih.doc_no AND ttpi.doc_type = ttpih.doc_type
+        WHERE ttpi.comp_id = #{compId}
+        AND ttpi.write_year = #{writeYear}
+        AND ttpi.doc_no = #{docNo}
+        AND ttpi.doc_type = #{docType}
+    </select>
+
+    <insert id="insertTrainingPlanImpl" parameterType="kr.co.igns.business.support.model.TrainingPlanImplVO">
+
+        <selectKey keyProperty="docNo" resultType="kr.co.igns.business.support.model.TrainingPlanImplVO" order="BEFORE">
+            <![CDATA[
+            SELECT
+                LPAD((COALESCE(MAX(SUBSTRING(doc_no, 1, 5)::INTEGER), 0) + 1)::TEXT, 5, '0') AS docNo
+              FROM esg.tb_training_plan_implementation
+            WHERE write_year = #{writeYear}
+              AND doc_type = #{docType}
+         ]]>
+        </selectKey>
+
+        INSERT INTO esg.tb_training_plan_implementation (
+        write_year,
+        doc_no,
+        doc_type,
+        comp_id,
+        title,
+        training_date,
+        training_start,
+        training_end,
+        training_type,
+        budget,
+        required_details,
+        training_goal,
+        expected_effect,
+        materials_etc,
+        materials,
+        projector,
+        vtr,
+        training_content,
+        training_institute,
+        training_instructor,
+        training_location,
+        qna_yn,
+        report_yn,
+        delivery_training_yn,
+        test_yn,
+        effectiveness_etc,
+        remark,
+        use_yn,
+        created_at,
+        created_by
+        )
+        VALUES (
+        #{writeYear},
+        #{docNo},
+        #{docType},
+        #{compId},
+        #{title},
+        #{trainingDate},
+        #{trainingStart},
+        #{trainingEnd},
+        #{trainingType},
+        #{budget},
+        #{requiredDetails},
+        #{trainingGoal},
+        #{expectedEffect},
+        #{materialsEtc},
+        #{materials},
+        #{projector},
+        #{vtr},
+        #{trainingContent},
+        #{trainingInstitute},
+        #{trainingInstructor},
+        #{trainingLocation},
+        COALESCE(#{qnaYn}, 'N'),      -- NULL이면 'N'으로 설정
+        COALESCE(#{reportYn}, 'N'),   -- NULL이면 'N'으로 설정
+        COALESCE(#{deliveryTrainingYn}, 'N'), -- NULL이면 'N'
+        COALESCE(#{testYn}, 'N'),     -- NULL이면 'N'
+        #{effectivenessEtc},
+        #{remark},
+        COALESCE(#{useYn}, 'Y'),      -- NULL이면 'Y' 기본값
+        now(),
+        #{createdBy}
+        )
+
+    </insert>
+
+    <insert id="insertTrainingPlanImplHr" parameterType="kr.co.igns.business.support.model.TrainingPlanImplHrVO">
+
+        <selectKey keyProperty="docSeq" resultType="kr.co.igns.business.support.model.TrainingPlanImplHrVO" order="BEFORE">
+            <![CDATA[
+            SELECT
+                LPAD((COALESCE(MAX(SUBSTRING(doc_seq, 1, 5)::INTEGER), 0) + 1)::TEXT, 5, '0') AS docSeq
+              FROM esg.tb_training_plan_implementation_hr
+            WHERE write_year = #{writeYear}
+              AND doc_type = #{docType}
+              AND doc_no = #{docNo}
+         ]]>
+        </selectKey>
+
+        INSERT INTO esg.tb_training_plan_implementation_hr (
+        write_year,
+        doc_no,
+        doc_type,
+        doc_seq,
+        hr_id,
+        hr_nm,
+        created_at,
+        created_by
+        )
+        VALUES (
+        #{writeYear},
+        #{docNo},
+        #{docType},
+        #{docSeq},
+        #{id},
+        #{nm},
+        now(),
+        #{createdBy}
+        )
+
+    </insert>
+
+    <update id="updateTrainingPlanImpl" parameterType="kr.co.igns.business.support.model.TrainingPlanImplVO">
+
+        UPDATE esg.tb_training_plan_implementation
+        SET
+        title = #{title},
+        training_date = #{trainingDate},
+        training_start = #{trainingStart},
+        training_end = #{trainingEnd},
+        training_type = #{trainingType},
+        budget = #{budget},
+        required_details = #{requiredDetails},
+        training_goal = #{trainingGoal},
+        expected_effect = #{expectedEffect},
+        materials_etc = #{materialsEtc},
+        materials = #{materials},
+        projector = #{projector},
+        vtr = #{vtr},
+        training_content = #{trainingContent},
+        training_institute = #{trainingInstitute},
+        training_instructor = #{trainingInstructor},
+        training_location = #{trainingLocation},
+        qna_yn = COALESCE(#{qnaYn}, 'N'),
+        report_yn = COALESCE(#{reportYn}, 'N'),
+        delivery_training_yn = COALESCE(#{deliveryTrainingYn}, 'N'),
+        test_yn = COALESCE(#{testYn}, 'N'),
+        effectiveness_etc = #{effectivenessEtc},
+        remark = #{remark},
+        use_yn = COALESCE(#{useYn}, 'Y'),
+        updated_at = now(),
+        updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+        AND write_year = #{writeYear}
+        AND doc_no = #{docNo}
+        AND doc_type = #{docType}
+
+    </update>
+
+    <delete id="deleteTrainingPlanImpl" parameterType="kr.co.igns.business.support.model.TrainingPlanImplVO">
+
+        UPDATE esg.tb_training_plan_implementation
+        SET
+        use_yn = 'N',
+        updated_at = now(),
+        updated_by = #{updatedBy}
+        WHERE comp_id = #{compId}
+        AND write_year = #{writeYear}
+        AND doc_no = #{docNo}
+        AND doc_type = #{docType}
+
+    </delete>
+
+    <select id='getTrainingPlanImplementationLearner' parameterType='kr.co.igns.business.support.model.TrainingPlanImplVO' resultType='kr.co.igns.system.base.model.HrVO'>
+        SELECT *, b.hr_nm, c.orgn_nm, d.jbrp_nm
+        FROM esg.tb_training_plan_implementation_learner  a
+        LEFT JOIN esg.tb_hr_info b ON a.hr_id = b.hr_id
+        LEFT JOIN esg.tb_orgn_info c ON b.orgn_id = c.orgn_id
+        LEFT JOIN esg.tb_hr_info_jbrp d ON c.comp_id = d.comp_id AND b.jbrp = d.jbrp_id
+        WHERE write_year = #{writeYear}
+        AND doc_type = #{docType}
+        AND doc_no = #{docNo}
+    </select>
+
+    <insert id="insertTrainingPlanImplementationLearner" parameterType="kr.co.igns.system.base.model.HrVO">
+        INSERT INTO esg.tb_training_plan_implementation_learner   (
+        write_year,
+        doc_type,
+        doc_no,
+        hr_id,
+        created_at,
+        created_by
+        ) VALUES (
+        #{writeYear},
+        #{docType},
+        #{docNo},
+        #{hrId},
+        NOW(),
+        #{createdBy}
+        )
+    </insert>
+
+    <delete id="deleteTrainingPlanImplementationLearner" parameterType="kr.co.igns.business.support.model.TrainingPlanImplVO">
+        DELETE FROM esg.tb_training_plan_implementation_learner
+        WHERE write_year = #{writeYear}
+        AND doc_type = #{docType}
+        AND doc_no = #{docNo}
+    </delete>
+
+    <delete id="deleteTrainingPlanImplHr" parameterType="kr.co.igns.business.support.model.TrainingPlanImplVO">
+
+        DELETE FROM esg.tb_training_plan_implementation_hr
+        WHERE write_year = #{writeYear}
+        AND doc_no = #{docNo}
+        AND doc_type = #{docType}
+
+    </delete>
+
+    <select id='getTrainingPlanImplById' parameterType='kr.co.igns.business.support.model.TrainingPlanImplVO' resultType='kr.co.igns.business.support.model.TrainingPlanImplVO'>
+
+        SELECT *
+        FROM esg.tb_training_plan_implementation
+        WHERE comp_id = #{compId}
+        AND write_year = #{writeYear}
+        AND doc_no = #{docNo}
+        AND doc_type = #{docType}
+
+    </select>
+
+
+
+
+    <!-- 일괄출력용 -->
+    <select id='getAllReport' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='String'>
+        select t1.doc_no
+        from esg.tb_training_plan_implementation t1
+        where t1.use_yn = 'Y'
+        and t1.write_year = #{writeYear}
+        and t1.comp_id = #{compId}
+        and substring(t1.training_date from 5 for 2) = #{searchText}
+        order by t1.training_date asc
+    </select>
+
+</mapper>

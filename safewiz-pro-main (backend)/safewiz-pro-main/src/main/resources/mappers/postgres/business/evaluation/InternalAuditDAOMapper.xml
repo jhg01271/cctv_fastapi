@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.evaluation.dao.postgres.InternalAuditDAO">
+    <select id='getInternalAudit' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.business.evaluation.model.InternalAuditVO'>
+        SELECT
+            'annualOhsInternalAuditPlan' AS title
+            ,'/AnnualOhsInternalAuditPlan' AS route
+            ,'annualOhsInternalAuditPlanDesc' AS description
+            , case when annualOhsInternalAuditPlan.exist then 'Y'
+            	else 'N'
+            	end as activeYn
+        FROM
+        (
+            SELECT EXISTS (
+                SELECT 1
+                FROM esg.tb_annual_ohs_internal_audit_plan t1
+                LEFT JOIN esg.tb_approval_info t2
+                    ON t2.target_type = 'AAP'
+                    AND t2.target_id = t1.write_year||t1.comp_id
+                    AND t2.param = 'writer'
+                LEFT JOIN esg.tb_approval_info t3
+                    ON t3.target_type = 'AAP'
+                    AND t3.target_id = t1.write_year||t1.comp_id
+                    AND t3.param = 'reviewer'
+                WHERE t1.comp_id = #{compId}
+                    AND t1.use_yn = 'Y'
+                    AND t2.signature is not null
+                    AND t3.signature is not null
+                    AND t1.write_year = #{writeYear}
+            ) as exist
+        ) AS annualOhsInternalAuditPlan
+        UNION ALL
+        SELECT
+            'ohsInternalAuditExecutionPlan' AS title
+            ,'/OhsInternalAuditExecutionPlan' AS route
+            ,'ohsInternalAuditExecutionPlanDesc' AS description
+            , CASE WHEN ohsInternalAuditExecutionPlan.exist THEN 'Y'
+            	ELSE 'N'
+            	END AS activeYn
+        FROM
+        (
+            SELECT EXISTS (
+                SELECT 1
+                FROM esg.tb_audit_execution_plan t1
+                LEFT JOIN esg.tb_approval_info t2
+                    ON t2.target_type = 'AXP'
+                    AND t2.target_id = t1.write_year||t1.doc_no
+                    AND t2.param = 'writer'
+                LEFT JOIN esg.tb_approval_info t3
+                    ON t3.target_type = 'AXP'
+                    AND t3.target_id = t1.write_year||t1.doc_no
+                    AND t3.param = 'reviewer'
+                WHERE t1.comp_id = #{compId}
+                    AND t1.use_yn = 'Y'
+                    AND t2.signature is not null
+                    AND t3.signature is not null
+                    AND t1.write_year = #{writeYear}
+            ) as exist
+        ) AS ohsInternalAuditExecutionPlan
+        UNION ALL
+        SELECT
+            'ohsInternalAuditResultsReport' AS title
+            ,'/OhsInternalAuditResultsReport' AS route
+            ,'ohsInternalAuditResultsReportDesc' AS description
+            , CASE WHEN ohsInternalAuditResultsReport.exist THEN 'Y'
+            	ELSE 'N'
+            	END AS activeYn
+        FROM
+        (
+            SELECT EXISTS (
+                SELECT 1
+                FROM esg.tb_audit_execution_plan t1
+                left join esg.tb_audit_result_report t4
+                ON t4.write_year = t1.write_year
+                and t4.doc_no = t1.doc_no
+                LEFT JOIN esg.tb_approval_info t2
+                    ON t2.target_type = 'ARR'
+                    AND t2.target_id = t1.write_year||t1.doc_no||t4.doc_seq
+                    AND t2.param = 'writer'
+                LEFT JOIN esg.tb_approval_info t3
+                    ON t3.target_type = 'ARR'
+                    AND t3.target_id = t1.write_year||t1.doc_no||t4.doc_seq
+                    AND t3.param = 'reviewer'
+                WHERE t1.comp_id = #{compId}
+                    AND t1.use_yn = 'Y'
+                    AND t2.signature is not null
+                    AND t3.signature is not null
+                    AND t1.write_year = #{writeYear}
+            ) as exist
+        ) AS ohsInternalAuditResultsReport
+        UNION ALL
+        SELECT
+            'ohsCorrectiveActionRequest' AS title
+            ,'/OhsCorrectiveActionRequest' AS route
+            ,'ohsCorrectiveActionRequestDesc' AS description
+            , CASE WHEN OhsCorrectiveActionRequest.exist THEN 'Y'
+            	ELSE 'N'
+            	END AS activeYn
+        FROM
+        (
+            SELECT EXISTS (
+                SELECT 1
+                FROM esg.tb_ohs_corractive_action_request t1
+                WHERE t1.comp_id = #{compId}
+                AND t1.write_year = #{writeYear}
+            ) as exist
+        ) AS OhsCorrectiveActionRequest
+    </select>
+
+</mapper>

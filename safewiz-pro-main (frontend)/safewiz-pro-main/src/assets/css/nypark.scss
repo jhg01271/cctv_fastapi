@@ -1,0 +1,41 @@
+@charset "utf-8";
+
+/* 탭 기능 */
+.fems-tab {
+    li {
+        position: relative;
+
+        button {
+            position: relative;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: rgba(46, 56, 77, 0.5);
+
+            &::after {
+                position: absolute;
+                display: inline-block;
+                left: 0;
+                right: 0;
+                bottom: -5px;
+                height: 4px;
+                background: #283143;
+                width: 0%;
+                transition: width 0.3s ease;
+            }
+
+            &.active {
+                color: #1c2431;
+                font-weight: 600;
+
+                &::after {
+                    width: 100%;
+                }
+            }
+        }
+    }
+}
+
+.fems-sagment {
+    border: 1px solid #e2e6ee;
+}

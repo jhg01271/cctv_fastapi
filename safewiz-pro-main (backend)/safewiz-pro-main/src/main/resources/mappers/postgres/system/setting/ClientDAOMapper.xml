@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.system.setting.dao.postgres.ClientDAO">
+    <sql id="filter">
+        <if test='searchWords != "" and searchWords != null and searchWords.size > 0'>
+            AND
+            (
+            <foreach collection='searchWords' item='searchWord' index='idx' separator='OR' open='(' close=')'>
+                tci.clnt_nm LIKE CONCAT('%',#{searchWord},'%')
+            </foreach>
+            )OR
+            <foreach collection='searchWords' item='searchWord' index='idx' separator='OR' open='(' close=')'>
+                tci.rpst_nm LIKE CONCAT('%',#{searchWord},'%')
+            </foreach>
+        </if>
+    </sql>
+    <select id='getClientList' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='kr.co.igns.system.setting.model.ClientVO'>
+        SELECT clnt_id as clntIdTemp, *
+        FROM esg.tb_client_info tci
+        WHERE 1=1
+        <include refid='kr.co.igns.system.setting.dao.postgres.ClientDAO.filter' />
+        ORDER BY tci.use_yn DESC, tci.clnt_id DESC
+        LIMIT #{listSize, jdbcType=NUMERIC} OFFSET #{listStart, jdbcType=NUMERIC}
+    </select>
+
+    <select id='searchCount' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='int'>
+
+        SELECT
+        count(1)
+        FROM esg.tb_client_info tci
+        WHERE 1=1
+        <include refid='kr.co.igns.system.setting.dao.postgres.ClientDAO.filter' />
+
+    </select>
+
+    <select id='getClientDetail' parameterType='String' resultType='kr.co.igns.system.setting.model.ClientVO'>
+        SELECT tci.*, MAX(sf.file_id) as file_id
+        FROM esg.tb_client_info tci
+        LEFT JOIN esg.tb_sys_file sf on sf.target_id = #{clntId} and sf.target_type='clientLogo'
+        WHERE 1=1
+        AND tci.clnt_id = #{clntId}
+        group by tci.clnt_id
+    </select>
+
+    <insert id="insertClient" parameterType="kr.co.igns.system.setting.model.ClientVO">
+        <selectKey keyProperty="clntId" resultType="kr.co.igns.system.setting.model.ClientVO" order="BEFORE">
+    	     select to_char(now(), 'yyyymmdd') ||
+				   lpad(
+					   (coalesce(max(substring(clnt_id from 9 for 4))::int, 0) + 1)::text,
+					   4,
+					   '0'
+				   ) as clnt_id
+			from esg.tb_client_info
+			where clnt_id like to_char(now(), 'YYYYMMDD') || '%';
+    	</selectKey>
+        INSERT INTO esg.tb_client_info (
+        clnt_id,
+            clnt_nm,
+            rpst_nm,
+            rgst_no,
+            corp_no,
+            biz_cd,
+            biz_nm,
+            email,
+            tel_no,
+            fax_no,
+            zip_cd,
+            addrs1,
+            addrs2,
+            bank_cd,
+            bank_no,
+            "desc",
+            created_at,
+            created_by,
+            use_yn
+        )
+        VALUES (
+            #{clntId},
+            #{clntNm},
+            #{rpstNm},
+            #{rgstNo},
+            #{corpNo},
+            #{bizCd},
+            #{bizNm},
+            #{email},
+            #{telNo},
+            #{faxNo},
+            #{zipCd},
+            #{addrs1},
+            #{addrs2},
+            #{bankCd},
+            #{bankNo},
+            #{desc},
+            now(),
+             #{createdBy},
+            'Y'
+        )
+
+    </insert>
+
+    <update id="updateClient" parameterType="kr.co.igns.system.setting.model.ClientVO">
+
+        UPDATE esg.tb_client_info
+        SET
+            clnt_nm = #{clntNm},
+            rgst_no = #{rgstNo},
+            rpst_nm = #{rpstNm},
+            email = #{email},
+            tel_no = #{telNo},
+            biz_cd = #{bizCd},
+            biz_nm = #{bizNm},
+            zip_cd = #{zipCd},
+            addrs1 = #{addrs1},
+            addrs2 = #{addrs2},
+            use_yn = #{useYn},
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE clnt_id = #{clntIdTemp}
+
+    </update>
+
+    <delete id="deleteClient" parameterType="kr.co.igns.system.setting.model.ClientVO">
+
+        UPDATE esg.tb_client_info
+        SET
+            use_yn = 'N',
+            updated_at = now(),
+            updated_by = #{updatedBy}
+        WHERE clnt_id = #{clntIdTemp}
+
+    </delete>
+
+    <select id='getClientById' parameterType='String' resultType='kr.co.igns.system.setting.model.ClientVO'>
+
+        SELECT *
+        FROM esg.tb_client_info tci
+        WHERE 1=1
+        AND tci.clnt_id = #{clntIdTemp}
+    </select>
+
+</mapper>

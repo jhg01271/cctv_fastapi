@@ -1,0 +1,440 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.planning.dao.postgres.ClassificationProcessEquipMsdsDAO">
+	
+	<resultMap id="classProcEquipMsdsMap" type="kr.co.igns.business.planning.model.ClassificationProcessEquipMsdsVO">
+		<id column="write_year" property="writeYear" />
+		<id column="doc_type" property="docType" />
+		<id column="doc_no" property="docNo" />
+		<result column="remark" property="remark" />
+		<result column="orgn_id" property="orgnId" />
+		<result column="orgn_nm" property="orgnNm" />
+		<result column="start_at" property="startAt" />
+		<result column="end_at" property="endAt" />
+		<result column="process_overview" property="processOverview" />
+		<result column="head_id" property="headId" />
+		<result column="head_nm" property="headNm" />
+		<result column="comp_id" property="compId" />
+		<result column="use_yn" property="useYn" />
+		<result column="member_count" property="memberCount" />
+		<result column="created_at" property="createdAt" />
+		<result column="confirm_yn" property="confirmYn" />
+		<result column="confirm_dt" property="confirmDt" />
+		<result column="write_dt" property="writeDt" />
+		<collection property="hrList" ofType="kr.co.igns.system.base.model.HrVO">
+			<id column="hr_doc_seq" property="docSeq" />
+			<result column="hr_id" property="hrId" />
+			<result column="hr_nm" property="hrNm" />
+			<result column="minor_nm" property="jbrpNm" />
+		</collection>
+		<collection property="processList" ofType="kr.co.igns.business.planning.model.ClassificationProcessEquipMsdsAnalysisVO">
+			<id column="proc_doc_no" property="procDocNo" />
+			<id column="proc_doc_seq" property="procDocSeq" />
+			<result column="process_id" property="processId" />
+			<result column="process_nm" property="processNm" />
+			<result column="rev_no" property="revNo" />
+			<result column="rev_nm" property="revNm" />
+			<result column="process_desc" property="processDesc" />
+			<result column="isUsed" property="isUsed" />
+			<collection property="itemList" ofType="kr.co.igns.business.planning.model.ClassificationProcessEquipMsdsItemVO">
+				<id column="item_doc_no" property="itemDocNo" />
+				<id column="item_doc_seq" property="itemDocSeq" />
+				<id column="doc_item_seq" property="docItemSeq" />
+				<result column="type" property="type" />
+				<result column="item_id" property="itemId" />
+				<result column="item_nm" property="itemNm" />
+			</collection>
+		</collection>
+	</resultMap>
+	
+	<select id="selectClassProcList" resultType="kr.co.igns.business.planning.model.ClassificationProcessEquipMsdsAnalysisVO">
+		SELECT a.process_id,
+	  		   a.process_nm,
+	  		   a.remark as processDesc,
+	  		   c.rev_no,
+			   c2.rev_nm,
+	  		   CONCAT(a.process_nm, ' (', c2.rev_nm, '-', c.rev_no, ')') as prcsNm
+	      FROM esg.tb_process_info a 
+	      LEFT JOIN esg.tb_orgn_map b
+	        ON b.target_id = a.process_id
+	     INNER JOIN esg.tb_safety_and_health_info_survey c
+	        ON c.process_id = b.target_id
+	     INNER JOIN esg.tb_process_work_cnfm c2
+	     	ON c.process_id = c2.process_id
+	       AND c.rev_no = c2.rev_no
+	     WHERE c.write_year = #{writeYear}
+	       AND a.comp_id = #{compId}
+	       AND b.target_type = 'process'
+		   AND b.orgn_id = #{orgnId}
+		   AND c.use_yn = 'Y'
+		   AND c.confirm_yn = 'Y'
+		<if test="processIdList != null and !processIdList.isEmpty()">
+		   AND a.process_id NOT IN
+			<foreach collection="processIdList" item="processId" open="(" separator="," close=")">
+		   		#{processId}
+		   </foreach>
+		</if>
+	</select>
+	
+	<select id="selectPrcsItemList" resultType="kr.co.igns.business.planning.model.SafetyAndHealthInfoSurveyVO">
+		SELECT a.write_year,
+		       a.doc_type,
+		       a.doc_no,
+		       a.process_id,
+		       MIN(a.prcs_work_id) AS prcs_work_id,
+		       MIN(a.work_detail_id) AS work_detail_id,
+		       a.work_type,
+		       a.content,
+		       b.rev_no
+		  FROM esg.tb_safety_and_health_info_survey_detail a
+		 INNER JOIN esg.tb_safety_and_health_info_survey b
+		    ON  b.write_year = a.write_year
+		   AND b.doc_type = a.doc_type
+		   AND b.doc_no = a.doc_no
+		 WHERE b.doc_type = 'SAHIS'
+		   AND b.write_year = #{writeYear}
+		   AND a."content" is not NULL
+		   AND b.use_yn = 'Y'
+		   AND b.rev_no IN
+		   <foreach collection="revNoList" item="revNo" open="(" separator="," close=")">
+		   		#{revNo}
+		   </foreach>
+		   AND b.process_id IN 
+		   <foreach collection="processIdList" item="processId" open="(" separator="," close=")">
+		   		#{processId}
+		   </foreach>
+		 GROUP BY a.write_year, a.doc_type, a.doc_no, a.process_id, a.work_type, a.content, b.rev_no 
+		 ORDER BY work_detail_id DESC
+	</select>
+	
+	<select id="selectClassProcEquipMsdsList" parameterType="kr.co.igns.system.common.model.SpSearchVO" resultMap="classProcEquipMsdsMap">
+		SELECT a.write_year,
+		       a.doc_type,
+		       a.doc_no,
+		       a.orgn_id,
+		       a.orgn_nm,
+		       a.start_at,
+		       a.end_at,
+		       a.process_overview,
+		       a.head_id,
+		       a.head_nm,
+		       a.comp_id,
+		       a.use_yn,
+			   a.confirm_yn,
+			   a.confirm_dt,
+			   a.created_at,
+			   a.write_dt,
+		       b.doc_seq as hr_doc_seq,
+		       b.hr_id,
+		       b.hr_nm,
+		       c.doc_no as proc_doc_no,
+		       c.doc_seq as proc_doc_seq,
+		       c.process_id
+		  FROM esg.tb_classification_process_equip_msds a
+		  LEFT OUTER JOIN esg.tb_classification_process_equip_msds_participant b
+		    ON b.write_year = a.write_year
+		   AND b.doc_type = a.doc_type
+		   AND b.doc_no = a.doc_no
+		  LEFT OUTER JOIN esg.tb_classification_process_equip_msds_analysis c
+		    ON c.write_year = a.write_year
+		   AND c.doc_type = a.doc_type
+		   AND c.doc_no = a.doc_no
+		 WHERE a.doc_type = #{docType}
+		   AND a.comp_id = #{compId}
+         ORDER BY a.use_yn DESC, a.write_year DESC, CAST(a.doc_no AS INTEGER) DESC
+	</select>
+	
+	<select id="selectClassProcEquipMsdsDetail" parameterType="kr.co.igns.business.planning.model.ClassificationProcessEquipMsdsVO" resultMap="classProcEquipMsdsMap">
+		SELECT a.write_year,
+		       a.doc_type,
+		       a.doc_no,
+		       a.remark,
+		       a.orgn_id,
+		       a.orgn_nm,
+		       a.start_at,
+		       a.end_at,
+		       a.process_overview,
+		       a.head_id,
+		       a.head_nm,
+		       a.comp_id,
+		       a.use_yn,
+		       a.member_count,
+			   a.created_at,
+			   a.confirm_yn,
+			   a.confirm_dt,
+			   a.write_dt,
+		       b.doc_seq as hr_doc_seq,
+		       b.hr_id,
+		       b.hr_nm,
+			   jbrp.jbrp_nm as minor_nm,
+		       c.doc_no as proc_doc_no,
+		       c.doc_seq as proc_doc_seq,
+		       c.process_id,
+		       coalesce(c.process_nm, '') AS process_nm,
+		       coalesce(c.process_desc, '') AS process_desc,
+		       c.rev_no,
+			   c2.rev_nm,
+		       CASE WHEN g.process_id IS NOT NULL THEN 'Y'
+		            ELSE 'N'
+				END AS isUsed,
+		       d.doc_no as itme_do_no,
+		       d.doc_seq as item_doc_seq,
+		       d.doc_item_seq,
+		       d.type,
+		       d.item_id,
+		       d.item_nm,
+		       d.created_at,
+		       d.doc_item_seq
+		  FROM esg.tb_classification_process_equip_msds a
+		  LEFT OUTER JOIN esg.tb_classification_process_equip_msds_participant b
+		    ON b.write_year = a.write_year
+		   AND b.doc_type = a.doc_type
+		   AND b.doc_no = a.doc_no
+		  LEFT OUTER JOIN esg.tb_classification_process_equip_msds_analysis c
+		    ON c.write_year = a.write_year
+		   AND c.doc_type = a.doc_type
+		   AND c.doc_no = a.doc_no
+		  LEFT JOIN esg.tb_process_work_cnfm c2
+		   	ON c.process_id = c2.process_id
+		   	AND c.rev_no = c2.rev_no
+		  LEFT OUTER JOIN ESG.tb_classification_process_equip_msds_item d
+		    ON d.write_year = c.write_year
+		   AND d.doc_type = c.doc_type
+		   AND d.doc_no = c.doc_no
+		   AND d.doc_seq = c.doc_seq 
+		  LEFT OUTER JOIN esg.tb_hr_info e
+		    ON e.hr_id = b.hr_id
+		  left join esg.tb_hr_info_jbrp jbrp
+            on jbrp.jbrp_id = e.jbrp and jbrp.comp_id = #{compId}
+		  LEFT OUTER JOIN esg.tb_safety_and_health_info_survey g
+		    ON g.process_id = c.process_id 
+		   AND g.use_yn = 'Y'
+		 WHERE a.write_year = #{writeYear}
+		   AND a.doc_type = #{docType}
+		   AND a.doc_no = #{docNo}
+		   AND a.comp_id = #{compId}
+		 ORDER BY d.doc_item_seq ASC, b.doc_seq ASC
+	</select>
+	
+	<insert id="insertClassificationProcessEquipMsds" parameterType="kr.co.igns.business.planning.model.ClassificationProcessEquipMsdsVO">
+		<selectKey keyProperty="docNo" resultType="string" order="BEFORE">
+			SELECT LPAD((COALESCE(MAX(doc_no::INTEGER), 0) + 1)::TEXT, 5, '0') AS docNo
+		      FROM esg.tb_classification_process_equip_msds
+			 WHERE write_year = #{writeYear}
+			   AND doc_type = #{docType}
+		</selectKey>
+		INSERT INTO esg.tb_classification_process_equip_msds (
+			WRITE_YEAR,
+			DOC_TYPE,
+			DOC_NO,
+			ORGN_ID,
+			ORGN_NM,
+			HEAD_ID,
+			HEAD_NM,
+			START_AT,
+			END_AT,
+			PROCESS_OVERVIEW,
+			MEMBER_COUNT,
+			REMARK,
+			USE_YN,
+			CREATED_AT,
+			CREATED_BY,
+			COMP_ID,
+			WRITE_DT
+		) VALUES (
+			#{writeYear},
+			#{docType},
+			#{docNo},
+			#{orgnId},
+			#{orgnNm},
+			#{headId},
+			#{headNm},
+			#{startAt},
+			#{endAt},
+			#{processOverview},
+			#{memberCount},
+			#{remark},
+			#{useYn},
+			NOW(),
+			#{createdBy},
+			#{compId},
+			#{writeDt}
+		)
+	</insert>
+	
+	<insert id="insertClassificationProcessEquipMsdsParticipant" parameterType="kr.co.igns.business.planning.model.ClassificationProcessEquipMsdsVO">
+		<foreach collection="hrList" item="list" separator=";">
+			INSERT INTO esg.tb_classification_process_equip_msds_participant (
+				WRITE_YEAR,
+				DOC_TYPE,
+				DOC_NO,
+				DOC_SEQ,
+				HR_ID,
+				HR_NM,
+				CREATED_AT,
+				CREATED_BY
+			) VALUES (
+				#{writeYear},
+				#{docType},
+				#{docNo},
+				(SELECT LPAD((COALESCE(MAX(doc_seq::INTEGER), 0) + 1)::TEXT, 5, '0') AS docSeq
+			       FROM esg.tb_classification_process_equip_msds_participant
+				  WHERE write_year = #{writeYear}
+				    AND doc_type = #{docType}
+				    AND doc_no = #{docNo}),
+				#{list.hrId},
+				#{list.hrNm},
+				NOW(),
+				#{createdBy}
+			)
+		</foreach>
+	</insert>
+	
+	<insert id="insertClassProcAnalysis" parameterType="kr.co.igns.business.planning.model.ClassificationProcessEquipMsdsAnalysisVO">
+		<selectKey keyProperty="docSeq" resultType="string" order="BEFORE">
+			SELECT LPAD((COALESCE(MAX(doc_seq::INTEGER), 0) + 1)::TEXT, 5, '0') AS docSeq
+		      FROM esg.tb_classification_process_equip_msds_analysis
+			 WHERE write_year = #{writeYear}
+			   AND doc_type = #{docType}
+			   AND doc_no = #{docNo}
+		</selectKey>
+		INSERT INTO esg.tb_classification_process_equip_msds_analysis (
+			write_year,
+			doc_type,
+			doc_no,
+			doc_seq,
+			process_id,
+			process_nm,
+			rev_no,
+			process_desc,
+			created_at,
+			created_by
+		) VALUES (
+			#{writeYear},
+			#{docType},
+			#{docNo},
+			#{docSeq},
+			#{processId},
+			#{processNm},
+			#{revNo},
+			#{processDesc},
+			NOW(),
+			#{createdBy}
+		)
+	</insert>
+    
+    <insert id="insertClassProcEquipMsds" parameterType="kr.co.igns.business.planning.model.ClassificationProcessEquipMsdsAnalysisVO">
+	    <foreach collection="itemList" item="list" separator=";">
+	    	INSERT INTO esg.tb_classification_process_equip_msds_item (
+				write_year,
+				doc_type,
+				doc_no,
+				doc_seq,
+				doc_item_seq,
+				type,
+				item_id,
+				item_nm,
+				created_at,
+				created_by
+	    	) VALUES (
+	    		#{writeYear},
+				#{docType},
+				#{docNo},
+				#{docSeq},
+				(SELECT LPAD((COALESCE(MAX(doc_item_seq::INTEGER), 0) + 1)::TEXT, 5, '0') AS docItemSeq
+				   FROM esg.tb_classification_process_equip_msds_item
+			      WHERE write_year = #{writeYear}
+					AND doc_type = #{docType}
+					AND doc_no = #{docNo}
+					AND doc_seq = #{docSeq}),
+				#{list.type},
+				#{list.itemId},
+				#{list.itemNm},
+				NOW(),
+				#{createdBy}
+	    	)
+	    </foreach>
+    </insert>
+    
+    <update id="updateClassProcEquipMsds" parameterType="kr.co.igns.business.planning.model.ClassificationProcessEquipMsdsVO">
+    	UPDATE esg.tb_classification_process_equip_msds
+    	   SET ORGN_ID = #{orgnId},
+    	       ORGN_NM = #{orgnNm},
+    	       HEAD_ID = #{headId},
+    	       HEAD_NM = #{headNm},
+    	       START_AT = #{startAt},
+    	       END_AT = #{endAt},
+    	       PROCESS_OVERVIEW = #{processOverview},
+    	       MEMBER_COUNT = #{memberCount},
+    	       REMARK = #{remark},
+    	   	   USE_YN = #{useYn},
+               UPDATED_AT = NOW(),
+               UPDATED_BY = #{updatedBy},
+			   WRITE_DT = #{writeDt}
+         WHERE WRITE_YEAR = #{writeYear}
+           AND DOC_TYPE = #{docType}
+           AND DOC_NO = #{docNo}
+           AND COMP_ID = #{compId}
+    </update>
+
+	<update id="confirmClassProc" parameterType="kr.co.igns.business.planning.model.ClassificationProcessEquipMsdsVO">
+		UPDATE esg.tb_classification_process_equip_msds
+		SET
+		confirm_yn = #{confirmYn},
+		<if test='confirmYn == "Y"'>
+			confirm_dt = now(),
+		</if>
+		<if test='confirmYn == "N"'>
+			confirm_dt = null,
+		</if>
+		updated_at = now(),
+		updated_by = #{updatedBy}
+		WHERE write_year = #{writeYear}
+		AND doc_type = #{docType}
+		AND doc_no = #{docNo}
+	</update>
+
+    <update id="deleteClassProc" parameterType="kr.co.igns.business.planning.model.ClassificationProcessEquipMsdsVO">
+		UPDATE esg.tb_classification_process_equip_msds
+		   SET use_yn = 'N',
+	           updated_at = now(),
+	           updated_by = #{updatedBy}
+         WHERE WRITE_YEAR = #{writeYear}
+           AND DOC_TYPE = #{docType}
+           AND DOC_NO = #{docNo}
+           AND COMP_ID = #{compId}
+    </update>
+    
+    <delete id="deleteClassProcParticipant" parameterType="kr.co.igns.business.planning.model.ClassificationProcessEquipMsdsVO">
+    	DELETE FROM esg.tb_classification_process_equip_msds_participant
+    	 WHERE write_year = #{writeYear}
+    	   AND doc_type = #{docType}
+    	   AND doc_no = #{docNo}
+    </delete>
+    
+    <delete id="deleteClassProcAnalysis" parameterType="kr.co.igns.business.planning.model.ClassificationProcessEquipMsdsVO">
+    	DELETE FROM esg.tb_classification_process_equip_msds_analysis
+    	 WHERE write_year = #{writeYear}
+    	   AND doc_type = #{docType}
+    	   AND doc_no = #{docNo}
+    </delete>
+    
+    <delete id="deleteClassProcEquipMsds" parameterType="kr.co.igns.business.planning.model.ClassificationProcessEquipMsdsVO">
+    	DELETE FROM esg.tb_classification_process_equip_msds_item
+    	 WHERE write_year = #{writeYear}
+    	   AND doc_type = #{docType}
+    	   AND doc_no = #{docNo}
+    </delete>
+
+
+	<!-- 일괄 출력용 -->
+	<select id='getAllReport' parameterType='kr.co.igns.system.common.model.SpSearchVO' resultType='String'>
+		select t1.doc_no
+		from esg.tb_classification_process_equip_msds t1
+		where t1.confirm_yn = 'Y'
+			and t1.comp_id  = #{compId}
+			and t1.use_yn = 'Y'
+    </select>
+
+</mapper>

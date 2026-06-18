@@ -1,0 +1,1 @@
+import{A as n,e as r,c as s,a as e,G as a,F as l}from"./index-B4DBwH_5.js";const u={},c=e("h1",null,"about",-1);function i(t,o){return r(),s(l,null,[c,e("div",null,a(t.$route.path),1),e("button",{onClick:o[0]||(o[0]=p=>t.$router.push("/"))},"Home으로 이동")],64)}const f=n(u,[["render",i]]);export{f as default};

@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.igns.business.planning.dao.postgres.MsdsUnitDAO">
+    <select id='getMsdsUnit' parameterType='kr.co.igns.system.common.model.SpSearchVO'  resultType='kr.co.igns.business.planning.model.MsdsUnitVO'>
+        SELECT
+        	TMIU.UNIT_ID,
+            TMIU.UNIT_NM,
+            TMIU.UNIT_ID as id,
+            TMIU.UNIT_NM as nm,
+            TMIU.UNIT_DESC,
+            TMIU.ORD_SEQ,
+            TMIU.USE_YN,
+            TMIU.CREATED_AT,
+            TMIU.CREATED_BY,
+            TMIU.UPDATED_AT,
+            TMIU.UPDATED_BY
+        FROM
+            ESG.TB_MSDS_INFO_UNIT TMIU
+        WHERE 1=1
+          AND TMIU.COMP_ID = #{compId}
+        ORDER BY TMIU.USE_YN DESC, TMIU.ORD_SEQ ASC, TMIU.CREATED_AT ASC
+    </select>
+    
+    <select id='getMsdsUnitDataset' parameterType='kr.co.igns.system.common.model.SpSearchVO'  resultType='kr.co.igns.business.planning.model.MsdsUnitVO'>
+        SELECT
+        	#{compId} AS COMP_ID,
+            TMIU.UNIT_NM,
+            TMIU.UNIT_ID as id,
+            TMIU.UNIT_NM as nm,
+            TMIU.UNIT_DESC,
+            TMIU.ORD_SEQ,
+            TMIU.USE_YN
+        FROM
+            DATASET.TB_DATASET_MSDS_INFO_UNIT TMIU
+        WHERE 1=1
+        ORDER BY TMIU.USE_YN DESC, TMIU.ORD_SEQ ASC, TMIU.UNIT_NM
+    </select>
+
+    <insert id="insertMsdsUnit" parameterType="kr.co.igns.business.planning.model.MsdsUnitVO" useGeneratedKeys="true" keyColumn="msds_id" keyProperty="msdsId">
+		
+		 <selectKey keyProperty="unitId" resultType="kr.co.igns.business.planning.model.MsdsUnitVO" order="BEFORE">
+            select
+                case when #{unitId} is null or #{unitId} = ''
+				    then to_char(now(), 'yyyymmdd') || lpad((coalesce(max(substring(unit_id from 9 for 4))::int, 0) + 1)::text, 4, '0')
+                else #{unitId}
+                end as unitId
+			from esg.tb_msds_info_unit
+			where unit_id like to_char(now(), 'YYYYMMDD') || '%'
+                and comp_id = #{compId}
+        </selectKey>
+        
+        INSERT INTO ESG.TB_MSDS_INFO_UNIT (
+			UNIT_ID,
+            UNIT_NM,
+            UNIT_DESC,
+            COMP_ID,
+            ORD_SEQ,
+            USE_YN,
+            CREATED_AT,
+            CREATED_BY
+        )
+        VALUES
+        (
+			#{unitId},
+            #{unitNm},
+            #{unitDesc},
+            #{compId},
+            #{ordSeq},
+            #{useYn},
+            now(),
+            #{createdBy}
+        )
+    </insert>
+
+    <update id="updateMsdsUnit" parameterType="kr.co.igns.business.planning.model.MsdsUnitVO">
+
+        UPDATE ESG.TB_MSDS_INFO_UNIT
+        SET
+            UNIT_NM = #{unitNm},
+            UNIT_DESC = #{unitDesc},
+            ORD_SEQ = #{ordSeq},
+            USE_YN = #{useYn},
+            UPDATED_AT = now(),
+            UPDATED_BY = #{updatedBy}
+        WHERE UNIT_ID = #{unitId}
+          AND comp_id = #{compId}
+
+    </update>
+
+    <select id='getMsdsUnitById' parameterType='kr.co.igns.business.planning.model.MsdsUnitVO' resultType='kr.co.igns.business.planning.model.MsdsUnitVO'>
+        SELECT
+            TMIU.UNIT_ID,
+            TMIU.UNIT_NM,
+            TMIU.UNIT_DESC,
+            TMIU.UNIT_ID as id,
+            TMIU.UNIT_NM as nm,
+            TMIU.ORD_SEQ,
+            TMIU.USE_YN,
+            TMIU.CREATED_AT,
+            TMIU.CREATED_BY,
+            TMIU.UPDATED_AT,
+            TMIU.UPDATED_BY
+        FROM ESG.TB_MSDS_INFO_UNIT TMIU
+        WHERE 1=1
+          AND TMIU.UNIT_ID = #{unitId}
+          AND comp_id = #{compId}
+
+    </select>
+
+    <delete id="deleteMsdsUnit" parameterType="kr.co.igns.business.planning.model.MsdsUnitVO">
+        UPDATE ESG.TB_MSDS_INFO_UNIT
+        SET
+            USE_YN = 'N',
+            UPDATED_AT = now(),
+            UPDATED_BY = #{updatedBy}
+        WHERE UNIT_ID = #{unitId}
+          AND comp_id = #{compId}
+    </delete>
+    
+ 
+
+</mapper>
+
